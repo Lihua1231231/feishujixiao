@@ -329,9 +329,22 @@ function PeerReviewContent() {
                           {review.reviewee.department}
                         </span>
                       </CardTitle>
-                      <Badge variant={review.status === "SUBMITTED" ? "default" : isDeclined ? "destructive" : "secondary"}>
-                        {review.status === "SUBMITTED" ? "已提交" : isDeclined ? "已拒评" : "待完成"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {isDraft && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={(e) => { e.stopPropagation(); setDeclineDialog({ open: true, reviewId: review.id, revieweeName: review.reviewee.name }); }}
+                            disabled={preview}
+                          >
+                            拒绝评估
+                          </Button>
+                        )}
+                        <Badge variant={review.status === "SUBMITTED" ? "default" : isDeclined ? "destructive" : "secondary"}>
+                          {review.status === "SUBMITTED" ? "已提交" : isDeclined ? "已拒评" : "待完成"}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -477,24 +490,13 @@ function PeerReviewContent() {
                         </div>
 
                         {isDraft && (
-                          <div className="flex justify-between">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                              onClick={() => setDeclineDialog({ open: true, reviewId: review.id, revieweeName: review.reviewee.name })}
-                              disabled={preview}
-                            >
-                              拒绝评估
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => saveReview(review, "save")} disabled={preview}>
+                              保存
                             </Button>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => saveReview(review, "save")} disabled={preview}>
-                                保存
-                              </Button>
-                              <Button size="sm" onClick={() => saveReview(review, "submit")} disabled={preview}>
-                                提交
-                              </Button>
-                            </div>
+                            <Button size="sm" onClick={() => saveReview(review, "submit")} disabled={preview}>
+                              提交
+                            </Button>
                           </div>
                         )}
                       </>
