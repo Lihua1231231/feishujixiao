@@ -197,43 +197,27 @@ function PeerReviewContent() {
       <PageHeader title="360环评" description="邀请协作方参与互评，提交对同事的评估" />
 
       {/* 环评说明 */}
-      <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-            <p className="text-sm font-semibold text-blue-900 mb-1.5">环评原则</p>
-            <p className="text-xs text-blue-800/80 leading-relaxed">员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人。评估人可拒绝但需说明原因。</p>
+      <Card>
+        <CardContent className="py-4 text-xs text-muted-foreground divide-y">
+          <div className="pb-3">
+            <p className="text-sm font-semibold text-foreground mb-1">环评原则</p>
+            <p className="leading-relaxed">员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人。评估人可拒绝但需说明原因。360环评采用匿名模式。</p>
           </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
-            <p className="text-sm font-semibold text-amber-900 mb-1.5">环评导向</p>
-            <p className="text-xs text-amber-800/80 leading-relaxed">360环评仅作为绩效考评参考依据，不直接换算为绩效，核心是为管理者提供多视角的员工画像，避免单一视角的评价偏差。</p>
+          <div className="py-3">
+            <p className="text-sm font-semibold text-foreground mb-1">环评导向</p>
+            <p className="leading-relaxed">360环评仅作为绩效考评参考依据，不直接换算为绩效，核心是为管理者提供多视角的员工画像，避免单一视角的评价偏差。</p>
           </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          {[
-            { title: "业绩产出质量", desc: "结合员工周期内实际产出和对合作结果的贡献度综合评定", required: true },
-            { title: "协作配合度", desc: "结合员工周期内协作配合度综合评定", required: true },
-            { title: "价值观践行", desc: "选取ROOT 4条中的至少2条进行评估", required: true },
-            { title: "创新/解决问题/组织贡献", desc: "围绕你所勾选的维度进行综合评定", required: false },
-          ].map((dim) => (
-            <div key={dim.title} className="rounded-lg border border-border/50 p-3">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-xs font-semibold">{dim.title}</p>
-                {dim.required ? (
-                  <span className="text-[10px] text-red-500">必填</span>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground">可选</span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground">{dim.desc}</p>
+          <div className="pt-3">
+            <p className="text-sm font-semibold text-foreground mb-1.5">评估维度</p>
+            <div className="space-y-1 text-[11px]">
+              <p><span className="font-medium text-foreground/70">业绩产出质量</span><span className="text-red-500 ml-1">必填</span> — 结合实际产出和对合作结果的贡献度综合评定</p>
+              <p><span className="font-medium text-foreground/70">协作配合度</span><span className="text-red-500 ml-1">必填</span> — 结合周期内协作配合度综合评定</p>
+              <p><span className="font-medium text-foreground/70">价值观践行</span><span className="text-red-500 ml-1">必填</span> — 选取ROOT 4条中的至少2条进行评估</p>
+              <p><span className="font-medium text-foreground/70">创新能力、解决问题能力、组织贡献</span><span className="text-muted-foreground/60 ml-1">可选</span> — 围绕勾选的维度综合评定</p>
             </div>
-          ))}
-        </div>
-
-        <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 font-medium">
-          360环评采用匿名模式
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="nominate">
         <TabsList>

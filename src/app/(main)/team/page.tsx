@@ -211,61 +211,57 @@ function TeamContent() {
                     </div>
                   )}
 
-                  {/* 初评说明 - 卡片组 */}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                      <p className="text-sm font-semibold text-blue-900 mb-1.5">考核原则</p>
-                      <p className="text-xs text-blue-800/80 leading-relaxed">深度赋智绩效考核采用&ldquo;OKR目标牵引 + 360度综合价值评估 + 全层级绩效校准&rdquo;三位一体体系，明确OKR为目标管理与协同工具，不直接与绩效考核结果挂钩，避免员工博弈目标、不敢挑战；绩效考核聚焦周期内员工的实际价值贡献、协作价值、战略适配度，实现&ldquo;目标有牵引、评价有依据、激励有区分、发展有方向&rdquo;。</p>
-                    </div>
-                    <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
-                      <p className="text-sm font-semibold text-orange-900 mb-1.5">管理者导向</p>
-                      <p className="text-xs text-orange-800/80 leading-relaxed">各级管理者是团队绩效管理第一责任人；负责下属的目标对齐、双月过程辅导、绩效初评、一对一反馈沟通；组织团队内绩效复盘；举证员工绩效贡献，参与校准会；制定下属绩效改进计划，落地人才发展动作。</p>
-                    </div>
-                  </div>
-
+                  {/* 初评说明 */}
                   <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">五星等级定义</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto rounded-md border">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-muted/50">
-                              <th className="px-3 py-2 text-left font-medium">等级</th>
-                              <th className="px-3 py-2 text-left font-medium">定义</th>
-                              <th className="px-3 py-2 text-right font-medium whitespace-nowrap">分布参考</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              { label: "五星", def: "取得杰出的成果，所做的工作在世界范围拥有领先性，拥有极强的推动力，拥有显著的影响力", dist: "≤10%" },
-                              { label: "四星", def: "超出期望的成果，所做的工作在行业内具有竞争力，拥有很强的推动力，拥有一定的影响力", dist: "≤20%" },
-                              { label: "三星", def: "符合预期的成果，始终如一地完成工作职责，可以较好的完成工作落地、闭环，具有较好的学习能力，具有不错的推动力", dist: "50%+" },
-                              { label: "二星", def: "成果不达预期，需要提高。基本满足考核要求，但与他人相比不能充分执行所有的工作职责，或虽执行了职责但平均水平较低或成果较差", dist: "≤15%" },
-                              { label: "一星", def: "成果远低于预期，未达合格标准。不能证明其具备所需的知识和技能或不能利用所需的知识和技能；不能执行其工作职责", dist: "≤5%" },
-                            ].map((row) => (
-                              <tr key={row.label} className="border-b last:border-b-0">
-                                <td className="px-3 py-2 whitespace-nowrap font-medium">{row.label}</td>
-                                <td className="px-3 py-2 text-muted-foreground">{row.def}</td>
-                                <td className="px-3 py-2 text-right"><Badge variant="secondary">{row.dist}</Badge></td>
+                    <CardContent className="py-4 text-xs text-muted-foreground divide-y">
+                      <div className="pb-3">
+                        <p className="text-sm font-semibold text-foreground mb-1">考核原则</p>
+                        <p className="leading-relaxed">深度赋智绩效考核采用&ldquo;OKR目标牵引 + 360度综合价值评估 + 全层级绩效校准&rdquo;三位一体体系，明确OKR为目标管理与协同工具，不直接与绩效考核结果挂钩，避免员工博弈目标、不敢挑战；绩效考核聚焦周期内员工的实际价值贡献、协作价值、战略适配度，实现&ldquo;目标有牵引、评价有依据、激励有区分、发展有方向&rdquo;。</p>
+                      </div>
+                      <div className="py-3">
+                        <p className="text-sm font-semibold text-foreground mb-1">管理者导向</p>
+                        <p className="leading-relaxed">各级管理者是团队绩效管理第一责任人；负责下属的目标对齐、双月过程辅导、绩效初评、一对一反馈沟通；组织团队内绩效复盘；举证员工绩效贡献，参与校准会；制定下属绩效改进计划，落地人才发展动作。</p>
+                      </div>
+                      <div className="py-3">
+                        <p className="text-sm font-semibold text-foreground mb-2">五星等级定义</p>
+                        <div className="overflow-x-auto rounded-md border">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="px-2.5 py-1.5 text-left font-medium">等级</th>
+                                <th className="px-2.5 py-1.5 text-left font-medium">定义</th>
+                                <th className="px-2.5 py-1.5 text-right font-medium">分布</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {[
+                                { label: "五星", def: "取得杰出的成果，所做的工作在世界范围拥有领先性，拥有极强的推动力，拥有显著的影响力", dist: "≤10%" },
+                                { label: "四星", def: "超出期望的成果，所做的工作在行业内具有竞争力，拥有很强的推动力，拥有一定的影响力", dist: "≤20%" },
+                                { label: "三星", def: "符合预期的成果，始终如一地完成工作职责，可以较好的完成工作落地、闭环，具有较好的学习能力，具有不错的推动力", dist: "50%+" },
+                                { label: "二星", def: "成果不达预期，需要提高。基本满足考核要求，但与他人相比不能充分执行所有的工作职责，或虽执行了职责但平均水平较低或成果较差", dist: "≤15%" },
+                                { label: "一星", def: "成果远低于预期，未达合格标准。不能证明其具备所需的知识和技能或不能利用所需的知识和技能；不能执行其工作职责", dist: "≤5%" },
+                              ].map((row) => (
+                                <tr key={row.label} className="border-b last:border-b-0">
+                                  <td className="px-2.5 py-1.5 whitespace-nowrap font-medium">{row.label}</td>
+                                  <td className="px-2.5 py-1.5">{row.def}</td>
+                                  <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{row.dist}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="pt-3">
+                        <p className="text-sm font-semibold text-foreground mb-1">初评指引</p>
+                        <ul className="space-y-0.5 leading-relaxed">
+                          <li>• 直属上级结合员工工作总结、360度评估反馈、周期内实际产出、团队内相对贡献度、组织转型战略适配度，给出初步绩效等级与详细评价意见</li>
+                          <li>• 初评需严格遵循绩效等级定义与分布指导规则，不得突破比例限制</li>
+                          <li>• 对高绩效、低绩效评级必须提供完整的贡献举证与事实依据</li>
+                          <li>• 初评结果仅为待校准状态，不得提前向员工透露</li>
+                        </ul>
                       </div>
                     </CardContent>
                   </Card>
-
-                  <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
-                    <p className="text-sm font-semibold text-violet-900 mb-1.5">初评指引</p>
-                    <ul className="text-xs text-violet-800/80 space-y-1 leading-relaxed">
-                      <li>• 直属上级结合员工工作总结、360度评估反馈、周期内实际产出、团队内相对贡献度、组织转型战略适配度，为员工给出初步绩效等级与详细评价意见</li>
-                      <li>• 初评需严格遵循绩效等级定义与分布指导规则，不得突破比例限制</li>
-                      <li>• 对高绩效、低绩效评级必须提供完整的贡献举证与事实依据</li>
-                      <li>• 初评结果仅为待校准状态，不得提前向员工透露</li>
-                    </ul>
-                  </div>
 
                   {/* Three-dimension evaluation form */}
                   <Card>
@@ -302,35 +298,18 @@ function TeamContent() {
                         <p className="text-xs text-muted-foreground">
                           请结合员工综合能力 + 学习能力 + 适应能力，综合评定，需提供数据/案例作证和描述
                         </p>
-                        <div className="text-xs text-muted-foreground mt-2 space-y-2">
-                          <div className="rounded-lg border border-border/40 p-3">
-                            <p className="font-semibold text-foreground/70 mb-1">综合能力</p>
-                            <p className="text-[11px] text-muted-foreground/60 mb-1.5">人才价值交付的基本盘，与岗位职级强绑定</p>
-                            <div className="space-y-0.5 text-[11px]">
-                              <p><span className="font-medium">复杂问题解决</span> — 穿透表象抓本质，最小成本解决核心矛盾，全链路闭环</p>
-                              <p><span className="font-medium">专业纵深</span> — 匹配职级的专业硬实力，在专业领域形成不可替代的价值</p>
-                              <p><span className="font-medium">跨边界协同</span> — 跨团队/职能/区域创造增量价值，非单纯配合执行</p>
-                              <p><span className="font-medium">团队赋能</span> — 带动周边同事共同成长，能做到利他</p>
-                              <p><span className="font-medium">vibe coding（必含）</span> — AI-first工作方式落地，提高交付效能</p>
-                              <p><span className="font-medium">领导力（限Leader）</span> — 遵循 RFC-368 研发团队基础管理办法</p>
-                            </div>
+                        <div className="text-xs text-muted-foreground mt-1 divide-y">
+                          <div className="py-2">
+                            <p className="font-medium text-foreground/70">综合能力 <span className="font-normal text-muted-foreground/60">— 人才价值交付的基本盘，与岗位职级强绑定</span></p>
+                            <p className="mt-0.5 text-[11px] leading-relaxed">复杂问题解决与业务闭环 · 专业纵深与角色履职 · 跨边界协同与组织价值创造 · 团队赋能与价值带动 · vibe coding（必含） · 领导力-基础管理执行（限Leader）</p>
                           </div>
-                          <div className="rounded-lg border border-border/40 p-3">
-                            <p className="font-semibold text-foreground/70 mb-1">学习能力</p>
-                            <p className="text-[11px] text-muted-foreground/60 mb-1.5">快速获取、转化新知识，实现从「知道」到「做到」闭环</p>
-                            <div className="space-y-0.5 text-[11px]">
-                              <p><span className="font-medium">问题分析与判断力</span> — 抓主要矛盾，信息不完整时做出相对正确判断</p>
-                              <p><span className="font-medium">推动执行力</span> — 目标拆解为路径、节奏、责任人和关键节点，持续推进</p>
-                              <p><span className="font-medium">主动性与批判性思考</span> — 基于业务实际提出独立判断，不盲目跟风</p>
-                            </div>
+                          <div className="py-2">
+                            <p className="font-medium text-foreground/70">学习能力 <span className="font-normal text-muted-foreground/60">— 从「知道」到「做到」闭环的核心能力</span></p>
+                            <p className="mt-0.5 text-[11px] leading-relaxed">问题分析与判断力 · 推动执行力 · 主动性与批判性思考</p>
                           </div>
-                          <div className="rounded-lg border border-border/40 p-3">
-                            <p className="font-semibold text-foreground/70 mb-1">适应能力</p>
-                            <p className="text-[11px] text-muted-foreground/60 mb-1.5">面对变化快速调整认知、方法和资源配置，持续有效产出</p>
-                            <div className="space-y-0.5 text-[11px]">
-                              <p><span className="font-medium">AI-first 适配度</span> — AI-native交付的组织转型战略适配度</p>
-                              <p><span className="font-medium">综合素质</span> — 可参考主动性、自我成长、心理韧性、潜力项展开综述</p>
-                            </div>
+                          <div className="py-2">
+                            <p className="font-medium text-foreground/70">适应能力 <span className="font-normal text-muted-foreground/60">— 面对变化快速调整，持续有效产出</span></p>
+                            <p className="mt-0.5 text-[11px] leading-relaxed">AI-first工作方式落地与AI-native交付适配度 · 主动性、自我成长、心理韧性、潜力项</p>
                           </div>
                         </div>
                         <StarRating
