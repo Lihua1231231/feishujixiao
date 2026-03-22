@@ -44,7 +44,7 @@ export function StarRating({
   return (
     <div className="space-y-1.5">
       <div
-        className={cn("flex", GAP_MAP[size])}
+        className={cn("inline-flex items-center rounded-lg bg-muted/60 px-2 py-1.5", GAP_MAP[size])}
         onMouseLeave={() => setHovered(null)}
       >
         {[1, 2, 3, 4, 5].map((n) => {
@@ -70,12 +70,15 @@ export function StarRating({
                   "transition-all duration-[var(--transition-fast)]",
                   filled
                     ? "fill-amber-400 text-amber-400 drop-shadow-[0_1px_2px_rgba(245,158,11,0.3)]"
-                    : "fill-transparent text-border/60 hover:text-amber-300"
+                    : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
                 )}
               />
             </button>
           );
         })}
+        {value == null && (
+          <span className="ml-1 text-xs text-muted-foreground">请评分</span>
+        )}
       </div>
       {activeValue != null && (
         <p className="text-xs text-muted-foreground">
