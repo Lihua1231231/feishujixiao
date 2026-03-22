@@ -129,7 +129,6 @@ function MeetingsContent() {
                         value={editDates[m.id] || ""}
                         onChange={(e) => setEditDates((prev) => ({ ...prev, [m.id]: e.target.value }))}
                         className="h-9 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm shadow-xs transition-all duration-[var(--transition-base)] hover:border-border focus:border-ring focus:shadow-sm focus:outline-none focus:ring-3 focus:ring-ring/20"
-                        disabled={preview}
                       />
                     </div>
 
@@ -140,7 +139,6 @@ function MeetingsContent() {
                         onChange={(e) => setEditNotes((prev) => ({ ...prev, [m.id]: e.target.value }))}
                         placeholder="记录面谈要点、员工反馈、改进计划等..."
                         rows={6}
-                        disabled={preview}
                       />
                     </div>
 

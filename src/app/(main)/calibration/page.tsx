@@ -200,9 +200,7 @@ function CalibrationContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={preview}
                       onClick={() => {
-                        if (preview) return;
                         setEditingUser(item.user.id);
                         setEditStars(item.finalStars ?? item.proposedStars ?? null);
                         setEditReason("");
@@ -219,7 +217,7 @@ function CalibrationContent() {
       </Card>
 
       {/* Edit Dialog */}
-      {editingUser && !preview && (
+      {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <Card className="w-[420px] shadow-xl">
             <CardHeader>

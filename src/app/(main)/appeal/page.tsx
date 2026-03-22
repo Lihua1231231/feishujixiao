@@ -272,7 +272,6 @@ function AppealContent() {
                         size="sm"
                         variant="outline"
                         onClick={() => setHandlingId(appeal.id)}
-                        disabled={preview}
                       >
                         处理
                       </Button>
@@ -368,7 +367,7 @@ function AppealContent() {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="请详细说明您的申诉理由..."
-                disabled={preview || !isInAppealWindow}
+                disabled={!isInAppealWindow}
                 className="mt-1"
                 rows={5}
               />

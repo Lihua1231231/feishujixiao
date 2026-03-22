@@ -177,7 +177,7 @@ function SelfEvalContent() {
               <CardTitle className="text-base">员工个人职责</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
                   自主制定个人 OKR，完成与上级、协作方的目标对齐

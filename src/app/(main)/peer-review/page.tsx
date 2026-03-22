@@ -196,34 +196,44 @@ function PeerReviewContent() {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title="360环评" description="邀请协作方参与互评，提交对同事的评估" />
 
-      {/* 环评原则/导向说明区 */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">环评说明与原则</CardTitle>
-        </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-600">
-            <div>
-              <p className="font-medium text-gray-800">环评原则</p>
-              <p>员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人，确保评估维度全面。评估人可拒绝评估邀请，但说明拒绝原因，确保评估的真实性与有效性。360环评采用匿名模式。</p>
+      {/* 环评说明 */}
+      <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+            <p className="text-sm font-semibold text-blue-900 mb-1.5">环评原则</p>
+            <p className="text-xs text-blue-800/80 leading-relaxed">员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人。评估人可拒绝但需说明原因。</p>
+          </div>
+          <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+            <p className="text-sm font-semibold text-amber-900 mb-1.5">环评导向</p>
+            <p className="text-xs text-amber-800/80 leading-relaxed">360环评仅作为绩效考评参考依据，不直接换算为绩效，核心是为管理者提供多视角的员工画像，避免单一视角的评价偏差。</p>
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {[
+            { title: "业绩产出质量", desc: "结合员工周期内实际产出和对合作结果的贡献度综合评定", required: true },
+            { title: "协作配合度", desc: "结合员工周期内协作配合度综合评定", required: true },
+            { title: "价值观践行", desc: "选取ROOT 4条中的至少2条进行评估", required: true },
+            { title: "创新/解决问题/组织贡献", desc: "围绕你所勾选的维度进行综合评定", required: false },
+          ].map((dim) => (
+            <div key={dim.title} className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <p className="text-xs font-semibold">{dim.title}</p>
+                {dim.required ? (
+                  <span className="text-[10px] text-red-500">必填</span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">可选</span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">{dim.desc}</p>
             </div>
-            <div>
-              <p className="font-medium text-gray-800">环评导向</p>
-              <p>360环评仅作为绩效考评参考依据，不直接换算为绩效，核心是为管理者提供多视角的员工画像，避免单一视角的评价偏差。</p>
-            </div>
-            <div>
-              <p className="font-medium text-gray-800">环评维度</p>
-              <ul className="ml-4 list-disc space-y-1">
-                <li>业绩产出质量 -- 请结合员工周期内实际产出和对合作结果的贡献度综合评定，需提供数据/案例作证和描述</li>
-                <li>协作配合度 -- 请结合员工周期内协作配合度综合评定，需提供数据/案例作证和描述</li>
-                <li>价值观践行 -- 选取价值观更新：从「始终创业」到「ROOT」的组织导向升级4条中的至少2条，进行评估，需提供数据/案例作证和描述</li>
-                <li>创新能力、解决问题能力、组织贡献（可选） -- 请围绕你所勾选的维度，进行综合评定，需提供数据/案例作证和描述</li>
-              </ul>
-            </div>
-            <div className="rounded-md bg-blue-50 px-3 py-2 text-blue-700">
-              360环评采用匿名模式
-            </div>
-          </CardContent>
-      </Card>
+          ))}
+        </div>
+
+        <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700 font-medium">
+          360环评采用匿名模式
+        </div>
+      </div>
 
       <Tabs defaultValue="nominate">
         <TabsList>
@@ -248,7 +258,7 @@ function PeerReviewContent() {
                     <Badge key={uid} variant="secondary" className="gap-1 py-1">
                       {user.name}
                       <button
-                        onClick={() => !preview && setSelectedUsers((prev) => prev.filter((id) => id !== uid))}
+                        onClick={() => setSelectedUsers((prev) => prev.filter((id) => id !== uid))}
                         className="ml-1 text-gray-400 hover:text-gray-600"
                         disabled={preview}
                       >
@@ -259,17 +269,15 @@ function PeerReviewContent() {
                 })}
               </div>
 
-              {!preview && (
-                <input
+              <input
                   type="text"
                   placeholder="搜索同事姓名或部门..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-9 w-full rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm shadow-xs transition-all duration-[var(--transition-base)] hover:border-border focus:border-ring focus:shadow-sm focus:outline-none focus:ring-3 focus:ring-ring/20"
                 />
-              )}
 
-              {searchQuery && !preview && (
+              {searchQuery && (
                 <div className="max-h-48 overflow-y-auto rounded-lg border border-border/60 shadow-md">
                   {filteredUsers.slice(0, 10).map((u) => (
                     <button
@@ -323,7 +331,7 @@ function PeerReviewContent() {
             reviews.map((review) => {
               const isDraft = review.status === "DRAFT";
               const isDeclined = review.status === "DECLINED";
-              const isDisabled = !isDraft || preview;
+              const isDisabled = !isDraft;
 
               return (
                 <Card key={review.id}>
