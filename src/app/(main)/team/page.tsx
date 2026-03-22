@@ -77,21 +77,34 @@ function TeamContent() {
       return;
     }
 
-    fetch("/api/supervisor-eval").then((r) => r.json()).then((data) => {
-      setEvals(data);
-      const initial: Record<string, FormData> = {};
-      for (const e of data) {
-        initial[e.employee.id] = {
-          performanceStars: e.evaluation?.performanceStars || null,
-          performanceComment: e.evaluation?.performanceComment || "",
-          abilityStars: e.evaluation?.abilityStars || null,
-          abilityComment: e.evaluation?.abilityComment || "",
-          valuesStars: e.evaluation?.valuesStars || null,
-          valuesComment: e.evaluation?.valuesComment || "",
-        };
-      }
-      setFormData(initial);
-    });
+    const loadData = () => {
+      fetch("/api/supervisor-eval").then((r) => r.json()).then((data) => {
+        setEvals((prev) => {
+          // First load: initialize form data
+          if (prev.length === 0) {
+            const initial: Record<string, FormData> = {};
+            for (const e of data) {
+              initial[e.employee.id] = {
+                performanceStars: e.evaluation?.performanceStars || null,
+                performanceComment: e.evaluation?.performanceComment || "",
+                abilityStars: e.evaluation?.abilityStars || null,
+                abilityComment: e.evaluation?.abilityComment || "",
+                valuesStars: e.evaluation?.valuesStars || null,
+                valuesComment: e.evaluation?.valuesComment || "",
+              };
+            }
+            setFormData(initial);
+          }
+          return data;
+        });
+      });
+    };
+
+    loadData();
+
+    // Auto-refresh every 30s to get latest 360 peer review data
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [preview, previewRole, getData]);
 
   const saveEval = async (employeeId: string, action: "save" | "submit") => {
