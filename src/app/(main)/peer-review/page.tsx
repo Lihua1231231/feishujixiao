@@ -63,17 +63,11 @@ function ScoreSelector({ value, onChange, disabled }: { value: number | null; on
 }
 
 function NominationStatusBadges({ nomination }: { nomination: Nomination }) {
-  const supervisorLabel = nomination.supervisorStatus === "APPROVED" ? "上级已确认" : nomination.supervisorStatus === "REJECTED" ? "上级已拒绝" : "上级待确认";
-  const supervisorVariant = nomination.supervisorStatus === "APPROVED" ? "default" as const : nomination.supervisorStatus === "REJECTED" ? "destructive" as const : "secondary" as const;
-
   const nomineeLabel = nomination.nomineeStatus === "ACCEPTED" ? "已接受" : nomination.nomineeStatus === "DECLINED" ? "已拒绝" : "待接受";
   const nomineeVariant = nomination.nomineeStatus === "ACCEPTED" ? "default" as const : nomination.nomineeStatus === "DECLINED" ? "destructive" as const : "secondary" as const;
 
   return (
-    <div className="flex gap-1.5">
-      <Badge variant={supervisorVariant}>{supervisorLabel}</Badge>
-      <Badge variant={nomineeVariant}>{nomineeLabel}</Badge>
-    </div>
+    <Badge variant={nomineeVariant}>{nomineeLabel}</Badge>
   );
 }
 
@@ -84,7 +78,6 @@ function PeerReviewContent() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [guideOpen, setGuideOpen] = useState(true);
   const [declineDialog, setDeclineDialog] = useState<{ open: boolean; reviewId: string; revieweeName: string }>({ open: false, reviewId: "", revieweeName: "" });
   const [declineReason, setDeclineReason] = useState("");
   const [declining, setDeclining] = useState(false);
@@ -205,13 +198,9 @@ function PeerReviewContent() {
 
       {/* 环评原则/导向说明区 */}
       <Card>
-        <CardHeader className="cursor-pointer pb-2" onClick={() => setGuideOpen(!guideOpen)}>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">环评说明与原则</CardTitle>
-            <span className="text-sm text-gray-400">{guideOpen ? "收起" : "展开"}</span>
-          </div>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">环评说明与原则</CardTitle>
         </CardHeader>
-        {guideOpen && (
           <CardContent className="space-y-3 text-sm text-gray-600">
             <div>
               <p className="font-medium text-gray-800">环评原则</p>
@@ -234,7 +223,6 @@ function PeerReviewContent() {
               360环评采用匿名模式
             </div>
           </CardContent>
-        )}
       </Card>
 
       <Tabs defaultValue="nominate">
@@ -248,7 +236,7 @@ function PeerReviewContent() {
             <CardHeader>
               <CardTitle>选择360评估人</CardTitle>
               <CardDescription>
-                邀请人数不少于3人、不高于5人，重要/核心岗可邀请多于5人。需覆盖上级、平级、跨团队协作方。提交后由上级确认。
+                邀请人数不少于3人、不高于5人，重要/核心岗可邀请多于5人。需覆盖上级、平级、跨团队协作方。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StarRating } from "@/components/star-rating";
 import { PageHeader } from "@/components/page-header";
 import { UserCheck } from "lucide-react";
@@ -38,13 +37,6 @@ type TeamEval = {
   } | null;
 };
 
-type Nomination = {
-  id: string;
-  nominator: { id: string; name: string; department: string };
-  nominee: { id: string; name: string; department: string };
-  supervisorStatus: string;
-};
-
 type FormData = {
   performanceStars: number | null;
   performanceComment: string;
@@ -62,7 +54,6 @@ function computeWeightedScore(fd: FormData): number | null {
 function TeamContent() {
   const { preview, previewRole, getData } = usePreview();
   const [evals, setEvals] = useState<TeamEval[]>([]);
-  const [nominations, setNominations] = useState<Nomination[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, FormData>>({});
 
@@ -70,9 +61,7 @@ function TeamContent() {
     if (preview && previewRole) {
       const previewData = getData("team") as Record<string, unknown>;
       const previewEvals = (previewData.evals as TeamEval[]) || [];
-      const previewNominations = (previewData.nominations as Nomination[]) || [];
       setEvals(previewEvals);
-      setNominations(previewNominations);
       const initial: Record<string, FormData> = {};
       for (const e of previewEvals) {
         initial[e.employee.id] = {
@@ -103,7 +92,6 @@ function TeamContent() {
       }
       setFormData(initial);
     });
-    fetch("/api/peer-review/confirm").then((r) => r.json()).then(setNominations);
   }, [preview, previewRole, getData]);
 
   const saveEval = async (employeeId: string, action: "save" | "submit") => {
@@ -129,22 +117,6 @@ function TeamContent() {
     }
   };
 
-  const confirmNominations = async (ids: string[]) => {
-    if (preview) return;
-    try {
-      await fetch("/api/peer-review/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nominationIds: ids }),
-      });
-      toast.success("已确认");
-      const data = await fetch("/api/peer-review/confirm").then((r) => r.json());
-      setNominations(data);
-    } catch {
-      toast.error("操作失败");
-    }
-  };
-
   const selectedEval = evals.find((e) => e.employee.id === selected);
   const isSubmitted = selectedEval?.evaluation?.status === "SUBMITTED";
   const currentForm = selected ? formData[selected] : null;
@@ -162,13 +134,7 @@ function TeamContent() {
     <div className="space-y-6">
       <PageHeader title="团队评估" description={`你有 ${evals.filter(e => e.evaluation?.status !== "SUBMITTED").length} 位下级待初评`} />
 
-      <Tabs defaultValue="evaluate">
-        <TabsList>
-          <TabsTrigger value="evaluate">上级评估</TabsTrigger>
-          <TabsTrigger value="confirm">确认环评人 ({nominations.filter(n => n.supervisorStatus === "PENDING").length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="evaluate">
+      <div>
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Employee list */}
             <div className="space-y-2 lg:col-span-1">
@@ -257,9 +223,7 @@ function TeamContent() {
                       <CardTitle className="text-base">初评说明</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <details className="text-sm text-muted-foreground">
-                        <summary className="cursor-pointer font-medium text-foreground">查看考核原则、导向、等级定义与初评指引</summary>
-                        <div className="mt-3 space-y-3">
+                      <div className="text-sm text-muted-foreground space-y-3">
                           <div>
                             <p className="font-semibold text-foreground/80">考核原则</p>
                             <p>深度赋智绩效考核采用&ldquo;OKR目标牵引 + 360度综合价值评估 + 全层级绩效校准&rdquo;三位一体体系，明确OKR为目标管理与协同工具，不直接与绩效考核结果挂钩，避免员工博弈目标、不敢挑战；绩效考核聚焦周期内员工的实际价值贡献、协作价值、战略适配度，实现&ldquo;目标有牵引、评价有依据、激励有区分、发展有方向&rdquo;。</p>
@@ -306,8 +270,7 @@ function TeamContent() {
                               <li>• 初评结果仅为待校准状态，不得提前向员工透露</li>
                             </ul>
                           </div>
-                        </div>
-                      </details>
+                      </div>
                     </CardContent>
                   </Card>
 
@@ -346,9 +309,7 @@ function TeamContent() {
                         <p className="text-xs text-muted-foreground">
                           请结合员工综合能力 + 学习能力 + 适应能力，综合评定，需提供数据/案例作证和描述
                         </p>
-                        <details className="text-xs text-muted-foreground">
-                          <summary className="cursor-pointer font-medium">查看子项说明</summary>
-                          <div className="mt-2 space-y-3 pl-2">
+                        <div className="text-xs text-muted-foreground mt-2 space-y-3 pl-2">
                             <div>
                               <p className="font-medium">综合能力：</p>
                               <p className="text-xs text-muted-foreground/80 mb-1">综合能力是人才价值交付的基本盘，是绩效持续达标的底层支撑，与岗位职级强绑定，不同职级对应明确的能力标尺，也是组织能力建设的最小单元。</p>
@@ -378,8 +339,7 @@ function TeamContent() {
                                 <li>可参考主动性、自我成长、心理韧性、潜力项展开综述</li>
                               </ul>
                             </div>
-                          </div>
-                        </details>
+                        </div>
                         <StarRating
                           value={formData[selected!]?.abilityStars}
                           onChange={(v) => updateField("abilityStars", v)}
@@ -439,60 +399,7 @@ function TeamContent() {
               )}
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="confirm" className="space-y-4">
-          {nominations.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-gray-500">
-                暂无待确认的环评提名
-              </CardContent>
-            </Card>
-          ) : (
-            Object.entries(
-              nominations.reduce<Record<string, Nomination[]>>((acc, n) => {
-                const key = n.nominator.id;
-                if (!acc[key]) acc[key] = [];
-                acc[key].push(n);
-                return acc;
-              }, {})
-            ).map(([, noms]) => (
-              <Card key={noms[0].nominator.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{noms[0].nominator.name} 的环评提名</CardTitle>
-                    {noms.some((n) => n.supervisorStatus === "PENDING") && (
-                      <Button
-                        size="sm"
-                        onClick={() => confirmNominations(noms.filter((n) => n.supervisorStatus === "PENDING").map((n) => n.id))}
-                        disabled={preview}
-                      >
-                        全部确认
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {noms.map((n) => (
-                      <div key={n.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                        <span>{n.nominee.name} ({n.nominee.department})</span>
-                        {n.supervisorStatus === "APPROVED" ? (
-                          <Badge variant="default">已确认</Badge>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => confirmNominations([n.id])} disabled={preview}>
-                            确认
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

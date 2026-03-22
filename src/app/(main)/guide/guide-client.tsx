@@ -369,7 +369,7 @@ export function GuidePage({ cycle }: Props) {
               items={[
                 "选择3-5位熟悉你工作的同事",
                 "需覆盖上级、平级、跨团队协作方",
-                "提交后由上级确认",
+                "提交后即刻生效，被提名同事可开始评估",
               ]}
               href="/peer-review"
               linkText="前往提名"

@@ -69,20 +69,39 @@ export async function POST(req: NextRequest) {
       where: { cycleId: cycle.id, nominatorId: user.id },
     });
 
-    // Create new nominations with dual status
+    // Create new nominations (auto-approved, no supervisor confirmation needed)
     const nominations = await Promise.all(
-      nomineeIds.map((nomineeId) =>
-        prisma.reviewerNomination.create({
+      nomineeIds.map(async (nomineeId) => {
+        const nom = await prisma.reviewerNomination.create({
           data: {
             cycleId: cycle.id,
             nominatorId: user.id,
             nomineeId,
-            supervisorStatus: "PENDING",
+            supervisorStatus: "APPROVED",
             nomineeStatus: "PENDING",
           },
           include: { nominee: { select: { id: true, name: true, department: true } } },
-        })
-      )
+        });
+
+        // Directly create PeerReview record for the nominee to fill
+        await prisma.peerReview.upsert({
+          where: {
+            cycleId_reviewerId_revieweeId: {
+              cycleId: cycle.id,
+              reviewerId: nomineeId,
+              revieweeId: user.id,
+            },
+          },
+          update: {},
+          create: {
+            cycleId: cycle.id,
+            reviewerId: nomineeId,
+            revieweeId: user.id,
+          },
+        });
+
+        return nom;
+      })
     );
 
     return NextResponse.json(
