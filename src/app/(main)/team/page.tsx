@@ -134,42 +134,36 @@ function TeamContent() {
     <div className="space-y-6">
       <PageHeader title="团队评估" description={`你有 ${evals.filter(e => e.evaluation?.status !== "SUBMITTED").length} 位下级待初评`} />
 
-      <div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Employee list */}
-            <div className="space-y-2 lg:col-span-1">
-              {evals.map((e) => (
-                <button
-                  key={e.employee.id}
-                  onClick={() => setSelected(e.employee.id)}
-                  className={`group flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-[var(--transition-base)] ${
-                    selected === e.employee.id
-                      ? "border-primary/30 bg-primary/[0.04] shadow-sm"
-                      : "border-border/50 hover:border-border hover:bg-muted/40 hover:shadow-xs"
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-medium">{e.employee.name}</p>
-                    <p className="text-xs text-muted-foreground">{e.employee.department} {e.employee.jobTitle || ""}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {e.evaluation?.weightedScore != null && (
-                      <Badge variant="outline" className="text-xs">{e.evaluation.weightedScore.toFixed(1)}分</Badge>
-                    )}
-                    {e.evaluation?.status === "SUBMITTED" ? (
-                      <Badge variant="success">已评估</Badge>
-                    ) : (
-                      <Badge variant="secondary">待评估</Badge>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+      <div className="space-y-6">
+          {/* Employee selector - horizontal */}
+          <div className="flex flex-wrap gap-2">
+            {evals.map((e) => (
+              <button
+                key={e.employee.id}
+                onClick={() => setSelected(e.employee.id)}
+                className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-left transition-all duration-[var(--transition-base)] ${
+                  selected === e.employee.id
+                    ? "border-primary bg-primary/[0.06] shadow-sm"
+                    : "border-border/50 hover:border-border hover:bg-muted/40"
+                }`}
+              >
+                <span className="text-sm font-medium">{e.employee.name}</span>
+                {e.evaluation?.weightedScore != null && (
+                  <Badge variant="outline" className="text-xs">{e.evaluation.weightedScore.toFixed(1)}分</Badge>
+                )}
+                {e.evaluation?.status === "SUBMITTED" ? (
+                  <Badge variant="success">已评估</Badge>
+                ) : (
+                  <Badge variant="secondary">待评估</Badge>
+                )}
+              </button>
+            ))}
+          </div>
 
-            {/* Evaluation detail */}
-            <div className="lg:col-span-2">
-              {selectedEval ? (
-                <div className="space-y-4">
+          {/* Evaluation detail - full width below */}
+          <div>
+            {selectedEval ? (
+              <div className="space-y-4">
                   {/* Self evaluation */}
                   {selectedEval.selfEval && (
                     <Card>
@@ -393,11 +387,10 @@ function TeamContent() {
                     <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                       <UserCheck className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <p className="text-sm text-muted-foreground">选择左侧的员工开始评估</p>
+                    <p className="text-sm text-muted-foreground">选择上方的员工开始评估</p>
                   </CardContent>
                 </Card>
               )}
-            </div>
           </div>
       </div>
     </div>

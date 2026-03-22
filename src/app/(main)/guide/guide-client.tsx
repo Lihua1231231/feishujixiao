@@ -67,42 +67,42 @@ function buildSteps(cycle: CycleData | null): StepDef[] {
     {
       key: "SELF_EVAL",
       title: "个人自评",
-      date: cycle ? formatDateRange(cycle.selfEvalStart, cycle.selfEvalEnd) : "",
+      date: formatDateRange(cycle?.selfEvalStart ?? null, cycle?.selfEvalEnd ?? null) || "3/17-3/24",
       desc: "通过飞书表单提交工作总结",
       icon: ClipboardList,
     },
     {
       key: "PEER_REVIEW",
       title: "360环评",
-      date: cycle ? formatDateRange(cycle.peerReviewStart, cycle.peerReviewEnd) : "",
+      date: formatDateRange(cycle?.peerReviewStart ?? null, cycle?.peerReviewEnd ?? null) || "3/24-3/27",
       desc: "提名评估人 & 互评同事",
       icon: Users,
     },
     {
       key: "SUPERVISOR_EVAL",
       title: "上级初评",
-      date: cycle ? formatDateRange(cycle.supervisorStart, cycle.supervisorEnd) : "",
+      date: formatDateRange(cycle?.supervisorStart ?? null, cycle?.supervisorEnd ?? null) || "3/24-3/27",
       desc: "三维度星级评估",
       icon: Star,
     },
     {
       key: "CALIBRATION",
       title: "绩效校准",
-      date: cycle ? formatDateRange(cycle.calibrationStart, cycle.calibrationEnd) : "校准会后",
+      date: formatDateRange(cycle?.calibrationStart ?? null, cycle?.calibrationEnd ?? null) || "3/27-3/30",
       desc: "公司级统一校准",
       icon: BarChart3,
     },
     {
       key: "MEETING",
       title: "绩效面谈",
-      date: cycle ? formatDateRange(cycle.meetingStart, cycle.meetingEnd) : "面谈期",
+      date: formatDateRange(cycle?.meetingStart ?? null, cycle?.meetingEnd ?? null) || "3/30-4/1",
       desc: "一对一绩效反馈",
       icon: MessageSquare,
     },
     {
       key: "APPEAL",
       title: "申诉窗口",
-      date: cycle ? formatDateRange(cycle.appealStart, cycle.appealEnd) : "面谈后",
+      date: formatDateRange(cycle?.appealStart ?? null, cycle?.appealEnd ?? null) || "4/1-4/4",
       desc: "对结果有异议可申诉",
       icon: Megaphone,
     },
@@ -319,8 +319,8 @@ export function GuidePage({ cycle }: Props) {
                       </Badge>
                     )}
                     <p
-                      className={`mt-1 text-xs ${
-                        isCurrent ? "text-blue-500" : isPast ? "text-blue-500" : "text-blue-400"
+                      className={`mt-1 text-xs font-semibold ${
+                        isCurrent ? "text-blue-600" : isPast ? "text-blue-600" : "text-blue-400"
                       }`}
                     >
                       {step.date}

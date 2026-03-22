@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
-import { MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { usePreview } from "@/hooks/use-preview";
 
@@ -23,9 +22,9 @@ type MeetingData = {
 function MeetingsContent() {
   const { preview, previewRole, getData } = usePreview();
   const [meetings, setMeetings] = useState<MeetingData[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [notes, setNotes] = useState("");
-  const [meetingDate, setMeetingDate] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editNotes, setEditNotes] = useState<Record<string, string>>({});
+  const [editDates, setEditDates] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (preview && previewRole) {
@@ -39,13 +38,27 @@ function MeetingsContent() {
     });
   }, [preview, previewRole, getData]);
 
-  const saveMeeting = async (employeeId: string) => {
+  const toggleExpand = (id: string, meeting: MeetingData) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+      setEditNotes((prev) => ({ ...prev, [id]: meeting.notes || "" }));
+      setEditDates((prev) => ({ ...prev, [id]: meeting.meetingDate?.slice(0, 10) || "" }));
+    }
+  };
+
+  const saveMeeting = async (employeeId: string, meetingId: string) => {
     if (preview) return;
     try {
       await fetch("/api/meeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId, notes, meetingDate: meetingDate || null }),
+        body: JSON.stringify({
+          employeeId,
+          notes: editNotes[meetingId] || "",
+          meetingDate: editDates[meetingId] || null,
+        }),
       });
       toast.success("面谈记录已保存");
       const data = await fetch("/api/meeting").then((r) => r.json());
@@ -82,94 +95,76 @@ function MeetingsContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-2 lg:col-span-1">
-            {meetings.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => {
-                  setSelected(m.id);
-                  setNotes(m.notes || "");
-                  setMeetingDate(m.meetingDate?.slice(0, 10) || "");
-                }}
-                className={`flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-[var(--transition-base)] ${
-                  selected === m.id
-                    ? "border-primary/30 bg-primary/[0.04] shadow-sm"
-                    : "border-border/50 hover:border-border hover:bg-muted/40 hover:shadow-xs"
-                }`}
-              >
-                <div>
-                  <p className="text-sm font-medium">{m.employee.name}</p>
-                  <p className="text-xs text-muted-foreground">{m.employee.department}</p>
-                </div>
-                <Badge variant={m.employeeAck ? "success" : "secondary"}>
-                  {m.employeeAck ? "已确认" : m.notes ? "已记录" : "待面谈"}
-                </Badge>
-              </button>
-            ))}
-          </div>
-
-          <div className="lg:col-span-2">
-            {selected ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    面谈记录 - {meetings.find((m) => m.id === selected)?.employee.name}
-                  </CardTitle>
+        <div className="space-y-3">
+          {meetings.map((m) => {
+            const isExpanded = expandedId === m.id;
+            return (
+              <Card key={m.id}>
+                <CardHeader
+                  className="cursor-pointer"
+                  onClick={() => toggleExpand(m.id, m)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">{m.employee.name}</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">{m.employee.department}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {m.meetingDate && (
+                        <span className="text-xs text-muted-foreground">{m.meetingDate.slice(0, 10)}</span>
+                      )}
+                      <Badge variant={m.employeeAck ? "success" : m.notes ? "default" : "secondary"}>
+                        {m.employeeAck ? "已确认" : m.notes ? "已记录" : "待面谈"}
+                      </Badge>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">面谈日期</label>
-                    <input
-                      type="date"
-                      value={meetingDate}
-                      onChange={(e) => setMeetingDate(e.target.value)}
-                      className="h-9 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm shadow-xs transition-all duration-[var(--transition-base)] hover:border-border focus:border-ring focus:shadow-sm focus:outline-none focus:ring-3 focus:ring-ring/20"
-                      disabled={preview}
-                    />
-                  </div>
 
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">面谈纪要</label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="记录面谈要点、员工反馈、改进计划等..."
-                      rows={8}
-                      disabled={preview}
-                    />
-                  </div>
+                {isExpanded && (
+                  <CardContent className="space-y-4 border-t pt-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">面谈日期</label>
+                      <input
+                        type="date"
+                        value={editDates[m.id] || ""}
+                        onChange={(e) => setEditDates((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                        className="h-9 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm shadow-xs transition-all duration-[var(--transition-base)] hover:border-border focus:border-ring focus:shadow-sm focus:outline-none focus:ring-3 focus:ring-ring/20"
+                        disabled={preview}
+                      />
+                    </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      onClick={() => saveMeeting(meetings.find((m) => m.id === selected)!.employee.id)}
-                      disabled={preview}
-                    >
-                      保存记录
-                    </Button>
-                  </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">面谈纪要</label>
+                      <Textarea
+                        value={editNotes[m.id] || ""}
+                        onChange={(e) => setEditNotes((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                        placeholder="记录面谈要点、员工反馈、改进计划等..."
+                        rows={6}
+                        disabled={preview}
+                      />
+                    </div>
 
-                  {/* Employee ack button - shown when viewing as employee */}
-                  {meetings.find((m) => m.id === selected)?.supervisor && !meetings.find((m) => m.id === selected)?.employeeAck && (
-                    <div className="border-t pt-4">
-                      <Button variant="outline" onClick={() => ackMeeting(selected)} disabled={preview}>
-                        确认面谈结果
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        onClick={() => saveMeeting(m.employee.id, m.id)}
+                        disabled={preview}
+                      >
+                        保存记录
                       </Button>
                     </div>
-                  )}
-                </CardContent>
+
+                    {m.supervisor && !m.employeeAck && (
+                      <div className="border-t pt-4">
+                        <Button variant="outline" onClick={() => ackMeeting(m.id)} disabled={preview}>
+                          确认面谈结果
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                )}
               </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">选择左侧记录查看详情</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+            );
+          })}
         </div>
       )}
     </div>
