@@ -25,7 +25,7 @@ export default async function MainLayout({
         <PreviewBanner />
         <div className="mx-auto max-w-[1200px] px-8 py-6">{children}</div>
       </main>
-      <Watermark text={user.name} />
+      <Watermark name={user.name} department={user.department} />
     </div>
   );
 }
