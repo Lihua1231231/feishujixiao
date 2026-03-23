@@ -337,6 +337,11 @@ function AppealContent() {
     <div className="space-y-6">
       <PageHeader title="绩效申诉" description={`当前周期：${cycle.name}`} />
 
+      <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>对结果有异议，请在绩效申诉窗口期内提交，需提交书面申诉至HRBP禹聪琪，逾期默认绩效结果确认并归档。</span>
+      </div>
+
       {/* 绩效结果 */}
       <Card>
         <CardHeader>
