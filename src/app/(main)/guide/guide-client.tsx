@@ -151,7 +151,7 @@ const faqItems = [
   },
   {
     q: "对结果有异议怎么办？",
-    a: '在申诉窗口期内，可以在"绩效申诉"页面提交申诉，说明理由后由HR审核处理。',
+    a: '对结果有异议，请在绩效申诉窗口期内提交，需提交书面申诉至HRBP禹聪琪，逾期默认绩效结果确认并归档。',
   },
   {
     q: "自评在哪里提交？",
@@ -325,8 +325,8 @@ export function GuidePage({ cycle, userRole }: Props) {
               icon={<Megaphone className="h-6 w-6 text-rose-600" />}
               title="绩效申诉"
               items={[
-                "对结果有异议时可在申诉窗口期提交",
-                "需提供申诉理由",
+                "对结果有异议，请在绩效申诉窗口期内提交",
+                "需提交书面申诉至HRBP禹聪琪，逾期默认绩效结果确认并归档",
               ]}
               href="/appeal"
               linkText="前往申诉"

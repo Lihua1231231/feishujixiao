@@ -63,17 +63,19 @@ function DashboardContent() {
       return;
     }
 
-    // Fetch real data via API calls
+    const controller = new AbortController();
     async function loadData() {
       try {
-        const res = await fetch("/api/self-eval");
-        const selfEval = await res.json();
+        const [selfEvalRes, userRes] = await Promise.all([
+          fetch("/api/self-eval", { signal: controller.signal }),
+          fetch("/api/users?me=true", { signal: controller.signal }),
+        ]);
+        const [selfEval, userData] = await Promise.all([
+          selfEvalRes.json(),
+          userRes.json(),
+        ]);
 
-        // We need to get user/cycle info - fetch from dashboard API or session
-        // For now, use a combined approach
-        const userRes = await fetch("/api/users?me=true");
-        const userData = await userRes.json();
-
+        if (controller.signal.aborted) return;
         setData({
           user: { name: userData.name || "用户", role: userData.role || "EMPLOYEE" },
           cycle: userData.cycle || null,
@@ -82,14 +84,15 @@ function DashboardContent() {
           pendingTeamEvals: userData.pendingTeamEvals || 0,
           hasAppeal: userData.hasAppeal || false,
         });
-      } catch {
-        // Fallback: still try to render something
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
         setData(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     loadData();
+    return () => controller.abort();
   }, [preview, previewRole, getData]);
 
   if (loading) {

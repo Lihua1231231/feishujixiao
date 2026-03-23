@@ -11,7 +11,10 @@ function makePrisma() {
     });
     return new PrismaClient({ adapter });
   }
-  return new PrismaClient();
+  const client = new PrismaClient();
+  // Enable WAL mode for better concurrent read performance with SQLite
+  client.$executeRawUnsafe("PRAGMA journal_mode=WAL").catch(() => {});
+  return client;
 }
 
 export const prisma = globalForPrisma.prisma || makePrisma();

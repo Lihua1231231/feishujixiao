@@ -95,16 +95,24 @@ function PeerReviewContent() {
       return;
     }
 
-    fetch("/api/peer-review").then((r) => r.json()).then((d) => { if (Array.isArray(d)) setReviews(d); });
-    fetch("/api/peer-review/nominate").then((r) => r.json()).then((noms) => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+    Promise.all([
+      fetch("/api/peer-review", { signal }).then((r) => r.json()),
+      fetch("/api/peer-review/nominate", { signal }).then((r) => r.json()),
+      fetch("/api/users", { signal }).then((r) => r.json()),
+    ]).then(([d, noms, users]) => {
+      if (signal.aborted) return;
+      if (Array.isArray(d)) setReviews(d);
       if (Array.isArray(noms)) {
         setNominations(noms);
         setSelectedUsers(noms.map((n: Nomination) => n.nominee.id));
       }
-    });
-    fetch("/api/users").then((r) => r.json()).then((users) => {
       if (Array.isArray(users)) setAllUsers(users);
+    }).catch((e) => {
+      if ((e as Error).name !== "AbortError") console.error(e);
     });
+    return () => controller.abort();
   }, [preview, previewRole, getData]);
 
   const saveNominations = async () => {

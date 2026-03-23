@@ -82,7 +82,10 @@ export function Nav({ user }: NavProps) {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-sm">
           <BarChart3 className="h-4.5 w-4.5 text-white" />
         </div>
-        <span className="text-base font-semibold tracking-tight">绩效系统</span>
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold leading-tight tracking-tight">深度赋智</span>
+          <span className="text-[11px] font-medium leading-tight text-muted-foreground">2025下半年绩效考评</span>
+        </div>
       </div>
 
       {/* Nav items */}

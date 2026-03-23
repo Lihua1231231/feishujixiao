@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
 import { NavWrapper } from "./nav-wrapper";
 import { PreviewBanner } from "./preview-banner";
+import { Watermark } from "@/components/watermark";
 
 export default async function MainLayout({
   children,
@@ -24,6 +25,7 @@ export default async function MainLayout({
         <PreviewBanner />
         <div className="mx-auto max-w-[1200px] px-8 py-6">{children}</div>
       </main>
+      <Watermark text={user.name} />
     </div>
   );
 }

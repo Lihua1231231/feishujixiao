@@ -71,19 +71,21 @@ function AppealContent() {
 
   const isHR = role && ["HRBP", "ADMIN"].includes(role);
 
-  async function fetchData() {
+  async function fetchData(signal?: AbortSignal) {
     try {
-      const res = await fetch("/api/appeal");
+      const res = await fetch("/api/appeal", { signal });
       const data = await res.json();
 
+      if (signal?.aborted) return;
       setAppeals(data.appeals || []);
       setCycle(data.cycle || null);
       setFinalStars(data.finalStars ?? null);
       setRole(data.role || null);
-    } catch {
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
       toast.error("加载数据失败");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 
@@ -103,7 +105,9 @@ function AppealContent() {
       return;
     }
 
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [preview, previewRole, getData]);
 
   const isInAppealWindow = (() => {
@@ -353,8 +357,8 @@ function AppealContent() {
             <CardTitle className="text-base">提交申诉</CardTitle>
             <CardDescription>
               {isInAppealWindow
-                ? "如果您对绩效结果有异议，可以在此提交申诉"
-                : "当前不在申诉窗口期内"}
+                ? "对结果有异议，请在绩效申诉窗口期内提交，需提交书面申诉至HRBP禹聪琪，逾期默认绩效结果确认并归档。"
+                : "当前不在申诉窗口期内，逾期默认绩效结果确认并归档。"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "绩效考核系统",
-  description: "公司绩效考核管理系统",
+  title: "深度赋智2025下半年绩效考评系统",
+  description: "深度赋智2025下半年绩效考评系统",
 };
 
 export default function RootLayout({
