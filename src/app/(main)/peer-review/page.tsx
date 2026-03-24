@@ -222,7 +222,7 @@ function PeerReviewContent() {
 
       {/* 环评说明 */}
       <Card>
-        <CardContent className="py-4 text-xs text-muted-foreground divide-y">
+        <CardContent className="py-4 text-sm text-foreground/70 divide-y">
           <div className="pb-3">
             <p className="text-sm font-semibold text-foreground mb-1">环评原则</p>
             <p className="leading-relaxed">员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人。评估人可拒绝但需说明原因。360环评采用匿名模式。</p>
@@ -233,7 +233,7 @@ function PeerReviewContent() {
           </div>
           <div className="pt-3">
             <p className="text-sm font-semibold text-foreground mb-1.5">评估维度</p>
-            <div className="space-y-1 text-[11px]">
+            <div className="space-y-1 text-xs">
               <p><span className="font-medium text-foreground/70">业绩产出质量</span><span className="text-red-500 ml-1">必填</span> — 结合实际产出和对合作结果的贡献度综合评定</p>
               <p><span className="font-medium text-foreground/70">协作配合度</span><span className="text-red-500 ml-1">必填</span> — 结合周期内协作配合度综合评定</p>
               <p><span className="font-medium text-foreground/70">价值观践行</span><span className="text-red-500 ml-1">必填</span> — 选取ROOT 4条中的至少2条进行评估</p>

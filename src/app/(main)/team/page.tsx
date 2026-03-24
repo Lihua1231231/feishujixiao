@@ -68,6 +68,7 @@ function TeamContent() {
   const [selected, setSelected] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, FormData>>({});
   const [saving, setSaving] = useState(false);
+  const [expandedSelfEval, setExpandedSelfEval] = useState(false);
 
   useEffect(() => {
     if (preview && previewRole) {
@@ -224,7 +225,7 @@ function TeamContent() {
             {evals.map((e) => (
               <button
                 key={e.employee.id}
-                onClick={() => setSelected(e.employee.id)}
+                onClick={() => { setSelected(e.employee.id); setExpandedSelfEval(false); }}
                 className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-left transition-all duration-[var(--transition-base)] ${
                   selected === e.employee.id
                     ? "border-primary bg-primary/[0.06] shadow-sm"
@@ -255,9 +256,19 @@ function TeamContent() {
                         <CardTitle className="text-base">员工自评 - {selectedEval.employee.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="max-h-60 overflow-y-auto whitespace-pre-wrap text-sm">
+                        <p className={`whitespace-pre-wrap text-sm ${!expandedSelfEval ? "max-h-20 overflow-hidden" : ""}`}>
                           {selectedEval.selfEval.importedContent || "未填写"}
                         </p>
+                        {selectedEval.selfEval.importedContent && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 text-xs"
+                            onClick={() => setExpandedSelfEval(!expandedSelfEval)}
+                          >
+                            {expandedSelfEval ? "收起" : "展开全部"}
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   )}

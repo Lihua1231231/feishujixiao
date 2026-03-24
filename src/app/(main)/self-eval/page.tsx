@@ -77,18 +77,36 @@ function SelfEvalContent() {
 
   // 预览模式下非员工角色的视图
   if (preview && previewRole && previewRole !== "EMPLOYEE") {
-    const previewData = getData("self-eval") as { viewType: string; message: string };
+    const previewData = getData("self-eval") as {
+      viewType: string;
+      message: string;
+      employees?: { name: string; department: string; status: string; importedContent: string }[];
+    };
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         <PageHeader
           title="个人自评"
           description={previewRole === "SUPERVISOR" ? "主管视角" : "管理员视角"}
         />
-        <Card>
-          <CardContent className="py-8 text-center text-gray-500">
-            {previewData.message}
-          </CardContent>
-        </Card>
+        <p className="text-sm text-muted-foreground">{previewData.message}</p>
+        {previewData.employees?.map((emp) => (
+          <Card key={emp.name}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{emp.name}</CardTitle>
+                <Badge variant={emp.status === "SUBMITTED" ? "default" : "secondary"}>
+                  {emp.status === "SUBMITTED" ? "已提交" : "草稿"}
+                </Badge>
+              </div>
+              <CardDescription>{emp.department}</CardDescription>
+            </CardHeader>
+            {emp.importedContent && (
+              <CardContent>
+                <p className="whitespace-pre-wrap text-sm">{emp.importedContent}</p>
+              </CardContent>
+            )}
+          </Card>
+        ))}
       </div>
     );
   }

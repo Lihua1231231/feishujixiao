@@ -74,6 +74,26 @@ export function getPreviewData(role: PreviewRole, page: string): Record<string, 
       SUPERVISOR: {
         viewType: "supervisor",
         message: "主管视角：可查看下属已提交的自评内容，但无需填写自评表单。",
+        employees: [
+          {
+            name: "李明",
+            department: "前端开发",
+            status: "SUBMITTED",
+            importedContent: "一、本周期核心成果\n\n1. 完成用户增长平台 v2.0 前端开发，DAU 提升 23%。\n2. 主导设计了新的 A/B 测试框架，支持多维度对比实验。\n3. 优化了首页加载性能，LCP 从 3.2s 降低到 1.1s。\n\n二、协作与沟通\n\n积极参与跨部门需求评审，与产品、设计、后端团队保持高效协作。\n\n三、价值观践行\n\n坚持 ROOT 文化，主动分享技术经验，在团队内开展 2 次技术分享。",
+          },
+          {
+            name: "张伟",
+            department: "产品部",
+            status: "SUBMITTED",
+            importedContent: "一、本周期核心成果\n\n1. 完成了 3 个核心功能的产品方案设计与上线。\n2. 推动用户反馈机制优化，NPS 提升 15 分。\n\n二、协作与沟通\n\n与技术、设计团队紧密配合，确保产品按期交付。\n\n三、价值观践行\n\n积极推动数据驱动决策，建立产品数据看板。",
+          },
+          {
+            name: "陈静",
+            department: "设计部",
+            status: "DRAFT",
+            importedContent: "",
+          },
+        ],
       },
       ADMIN: {
         viewType: "admin",
