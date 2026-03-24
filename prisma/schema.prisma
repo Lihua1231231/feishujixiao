@@ -147,8 +147,16 @@ model SupervisorEval {
   comprehensiveStars Int?      // 综合能力 1-5星
   learningStars      Int?      // 学习能力 1-5星
   adaptabilityStars  Int?      // 适应能力 1-5星
-  valuesStars        Int?      // 价值观20%，1-5星
+  valuesStars        Int?      // 价值观20%，1-5星（由4个子维度1:1:1:1加权计算）
   valuesComment      String    @default("")
+  candidStars        Int?      // 坦诚真实 1-5星
+  candidComment      String    @default("")
+  progressStars      Int?      // 极致进取 1-5星
+  progressComment    String    @default("")
+  altruismStars      Int?      // 成就利他 1-5星
+  altruismComment    String    @default("")
+  rootStars          Int?      // ROOT 1-5星
+  rootComment        String    @default("")
   weightedScore      Float?    // 系统自动计算
   status             String    @default("DRAFT") // DRAFT, SUBMITTED
   submittedAt        DateTime?

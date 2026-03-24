@@ -107,7 +107,14 @@ export async function POST(req: NextRequest) {
     const abilityStars = (comprehensiveStars != null && learningStars != null && adaptabilityStars != null)
       ? Math.round((comprehensiveStars + learningStars + adaptabilityStars) / 3)
       : null;
-    const valuesStars = validateStars(body.valuesStars);
+    // 价值观 = 坦诚真实:极致进取:成就利他:ROOT = 1:1:1:1
+    const candidStars = validateStars(body.candidStars);
+    const progressStars = validateStars(body.progressStars);
+    const altruismStars = validateStars(body.altruismStars);
+    const rootStars = validateStars(body.rootStars);
+    const valuesStars = (candidStars != null && progressStars != null && altruismStars != null && rootStars != null)
+      ? Math.round((candidStars + progressStars + altruismStars + rootStars) / 4)
+      : null;
     const weightedScore = computeWeightedScore(performanceStars, abilityStars, valuesStars);
 
     const abilityData = {
@@ -118,6 +125,19 @@ export async function POST(req: NextRequest) {
       adaptabilityStars,
     };
 
+    const valuesData = {
+      valuesStars,
+      valuesComment: sanitizeText(body.valuesComment),
+      candidStars,
+      candidComment: sanitizeText(body.candidComment),
+      progressStars,
+      progressComment: sanitizeText(body.progressComment),
+      altruismStars,
+      altruismComment: sanitizeText(body.altruismComment),
+      rootStars,
+      rootComment: sanitizeText(body.rootComment),
+    };
+
     const eval_ = await prisma.supervisorEval.upsert({
       where: {
         cycleId_employeeId: { cycleId: cycle.id, employeeId: body.employeeId },
@@ -126,8 +146,7 @@ export async function POST(req: NextRequest) {
         performanceStars,
         performanceComment: sanitizeText(body.performanceComment),
         ...abilityData,
-        valuesStars,
-        valuesComment: sanitizeText(body.valuesComment),
+        ...valuesData,
         weightedScore,
         status: isSubmit ? "SUBMITTED" : "DRAFT",
         submittedAt: isSubmit ? new Date() : undefined,
@@ -139,8 +158,7 @@ export async function POST(req: NextRequest) {
         performanceStars,
         performanceComment: sanitizeText(body.performanceComment),
         ...abilityData,
-        valuesStars,
-        valuesComment: sanitizeText(body.valuesComment),
+        ...valuesData,
         weightedScore,
         status: isSubmit ? "SUBMITTED" : "DRAFT",
         submittedAt: isSubmit ? new Date() : null,

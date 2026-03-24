@@ -25,6 +25,14 @@ type TeamEval = {
     adaptabilityStars: number | null;
     valuesStars: number | null;
     valuesComment: string;
+    candidStars: number | null;
+    candidComment: string;
+    progressStars: number | null;
+    progressComment: string;
+    altruismStars: number | null;
+    altruismComment: string;
+    rootStars: number | null;
+    rootComment: string;
     weightedScore: number | null;
     status: string;
   } | null;
@@ -49,6 +57,14 @@ type FormData = {
   abilityComment: string;
   valuesStars: number | null;
   valuesComment: string;
+  candidStars: number | null;
+  candidComment: string;
+  progressStars: number | null;
+  progressComment: string;
+  altruismStars: number | null;
+  altruismComment: string;
+  rootStars: number | null;
+  rootComment: string;
 };
 
 function computeAbilityStars(fd: FormData): number | null {
@@ -56,10 +72,38 @@ function computeAbilityStars(fd: FormData): number | null {
   return Math.round((fd.comprehensiveStars + fd.learningStars + fd.adaptabilityStars) / 3);
 }
 
+function computeValuesStars(fd: FormData): number | null {
+  if (fd.candidStars == null || fd.progressStars == null || fd.altruismStars == null || fd.rootStars == null) return null;
+  return Math.round((fd.candidStars + fd.progressStars + fd.altruismStars + fd.rootStars) / 4);
+}
+
 function computeWeightedScore(fd: FormData): number | null {
   const abilityStars = computeAbilityStars(fd);
-  if (fd.performanceStars == null || abilityStars == null || fd.valuesStars == null) return null;
-  return fd.performanceStars * 0.5 + abilityStars * 0.3 + fd.valuesStars * 0.2;
+  const valuesStars = computeValuesStars(fd);
+  if (fd.performanceStars == null || abilityStars == null || valuesStars == null) return null;
+  return fd.performanceStars * 0.5 + abilityStars * 0.3 + valuesStars * 0.2;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function initFormData(ev: any): FormData {
+  return {
+    performanceStars: ev?.performanceStars || null,
+    performanceComment: ev?.performanceComment || "",
+    comprehensiveStars: ev?.comprehensiveStars || null,
+    learningStars: ev?.learningStars || null,
+    adaptabilityStars: ev?.adaptabilityStars || null,
+    abilityComment: ev?.abilityComment || "",
+    valuesStars: ev?.valuesStars || null,
+    valuesComment: ev?.valuesComment || "",
+    candidStars: ev?.candidStars || null,
+    candidComment: ev?.candidComment || "",
+    progressStars: ev?.progressStars || null,
+    progressComment: ev?.progressComment || "",
+    altruismStars: ev?.altruismStars || null,
+    altruismComment: ev?.altruismComment || "",
+    rootStars: ev?.rootStars || null,
+    rootComment: ev?.rootComment || "",
+  };
 }
 
 function TeamContent() {
@@ -77,16 +121,7 @@ function TeamContent() {
       setEvals(previewEvals);
       const initial: Record<string, FormData> = {};
       for (const e of previewEvals) {
-        initial[e.employee.id] = {
-          performanceStars: e.evaluation?.performanceStars || null,
-          performanceComment: e.evaluation?.performanceComment || "",
-          comprehensiveStars: e.evaluation?.comprehensiveStars || null,
-          learningStars: e.evaluation?.learningStars || null,
-          adaptabilityStars: e.evaluation?.adaptabilityStars || null,
-          abilityComment: e.evaluation?.abilityComment || "",
-          valuesStars: e.evaluation?.valuesStars || null,
-          valuesComment: e.evaluation?.valuesComment || "",
-        };
+        initial[e.employee.id] = initFormData(e.evaluation);
       }
       setFormData(initial);
       return;
@@ -99,16 +134,7 @@ function TeamContent() {
           if (prev.length === 0) {
             const initial: Record<string, FormData> = {};
             for (const e of data) {
-              initial[e.employee.id] = {
-                performanceStars: e.evaluation?.performanceStars || null,
-                performanceComment: e.evaluation?.performanceComment || "",
-                comprehensiveStars: e.evaluation?.comprehensiveStars || null,
-                learningStars: e.evaluation?.learningStars || null,
-                adaptabilityStars: e.evaluation?.adaptabilityStars || null,
-                abilityComment: e.evaluation?.abilityComment || "",
-                valuesStars: e.evaluation?.valuesStars || null,
-                valuesComment: e.evaluation?.valuesComment || "",
-              };
+              initial[e.employee.id] = initFormData(e.evaluation);
             }
             setFormData(initial);
           }
@@ -127,7 +153,7 @@ function TeamContent() {
   const saveEval = async (employeeId: string, action: "save" | "submit") => {
     if (preview) return;
     const fd = formData[employeeId];
-    if (action === "submit" && (!fd.performanceStars || !fd.comprehensiveStars || !fd.learningStars || !fd.adaptabilityStars || !fd.valuesStars)) {
+    if (action === "submit" && (!fd.performanceStars || !fd.comprehensiveStars || !fd.learningStars || !fd.adaptabilityStars || !fd.candidStars || !fd.progressStars || !fd.altruismStars || !fd.rootStars)) {
       toast.error("请完成所有维度的星级评分");
       return;
     }
@@ -393,39 +419,42 @@ function TeamContent() {
                       <div className="space-y-2">
                         <div className="flex items-baseline gap-2">
                           <h3 className="text-sm font-semibold">价值观</h3>
-                          <span className="text-xs text-muted-foreground">权重20%</span>
+                          <span className="text-xs text-muted-foreground">权重20%（4项等权平均）</span>
+                          {computeValuesStars(formData[selected!]) != null && (
+                            <Badge variant="outline" className="text-xs">均分 {computeValuesStars(formData[selected!])}</Badge>
+                          )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground/70 leading-relaxed">请针对以下4条价值观进行评估，需提供数据/案例作证和描述</p>
-                        <div className="rounded-lg border border-border/50 p-3 text-[11px] text-muted-foreground divide-y">
-                          <div className="pb-2">
-                            <p className="font-medium text-foreground/70">坦诚真实 <span className="font-normal text-muted-foreground/60">Be candid and honest — 行为基础</span></p>
-                            <p className="mt-0.5">简单直接，对事不对人 · 敢于承认错误，不装不爱面子 · 暴露问题，不向上管理 · 不找借口，只找解法</p>
+                        <p className="text-[11px] text-muted-foreground/70 leading-relaxed">请针对以下4条价值观分别评分和评语，需提供数据/案例作证和描述</p>
+
+                        <div className="space-y-4 rounded-lg border border-border/50 p-4">
+                          <div className="space-y-1.5">
+                            <p className="text-sm font-medium">坦诚真实 <span className="text-xs font-normal text-muted-foreground">Be candid and honest — 行为基础</span></p>
+                            <p className="text-[11px] text-muted-foreground">简单直接，对事不对人 · 敢于承认错误，不装不爱面子 · 暴露问题，不向上管理 · 不找借口，只找解法</p>
+                            <StarRating value={formData[selected!]?.candidStars} onChange={(v) => updateField("candidStars", v)} disabled={!!isSubmitted} />
+                            <Textarea value={formData[selected!]?.candidComment || ""} onChange={(e) => updateField("candidComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
                           </div>
-                          <div className="py-2">
-                            <p className="font-medium text-foreground/70">极致进取 <span className="font-normal text-muted-foreground/60">Move fast, aim higher — 动机驱动</span></p>
-                            <p className="mt-0.5">目标明确，积极主动 · 用 demo 代替文档，用行动代替沟通 · 敢于挑战更优解，用实验代替争论 · 深入体验，消灭锯齿</p>
+
+                          <div className="space-y-1.5 border-t pt-4">
+                            <p className="text-sm font-medium">极致进取 <span className="text-xs font-normal text-muted-foreground">Move fast, aim higher — 动机驱动</span></p>
+                            <p className="text-[11px] text-muted-foreground">目标明确，积极主动 · 用 demo 代替文档，用行动代替沟通 · 敢于挑战更优解，用实验代替争论 · 深入体验，消灭锯齿</p>
+                            <StarRating value={formData[selected!]?.progressStars} onChange={(v) => updateField("progressStars", v)} disabled={!!isSubmitted} />
+                            <Textarea value={formData[selected!]?.progressComment || ""} onChange={(e) => updateField("progressComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
                           </div>
-                          <div className="py-2">
-                            <p className="font-medium text-foreground/70">成就利他 <span className="font-normal text-muted-foreground/60">Build together, win together — 协作胸怀</span></p>
-                            <p className="mt-0.5">用户第一，以用户成功为价值 · 内心阳光，信任伙伴，真诚合作 · 敏锐谦逊，ego 小，乐于贡献</p>
+
+                          <div className="space-y-1.5 border-t pt-4">
+                            <p className="text-sm font-medium">成就利他 <span className="text-xs font-normal text-muted-foreground">Build together, win together — 协作胸怀</span></p>
+                            <p className="text-[11px] text-muted-foreground">用户第一，以用户成功为价值 · 内心阳光，信任伙伴，真诚合作 · 敏锐谦逊，ego 小，乐于贡献</p>
+                            <StarRating value={formData[selected!]?.altruismStars} onChange={(v) => updateField("altruismStars", v)} disabled={!!isSubmitted} />
+                            <Textarea value={formData[selected!]?.altruismComment || ""} onChange={(e) => updateField("altruismComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
                           </div>
-                          <div className="pt-2">
-                            <p className="font-medium text-foreground/70">ROOT <span className="font-normal text-muted-foreground/60">组织导向</span></p>
-                            <p className="mt-0.5">有 ownership，不踢皮球，不设边界 · 独立思考，快速学习，与 AI 共同进化 · 关注结果而非过程 · 始终像公司创业第一天那样思考</p>
+
+                          <div className="space-y-1.5 border-t pt-4">
+                            <p className="text-sm font-medium">ROOT <span className="text-xs font-normal text-muted-foreground">组织导向</span></p>
+                            <p className="text-[11px] text-muted-foreground">有 ownership，不踢皮球，不设边界 · 独立思考，快速学习，与 AI 共同进化 · 关注结果而非过程 · 始终像公司创业第一天那样思考</p>
+                            <StarRating value={formData[selected!]?.rootStars} onChange={(v) => updateField("rootStars", v)} disabled={!!isSubmitted} />
+                            <Textarea value={formData[selected!]?.rootComment || ""} onChange={(e) => updateField("rootComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
                           </div>
                         </div>
-                        <StarRating
-                          value={formData[selected!]?.valuesStars}
-                          onChange={(v) => updateField("valuesStars", v)}
-                          disabled={!!isSubmitted}
-                        />
-                        <Textarea
-                          value={formData[selected!]?.valuesComment || ""}
-                          onChange={(e) => updateField("valuesComment", e.target.value)}
-                          placeholder="请输入评语..."
-                          rows={3}
-                          disabled={!!isSubmitted}
-                        />
                       </div>
 
                       {/* Actions */}
