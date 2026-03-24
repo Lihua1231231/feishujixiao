@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       where: { cycleId: cycle.id, nominatorId: user.id },
     });
 
-    // Create new nominations (auto-approved, no supervisor confirmation needed)
+    // Create new nominations (pending approval by HR/admin)
     const nominations = await Promise.all(
       nomineeIds.map(async (nomineeId) => {
         const nom = await prisma.reviewerNomination.create({
@@ -77,29 +77,12 @@ export async function POST(req: NextRequest) {
             cycleId: cycle.id,
             nominatorId: user.id,
             nomineeId,
-            supervisorStatus: "APPROVED",
+            supervisorStatus: "PENDING",
             nomineeStatus: "PENDING",
           },
           include: { nominee: { select: { id: true, name: true, department: true } } },
         });
-
-        // Directly create PeerReview record for the nominee to fill
-        await prisma.peerReview.upsert({
-          where: {
-            cycleId_reviewerId_revieweeId: {
-              cycleId: cycle.id,
-              reviewerId: nomineeId,
-              revieweeId: user.id,
-            },
-          },
-          update: {},
-          create: {
-            cycleId: cycle.id,
-            reviewerId: nomineeId,
-            revieweeId: user.id,
-          },
-        });
-
+        // PeerReview record will be created when nomination is approved
         return nom;
       })
     );

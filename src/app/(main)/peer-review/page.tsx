@@ -93,13 +93,23 @@ function ScoreSelector({ value, onChange, disabled, onUnclear }: { value: number
 }
 
 function NominationStatusBadges({ nomination }: { nomination: Nomination }) {
+  if (nomination.supervisorStatus === "PENDING") {
+    return <Badge variant="secondary">待审批</Badge>;
+  }
+  if (nomination.supervisorStatus === "REJECTED") {
+    return <Badge variant="destructive">已拒绝</Badge>;
+  }
   const nomineeLabel = nomination.nomineeStatus === "ACCEPTED" ? "已接受" : nomination.nomineeStatus === "DECLINED" ? "已拒绝" : "待接受";
   const nomineeVariant = nomination.nomineeStatus === "ACCEPTED" ? "default" as const : nomination.nomineeStatus === "DECLINED" ? "destructive" as const : "secondary" as const;
-
-  return (
-    <Badge variant={nomineeVariant}>{nomineeLabel}</Badge>
-  );
+  return <Badge variant={nomineeVariant}>{nomineeLabel}</Badge>;
 }
+
+type ApprovalItem = {
+  id: string;
+  nominator: { id: string; name: string; department: string };
+  nominee: { id: string; name: string; department: string };
+  supervisorStatus: string;
+};
 
 function PeerReviewContent() {
   const { preview, previewRole, getData } = usePreview();
@@ -114,6 +124,8 @@ function PeerReviewContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingNoms, setSavingNoms] = useState(false);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [isApprover, setIsApprover] = useState(false);
 
   useEffect(() => {
     if (preview && previewRole) {
@@ -146,6 +158,11 @@ function PeerReviewContent() {
     }).finally(() => {
       if (!signal.aborted) setLoading(false);
     });
+    // Load approvals for approvers
+    fetch("/api/peer-review/approve", { signal }).then(r => r.json()).then(data => {
+      if (signal.aborted) return;
+      if (Array.isArray(data)) { setApprovals(data); setIsApprover(true); }
+    }).catch(() => {});
     return () => controller.abort();
   }, [preview, previewRole, getData]);
 
@@ -287,6 +304,7 @@ function PeerReviewContent() {
         <TabsList>
           <TabsTrigger value="nominate">提名评估人</TabsTrigger>
           <TabsTrigger value="review">我的环评任务 ({reviews.filter(r => r.status === "DRAFT").length})</TabsTrigger>
+          {isApprover && <TabsTrigger value="approve">审批提名 ({approvals.filter(a => a.supervisorStatus === "PENDING").length})</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="nominate" className="space-y-4">
@@ -523,6 +541,92 @@ function PeerReviewContent() {
             })
           )}
         </TabsContent>
+
+        {isApprover && (
+          <TabsContent value="approve" className="space-y-4">
+            {approvals.filter(a => a.supervisorStatus === "PENDING").length === 0 && approvals.length > 0 && (
+              <Card><CardContent className="py-8 text-center text-gray-500">所有提名已审批完成</CardContent></Card>
+            )}
+            {approvals.length === 0 && (
+              <Card><CardContent className="py-8 text-center text-gray-500">暂无提名需要审批</CardContent></Card>
+            )}
+            {(() => {
+              // Group by nominator
+              const byNominator: Record<string, typeof approvals> = {};
+              approvals.forEach(a => {
+                const key = a.nominator.name;
+                if (!byNominator[key]) byNominator[key] = [];
+                byNominator[key].push(a);
+              });
+              return Object.entries(byNominator).map(([name, items]) => {
+                const pending = items.filter(i => i.supervisorStatus === "PENDING").length;
+                return (
+                  <Card key={name}>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {name}
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          ({items[0].nominator.department}) — 提名 {items.length} 人
+                          {pending > 0 && <Badge variant="secondary" className="ml-2">{pending} 待审批</Badge>}
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {items.map(item => (
+                          <div key={item.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                            <span>{item.nominee.name} ({item.nominee.department})</span>
+                            <div className="flex items-center gap-2">
+                              {item.supervisorStatus === "PENDING" ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs text-red-600 hover:bg-red-50"
+                                    disabled={preview}
+                                    onClick={async () => {
+                                      await fetch("/api/peer-review/approve", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ nominationId: item.id, action: "reject" }),
+                                      });
+                                      setApprovals(prev => prev.map(a => a.id === item.id ? { ...a, supervisorStatus: "REJECTED" } : a));
+                                    }}
+                                  >
+                                    拒绝
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    disabled={preview}
+                                    onClick={async () => {
+                                      await fetch("/api/peer-review/approve", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ nominationId: item.id, action: "approve" }),
+                                      });
+                                      setApprovals(prev => prev.map(a => a.id === item.id ? { ...a, supervisorStatus: "APPROVED" } : a));
+                                    }}
+                                  >
+                                    批准
+                                  </Button>
+                                </>
+                              ) : (
+                                <Badge variant={item.supervisorStatus === "APPROVED" ? "default" : "destructive"}>
+                                  {item.supervisorStatus === "APPROVED" ? "已批准" : "已拒绝"}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* 拒绝评估对话框 */}
