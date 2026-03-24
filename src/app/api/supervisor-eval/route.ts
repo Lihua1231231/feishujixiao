@@ -15,9 +15,21 @@ export async function GET() {
     });
     if (!cycle) return NextResponse.json([]);
 
+    // 吴承霖：评全员（除自己）；邱翔：评全员（除自己和吴承霖）
+    const wuchenglin = await prisma.user.findFirst({ where: { name: "吴承霖" }, select: { id: true } });
+    let subordinateWhere: object;
+    if (wuchenglin && user.id === wuchenglin.id) {
+      subordinateWhere = { id: { not: user.id } };
+    } else if (user.name === "邱翔" && wuchenglin) {
+      subordinateWhere = { id: { notIn: [user.id, wuchenglin.id] } };
+    } else {
+      subordinateWhere = { supervisorId: user.id };
+    }
+
     const subordinates = await prisma.user.findMany({
-      where: { supervisorId: user.id },
+      where: subordinateWhere,
       select: { id: true, name: true, department: true, jobTitle: true },
+      orderBy: [{ department: "asc" }, { name: "asc" }],
     });
 
     const evals = await Promise.all(
@@ -92,8 +104,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "当前不在上级评估阶段，无法执行此操作" }, { status: 400 });
     }
 
-    // 上下级关系验证（ADMIN豁免）
-    if (user.role !== "ADMIN") {
+    // 上下级关系验证（ADMIN豁免，吴承霖/邱翔全员评估豁免）
+    const isFullEvaluator = user.name === "吴承霖" || user.name === "邱翔";
+    if (user.role !== "ADMIN" && !isFullEvaluator) {
       const employee = await prisma.user.findUnique({ where: { id: body.employeeId } });
       if (!employee || employee.supervisorId !== user.id) {
         return NextResponse.json({ error: "你不是该员工的直属上级" }, { status: 403 });
