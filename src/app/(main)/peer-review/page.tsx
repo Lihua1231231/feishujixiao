@@ -218,26 +218,42 @@ function PeerReviewContent() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="360环评" description="邀请协作方参与互评，提交对同事的评估" />
+      <PageHeader title="360环评" />
 
       {/* 环评说明 */}
       <Card>
-        <CardContent className="py-4 text-sm text-foreground/70 divide-y">
-          <div className="pb-3">
-            <p className="text-sm font-semibold text-foreground mb-1">环评原则</p>
-            <p className="leading-relaxed">员工自主邀请协作密切的相关方参与评估，需覆盖上级、平级、跨团队协作方。邀请人数不高于5人，重要/核心岗可邀请多于5人。评估人可拒绝但需说明原因。360环评采用匿名模式。</p>
+        <CardContent className="py-5 text-sm text-foreground/80 space-y-4">
+          <div>
+            <p className="font-semibold text-foreground mb-1">360 环评是什么？</p>
+            <p className="leading-relaxed">360°评估(360°Feedback)，是指由评估人邀请被评估人从全方位各个维度来对自身进行评估的方式。被评估者可通过多种维度的反馈，清楚地知道自己的不足、长处与发展需求。</p>
           </div>
-          <div className="py-3">
-            <p className="text-sm font-semibold text-foreground mb-1">环评导向</p>
-            <p className="leading-relaxed">360环评仅作为绩效考评参考依据，不直接换算为绩效，核心是为管理者提供多视角的员工画像，避免单一视角的评价偏差。</p>
+          <div>
+            <p className="font-semibold text-foreground mb-1">为什么要做 360 评估？</p>
+            <ul className="list-disc pl-5 space-y-1 leading-relaxed">
+              <li>了解公司中每个人的品行和绩效水平并提供建设性的反馈，让员工清楚公司对他工作的评价，知道领导对他的期望和要求，知道公司倡导的价值观，以及优秀员工的标准和要求是什么；</li>
+              <li>帮助管理者了解自身管理水平，促进上级和下属员工的有效持续的沟通，提高管理绩效；</li>
+              <li>为公司的薪酬决策、员工晋升降职、岗位调动、奖金等提供确切有用的依据。</li>
+            </ul>
           </div>
-          <div className="pt-3">
-            <p className="text-sm font-semibold text-foreground mb-1.5">评估维度</p>
-            <div className="space-y-1 text-xs">
-              <p><span className="font-medium text-foreground/70">业绩产出质量</span><span className="text-red-500 ml-1">必填</span> — 结合实际产出和对合作结果的贡献度综合评定</p>
-              <p><span className="font-medium text-foreground/70">协作配合度</span><span className="text-red-500 ml-1">必填</span> — 结合周期内协作配合度综合评定</p>
-              <p><span className="font-medium text-foreground/70">价值观践行</span><span className="text-red-500 ml-1">必填</span> — 选取ROOT 4条中的至少2条进行评估</p>
-              <p><span className="font-medium text-foreground/70">创新能力、解决问题能力、组织贡献</span><span className="text-muted-foreground/60 ml-1">可选</span> — 围绕勾选的维度综合评定</p>
+          <div>
+            <p className="font-semibold text-foreground mb-2">怎么做 360 环评？</p>
+            <div className="space-y-3 pl-1">
+              <div>
+                <p className="font-medium text-foreground mb-0.5">环评原则</p>
+                <ul className="list-disc pl-5 space-y-0.5 leading-relaxed">
+                  <li><span className="font-medium">范围：</span>员工自主邀请协作密切的相关方参与评估，确保评估维度全面。</li>
+                  <li><span className="font-medium">人数：</span>邀请人数不高于5人（上级≧1、平级≧1、跨团队协作方≧2），重要/核心岗可邀请多于5人。</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-foreground mb-0.5">环评导向</p>
+                <p className="leading-relaxed">360 环评仅作为绩效考评参考依据，不直接换算为绩效，核心是了解公司中每个人的品行和绩效水平并提供建设性的反馈，维护绩效考核公平。</p>
+                <p className="leading-relaxed mt-1">评估人可拒绝评估邀请，但说明拒绝原因。为确保评估的真实性与有效性，360 环评采用匿名模式。</p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground mb-0.5">环评维度</p>
+                <p className="leading-relaxed">业绩产出质量、协作配合度、价值观践行、创新能力、解决问题能力、团队贡献，评估人需结合实际协作经历给出具体评价与打分，禁止无依据的主观评价。</p>
+              </div>
             </div>
           </div>
         </CardContent>
