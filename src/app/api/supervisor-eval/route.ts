@@ -15,27 +15,38 @@ export async function GET() {
     });
     if (!cycle) return NextResponse.json([]);
 
-    // 考核名单 49 人
+    // 考核名单 48 人（王煦晖已离职，移除）
     const EVAL_LIST_NAMES = [
       "曹越","曹铭哲","欧阳伊希","窦雪茹","陈毅强","薛琳蕊","陈佳杰","刘一","张福强",
-      "杨倩仪","王煦晖","莫颖儿","吕鸿","冉晨宇","张志权","赖永涛","江培章","陈家兴",
+      "杨倩仪","莫颖儿","吕鸿","冉晨宇","张志权","赖永涛","江培章","陈家兴",
       "严骏","洪炯腾","沈楚城","张建生","符永涛","戴智斌","马莘权","徐宗泽","龙辰",
       "胡毅薇","许斯荣","余一铭","曹文跃","李泽龙","禹聪琪","陈琼","李娟娟","刘瑞峰",
       "李斌琦","林义章","唐昊鸣","王金淋","洪思睿","叶荣金","郭雨明","邹玙璠","杨偲妤",
       "李红军","刘源源","顾元舜","郝锦",
     ];
 
-    // 吴承霖：名单49人 + 名单外直属下级；邱翔：名单49人 + 名单外直属下级（排除吴承霖）
+    // 额外评估映射：某些主管需要额外评估非直属下级
+    const EXTRA_EVAL_MAP: Record<string, string[]> = {
+      "张东杰": ["余一铭", "曹文跃", "胡毅薇", "许斯荣"],  // 前端组也由张东杰评
+      "冉晨宇": ["邹玙璠"],                                   // 邹玙璠双评
+      "李娟娟": ["郭雨明"],                                    // 郭雨明双评
+    };
+
+    // 吴承霖：名单48人 + 名单外直属下级；邱翔：同理但排除吴承霖
     const wuchenglin = await prisma.user.findFirst({ where: { name: "吴承霖" }, select: { id: true } });
     let subordinateWhere: object;
     if (wuchenglin && user.id === wuchenglin.id) {
-      // 吴承霖：名单上的人 OR 自己的直属下级，排除自己
       subordinateWhere = { AND: [{ id: { not: user.id } }, { OR: [{ name: { in: EVAL_LIST_NAMES } }, { supervisorId: user.id }] }] };
     } else if (user.name === "邱翔" && wuchenglin) {
-      // 邱翔：名单上的人 OR 自己的直属下级，排除自己和吴承霖
       subordinateWhere = { AND: [{ id: { notIn: [user.id, wuchenglin.id] } }, { OR: [{ name: { in: EVAL_LIST_NAMES } }, { supervisorId: user.id }] }] };
     } else {
-      subordinateWhere = { supervisorId: user.id };
+      // 普通主管：直属下级 + 额外评估人员
+      const extraNames = EXTRA_EVAL_MAP[user.name] || [];
+      if (extraNames.length > 0) {
+        subordinateWhere = { OR: [{ supervisorId: user.id }, { name: { in: extraNames } }] };
+      } else {
+        subordinateWhere = { supervisorId: user.id };
+      }
     }
 
     const subordinates = await prisma.user.findMany({
@@ -116,11 +127,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "当前不在上级评估阶段，无法执行此操作" }, { status: 400 });
     }
 
-    // 上下级关系验证（ADMIN豁免，吴承霖/邱翔全员评估豁免）
+    // 上下级关系验证（ADMIN豁免，吴承霖/邱翔全员评估豁免，额外评估映射豁免）
+    const EXTRA_EVAL_MAP_POST: Record<string, string[]> = {
+      "张东杰": ["余一铭", "曹文跃", "胡毅薇", "许斯荣"],
+      "冉晨宇": ["邹玙璠"],
+      "李娟娟": ["郭雨明"],
+    };
     const isFullEvaluator = user.name === "吴承霖" || user.name === "邱翔";
     if (user.role !== "ADMIN" && !isFullEvaluator) {
       const employee = await prisma.user.findUnique({ where: { id: body.employeeId } });
-      if (!employee || employee.supervisorId !== user.id) {
+      const extraNames = EXTRA_EVAL_MAP_POST[user.name] || [];
+      const isExtraTarget = employee && extraNames.includes(employee.name);
+      if (!employee || (employee.supervisorId !== user.id && !isExtraTarget)) {
         return NextResponse.json({ error: "你不是该员工的直属上级" }, { status: 403 });
       }
     }
