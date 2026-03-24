@@ -266,7 +266,7 @@ function PeerReviewContent() {
                 <p className="font-medium text-foreground mb-0.5">环评原则</p>
                 <ul className="list-disc pl-5 space-y-0.5 leading-relaxed">
                   <li><span className="font-medium">范围：</span>员工自主邀请协作密切的相关方参与评估，确保评估维度全面。</li>
-                  <li><span className="font-medium">人数：</span>邀请人数不高于5人（上级≧1、平级≧1、跨团队协作方≧2），重要/核心岗可邀请多于5人。</li>
+                  <li><span className="font-medium">人数：</span>邀请人数不少于5人（上级≧1、平级≧2、跨团队协作方≧2），重要/核心岗可邀请多于5人，邀请如果存在不合理，办公室/HR组会再补充邀请。</li>
                 </ul>
               </div>
               <div>
