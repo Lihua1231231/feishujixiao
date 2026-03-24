@@ -39,6 +39,7 @@ type TeamEval = {
   selfEval: {
     status: string;
     importedContent: string;
+    sourceUrl?: string;
   } | null;
   peerReviewSummary: {
     output: number;
@@ -290,18 +291,31 @@ function TeamContent() {
                         <CardTitle className="text-base">员工自评 - {selectedEval.employee.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className={`whitespace-pre-wrap text-sm ${!expandedSelfEval ? "max-h-20 overflow-hidden" : ""}`}>
-                          {selectedEval.selfEval.importedContent || "未填写"}
-                        </p>
-                        {selectedEval.selfEval.importedContent && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2 text-xs"
-                            onClick={() => setExpandedSelfEval(!expandedSelfEval)}
+                        {selectedEval.selfEval.importedContent ? (
+                          <>
+                            <p className={`whitespace-pre-wrap text-sm ${!expandedSelfEval ? "max-h-20 overflow-hidden" : ""}`}>
+                              {selectedEval.selfEval.importedContent}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 text-xs"
+                              onClick={() => setExpandedSelfEval(!expandedSelfEval)}
+                            >
+                              {expandedSelfEval ? "收起" : "展开全部"}
+                            </Button>
+                          </>
+                        ) : selectedEval.selfEval.sourceUrl ? (
+                          <a
+                            href={selectedEval.selfEval.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                           >
-                            {expandedSelfEval ? "收起" : "展开全部"}
-                          </Button>
+                            查看飞书自评文档 →
+                          </a>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">未填写</p>
                         )}
                       </CardContent>
                     </Card>

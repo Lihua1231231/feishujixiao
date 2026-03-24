@@ -81,7 +81,7 @@ export async function GET() {
         return {
           employee: sub,
           evaluation: eval_,
-          selfEval: selfEval ? { status: selfEval.status, importedContent: selfEval.importedContent } : null,
+          selfEval: selfEval ? { status: selfEval.status, importedContent: selfEval.importedContent, sourceUrl: selfEval.sourceUrl } : null,
           peerReviewSummary: avgPeer,
         };
       })
