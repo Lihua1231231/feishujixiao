@@ -395,6 +395,7 @@ function PeerReviewContent() {
                     </div>
                   ))}
                 </div>
+                <p className="mt-3 text-sm text-muted-foreground">管理员将于 3.25 14:00 统一审核评估人选</p>
               </CardContent>
             </Card>
           )}
