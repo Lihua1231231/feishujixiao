@@ -16,6 +16,8 @@ const EVAL_LIST_NAMES = [
 const GROUP_B = ["李晓霞","鲍建伟","郑文文","赵奇卓","宓鸿宇"];
 
 const EXTRA_EVAL_MAP: Record<string, string[]> = {
+  "吴承霖": ["曹铭哲", "邱翔", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
+  "邱翔": ["曹铭哲", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
   "张东杰": ["余一铭", "曹文跃", "胡毅薇", "许斯荣"],
   "冉晨宇": ["邹玙璠"],
   "李娟娟": ["郭雨明"],
@@ -103,12 +105,12 @@ export async function GET() {
       const evaluators: string[] = [];
       // Direct supervisor
       if (u.supervisor) evaluators.push(u.supervisor.name);
-      // Extra evaluators
+      // Extra evaluators (including 吴承霖/邱翔 for specific people)
       for (const [supName, targets] of Object.entries(EXTRA_EVAL_MAP)) {
-        if (targets.includes(name)) evaluators.push(supName + "(双评)");
+        if (targets.includes(name) && supName !== u.supervisor?.name) {
+          evaluators.push(supName);
+        }
       }
-      // 吴承霖 and 邱翔 evaluate everyone on the list
-      evaluators.push("吴承霖", "邱翔");
 
       return {
         name,

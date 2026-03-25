@@ -29,26 +29,20 @@ export async function GET() {
 
     // 额外评估映射：某些主管需要额外评估非直属下级
     const EXTRA_EVAL_MAP: Record<string, string[]> = {
+      "吴承霖": ["曹铭哲", "邱翔", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
+      "邱翔": ["曹铭哲", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
       "张东杰": ["余一铭", "曹文跃", "胡毅薇", "许斯荣"],  // 前端组也由张东杰评
       "冉晨宇": ["邹玙璠"],                                   // 邹玙璠双评
       "李娟娟": ["郭雨明"],                                    // 郭雨明双评
     };
 
-    // 吴承霖：名单48人 + 名单外直属下级；邱翔：同理但排除吴承霖
-    const wuchenglin = await prisma.user.findFirst({ where: { name: "吴承霖" }, select: { id: true } });
+    // 所有主管统一逻辑：直属下级 + 额外评估人员
+    const extraNames = EXTRA_EVAL_MAP[user.name] || [];
     let subordinateWhere: object;
-    if (wuchenglin && user.id === wuchenglin.id) {
-      subordinateWhere = { AND: [{ id: { not: user.id } }, { OR: [{ name: { in: EVAL_LIST_NAMES } }, { supervisorId: user.id }] }] };
-    } else if (user.name === "邱翔" && wuchenglin) {
-      subordinateWhere = { AND: [{ id: { notIn: [user.id, wuchenglin.id] } }, { OR: [{ name: { in: EVAL_LIST_NAMES } }, { supervisorId: user.id }] }] };
+    if (extraNames.length > 0) {
+      subordinateWhere = { AND: [{ id: { not: user.id } }, { OR: [{ supervisorId: user.id }, { name: { in: extraNames } }] }] };
     } else {
-      // 普通主管：直属下级 + 额外评估人员
-      const extraNames = EXTRA_EVAL_MAP[user.name] || [];
-      if (extraNames.length > 0) {
-        subordinateWhere = { OR: [{ supervisorId: user.id }, { name: { in: extraNames } }] };
-      } else {
-        subordinateWhere = { supervisorId: user.id };
-      }
+      subordinateWhere = { supervisorId: user.id };
     }
 
     const subordinates = await prisma.user.findMany({
@@ -129,14 +123,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "当前不在上级评估阶段，无法执行此操作" }, { status: 400 });
     }
 
-    // 上下级关系验证（ADMIN豁免，吴承霖/邱翔全员评估豁免，额外评估映射豁免）
+    // 上下级关系验证（ADMIN豁免，额外评估映射豁免）
     const EXTRA_EVAL_MAP_POST: Record<string, string[]> = {
+      "吴承霖": ["曹铭哲", "邱翔", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
+      "邱翔": ["曹铭哲", "张东杰", "冉晨宇", "张志权", "徐宗泽", "李泽龙", "禹聪琪", "李斌琦", "王金淋", "赵奇卓"],
       "张东杰": ["余一铭", "曹文跃", "胡毅薇", "许斯荣"],
       "冉晨宇": ["邹玙璠"],
       "李娟娟": ["郭雨明"],
     };
-    const isFullEvaluator = user.name === "吴承霖" || user.name === "邱翔";
-    if (user.role !== "ADMIN" && !isFullEvaluator) {
+    if (user.role !== "ADMIN") {
       const employee = await prisma.user.findUnique({ where: { id: body.employeeId } });
       const extraNames = EXTRA_EVAL_MAP_POST[user.name] || [];
       const isExtraTarget = employee && extraNames.includes(employee.name);
