@@ -40,7 +40,7 @@ type NavProps = {
 const navItems = [
   { href: "/guide", label: "使用指南", icon: BookOpen, roles: ["EMPLOYEE", "SUPERVISOR", "HRBP", "ADMIN"] },
   { href: "/dashboard", label: "首页", icon: Home, roles: ["EMPLOYEE", "SUPERVISOR", "HRBP", "ADMIN"] },
-  { href: "/self-eval", label: "个人自评", icon: ClipboardList, roles: ["EMPLOYEE", "SUPERVISOR", "HRBP", "ADMIN"] },
+  { href: "/self-eval", label: "个人自评", icon: ClipboardList, roles: ["EMPLOYEE", "SUPERVISOR", "HRBP", "ADMIN"], availableUntil: "2026-03-24T23:59:59" },
   { href: "/peer-review", label: "360环评", icon: Users, roles: ["EMPLOYEE", "SUPERVISOR", "HRBP", "ADMIN"] },
   { href: "/team", label: "绩效初评", icon: UserCheck, roles: ["SUPERVISOR", "HRBP", "ADMIN"] },
   { href: "/calibration", label: "绩效校准", icon: BarChart3, roles: ["HRBP", "ADMIN"] },
@@ -65,7 +65,10 @@ export function Nav({ user }: NavProps) {
   const visibleItems = navItems
     .filter((item) => item.roles.includes(activeRole))
     .map((item) => {
-      const locked = !!(item.availableFrom && activeRole !== "ADMIN" && now < new Date(item.availableFrom));
+      const av = item as typeof item & { availableUntil?: string };
+      const lockedBefore = !!(item.availableFrom && activeRole !== "ADMIN" && now < new Date(item.availableFrom));
+      const lockedAfter = !!(av.availableUntil && activeRole !== "ADMIN" && now > new Date(av.availableUntil));
+      const locked = lockedBefore || lockedAfter;
       return { ...item, locked };
     });
 
@@ -100,7 +103,7 @@ export function Nav({ user }: NavProps) {
                 <span
                   key={item.href}
                   className="group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground/40 cursor-not-allowed"
-                  title="未到开放时间"
+                  title="已结束"
                 >
                   <Icon className="h-[18px] w-[18px] text-muted-foreground/30" />
                   {item.label}
