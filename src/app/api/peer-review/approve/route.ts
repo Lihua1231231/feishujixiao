@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 
-const APPROVERS = ["禹聪琪", "吴承霖", "邱翔"];
+const APPROVERS = ["禹聪琪", "吴承霖", "邱翔", "陈琼"];
 
 // Get all pending nominations for approval
 export async function GET() {
