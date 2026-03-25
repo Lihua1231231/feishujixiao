@@ -36,13 +36,13 @@ export async function GET() {
       "李娟娟": ["郭雨明"],                                    // 郭雨明双评
     };
 
-    // 所有主管统一逻辑：直属下级 + 额外评估人员
+    // 所有主管统一逻辑：(直属下级 ∩ 考核名单) ∪ 额外评估人员
     const extraNames = EXTRA_EVAL_MAP[user.name] || [];
     let subordinateWhere: object;
     if (extraNames.length > 0) {
-      subordinateWhere = { AND: [{ id: { not: user.id } }, { OR: [{ supervisorId: user.id }, { name: { in: extraNames } }] }] };
+      subordinateWhere = { AND: [{ id: { not: user.id } }, { OR: [{ AND: [{ supervisorId: user.id }, { name: { in: EVAL_LIST_NAMES } }] }, { name: { in: extraNames } }] }] };
     } else {
-      subordinateWhere = { supervisorId: user.id };
+      subordinateWhere = { AND: [{ supervisorId: user.id }, { name: { in: EVAL_LIST_NAMES } }] };
     }
 
     const subordinates = await prisma.user.findMany({
