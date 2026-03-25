@@ -50,43 +50,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { nominationId, action } = await req.json() as { nominationId: string; action: "approve" | "reject" };
+    const body = await req.json() as { nominationId?: string; nominationIds?: string[]; action: "approve" | "reject" };
+    const { action } = body;
 
-    const nomination = await prisma.reviewerNomination.findUnique({
-      where: { id: nominationId },
+    // Support batch: nominationIds takes priority over nominationId
+    const ids = body.nominationIds || (body.nominationId ? [body.nominationId] : []);
+    if (ids.length === 0) return NextResponse.json({ error: "No nomination IDs" }, { status: 400 });
+
+    const nominations = await prisma.reviewerNomination.findMany({
+      where: { id: { in: ids }, supervisorStatus: "PENDING" },
     });
-    if (!nomination) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (action === "approve") {
-      await prisma.reviewerNomination.update({
-        where: { id: nominationId },
-        data: { supervisorStatus: "APPROVED" },
-      });
-
-      // Create PeerReview record for the nominee to fill
-      await prisma.peerReview.upsert({
-        where: {
-          cycleId_reviewerId_revieweeId: {
+    let processed = 0;
+    for (const nomination of nominations) {
+      if (action === "approve") {
+        await prisma.reviewerNomination.update({
+          where: { id: nomination.id },
+          data: { supervisorStatus: "APPROVED" },
+        });
+        await prisma.peerReview.upsert({
+          where: {
+            cycleId_reviewerId_revieweeId: {
+              cycleId: nomination.cycleId,
+              reviewerId: nomination.nomineeId,
+              revieweeId: nomination.nominatorId,
+            },
+          },
+          update: {},
+          create: {
             cycleId: nomination.cycleId,
             reviewerId: nomination.nomineeId,
             revieweeId: nomination.nominatorId,
           },
-        },
-        update: {},
-        create: {
-          cycleId: nomination.cycleId,
-          reviewerId: nomination.nomineeId,
-          revieweeId: nomination.nominatorId,
-        },
-      });
-    } else {
-      await prisma.reviewerNomination.update({
-        where: { id: nominationId },
-        data: { supervisorStatus: "REJECTED" },
-      });
+        });
+      } else {
+        await prisma.reviewerNomination.update({
+          where: { id: nomination.id },
+          data: { supervisorStatus: "REJECTED" },
+        });
+      }
+      processed++;
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, processed });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

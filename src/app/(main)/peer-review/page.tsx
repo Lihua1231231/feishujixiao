@@ -567,6 +567,29 @@ function PeerReviewContent() {
             {approvals.filter(a => a.supervisorStatus === "PENDING").length === 0 && approvals.length > 0 && (
               <Card><CardContent className="py-8 text-center text-gray-500">所有提名已审批完成</CardContent></Card>
             )}
+            {(() => {
+              const allPending = approvals.filter(a => a.supervisorStatus === "PENDING");
+              const batchApprove = async (ids: string[]) => {
+                if (preview) return;
+                await fetch("/api/peer-review/approve", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ nominationIds: ids, action: "approve" }),
+                });
+                setApprovals(prev => prev.map(a => ids.includes(a.id) ? { ...a, supervisorStatus: "APPROVED" } : a));
+                toast.success(`已批准 ${ids.length} 条提名`);
+              };
+              return allPending.length > 0 ? (
+                <div className="flex justify-end">
+                  <Button
+                    disabled={preview}
+                    onClick={() => { if (confirm(`确认批准全部 ${allPending.length} 条待审批提名？`)) batchApprove(allPending.map(a => a.id)); }}
+                  >
+                    一键全部批准 ({allPending.length})
+                  </Button>
+                </div>
+              ) : null;
+            })()}
             {approvals.length === 0 && (
               <Card><CardContent className="py-8 text-center text-gray-500">暂无提名需要审批</CardContent></Card>
             )}
@@ -579,17 +602,39 @@ function PeerReviewContent() {
                 byNominator[key].push(a);
               });
               return Object.entries(byNominator).map(([name, items]) => {
-                const pending = items.filter(i => i.supervisorStatus === "PENDING").length;
+                const pendingItems = items.filter(i => i.supervisorStatus === "PENDING");
                 return (
                   <Card key={name}>
                     <CardHeader>
-                      <CardTitle className="text-base">
-                        {name}
-                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                          ({items[0].nominator.department}) — 提名 {items.length} 人
-                          {pending > 0 && <Badge variant="secondary" className="ml-2">{pending} 待审批</Badge>}
-                        </span>
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">
+                          {name}
+                          <span className="ml-2 text-sm font-normal text-muted-foreground">
+                            ({items[0].nominator.department}) — 提名 {items.length} 人
+                            {pendingItems.length > 0 && <Badge variant="secondary" className="ml-2">{pendingItems.length} 待审批</Badge>}
+                          </span>
+                        </CardTitle>
+                        {pendingItems.length > 1 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={preview}
+                            onClick={async () => {
+                              const ids = pendingItems.map(i => i.id);
+                              await fetch("/api/peer-review/approve", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ nominationIds: ids, action: "approve" }),
+                              });
+                              setApprovals(prev => prev.map(a => ids.includes(a.id) ? { ...a, supervisorStatus: "APPROVED" } : a));
+                              toast.success(`已批准 ${name} 的 ${ids.length} 条提名`);
+                            }}
+                          >
+                            全部批准
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
