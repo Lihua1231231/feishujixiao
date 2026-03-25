@@ -97,3 +97,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
+
+// Admin add nomination for a user (auto-approved)
+export async function PUT(req: NextRequest) {
+  try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!APPROVERS.includes(user.name) && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { nominatorId, nomineeId } = await req.json() as { nominatorId: string; nomineeId: string };
+    if (!nominatorId || !nomineeId) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+
+    const cycle = await prisma.reviewCycle.findFirst({
+      where: { status: { not: "ARCHIVED" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!cycle) return NextResponse.json({ error: "No active cycle" }, { status: 400 });
+
+    // Create nomination (auto-approved)
+    const nomination = await prisma.reviewerNomination.create({
+      data: {
+        cycleId: cycle.id,
+        nominatorId,
+        nomineeId,
+        supervisorStatus: "APPROVED",
+        nomineeStatus: "PENDING",
+      },
+      include: {
+        nominator: { select: { id: true, name: true, department: true } },
+        nominee: { select: { id: true, name: true, department: true } },
+      },
+    });
+
+    // Create PeerReview record
+    await prisma.peerReview.upsert({
+      where: {
+        cycleId_reviewerId_revieweeId: {
+          cycleId: cycle.id,
+          reviewerId: nomineeId,
+          revieweeId: nominatorId,
+        },
+      },
+      update: {},
+      create: { cycleId: cycle.id, reviewerId: nomineeId, revieweeId: nominatorId },
+    });
+
+    return NextResponse.json({
+      id: nomination.id,
+      nominator: nomination.nominator,
+      nominee: nomination.nominee,
+      supervisorStatus: nomination.supervisorStatus,
+      nomineeStatus: nomination.nomineeStatus,
+      createdAt: nomination.createdAt,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}

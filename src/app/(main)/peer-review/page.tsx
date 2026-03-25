@@ -130,6 +130,9 @@ function PeerReviewContent() {
   const [savingNoms, setSavingNoms] = useState(false);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [isApprover, setIsApprover] = useState(false);
+  const [addNomDialog, setAddNomDialog] = useState<{ open: boolean; nominatorId: string; nominatorName: string }>({ open: false, nominatorId: "", nominatorName: "" });
+  const [addNomSearch, setAddNomSearch] = useState("");
+  const [addingNom, setAddingNom] = useState(false);
 
   useEffect(() => {
     if (preview && previewRole) {
@@ -614,26 +617,37 @@ function PeerReviewContent() {
                             {pendingItems.length > 0 && <Badge variant="secondary" className="ml-2">{pendingItems.length} 待审批</Badge>}
                           </span>
                         </CardTitle>
-                        {pendingItems.length > 1 && (
+                        <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs"
                             disabled={preview}
-                            onClick={async () => {
-                              const ids = pendingItems.map(i => i.id);
-                              await fetch("/api/peer-review/approve", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ nominationIds: ids, action: "approve" }),
-                              });
-                              setApprovals(prev => prev.map(a => ids.includes(a.id) ? { ...a, supervisorStatus: "APPROVED" } : a));
-                              toast.success(`已批准 ${name} 的 ${ids.length} 条提名`);
-                            }}
+                            onClick={() => { setAddNomDialog({ open: true, nominatorId: items[0].nominator.id, nominatorName: name }); setAddNomSearch(""); }}
                           >
-                            全部批准
+                            补充提名
                           </Button>
-                        )}
+                          {pendingItems.length > 1 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={preview}
+                              onClick={async () => {
+                                const ids = pendingItems.map(i => i.id);
+                                await fetch("/api/peer-review/approve", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ nominationIds: ids, action: "approve" }),
+                                });
+                                setApprovals(prev => prev.map(a => ids.includes(a.id) ? { ...a, supervisorStatus: "APPROVED" } : a));
+                                toast.success(`已批准 ${name} 的 ${ids.length} 条提名`);
+                              }}
+                            >
+                              全部批准
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -717,6 +731,55 @@ function PeerReviewContent() {
               {declining ? "处理中..." : "确认拒绝"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 补充提名对话框 */}
+      <Dialog open={addNomDialog.open} onOpenChange={(open) => { if (!open) { setAddNomDialog({ open: false, nominatorId: "", nominatorName: "" }); setAddNomSearch(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>为 {addNomDialog.nominatorName} 补充提名</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={addNomSearch}
+              onChange={(e) => setAddNomSearch(e.target.value)}
+              placeholder="搜索同事姓名或部门..."
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            />
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {allUsers
+                .filter(u => u.id !== addNomDialog.nominatorId)
+                .filter(u => !approvals.some(a => a.nominator.id === addNomDialog.nominatorId && a.nominee.id === u.id))
+                .filter(u => !addNomSearch || u.name.includes(addNomSearch) || u.department.includes(addNomSearch))
+                .map(u => (
+                  <button
+                    key={u.id}
+                    className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
+                    disabled={addingNom || preview}
+                    onClick={async () => {
+                      setAddingNom(true);
+                      try {
+                        const res = await fetch("/api/peer-review/approve", {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ nominatorId: addNomDialog.nominatorId, nomineeId: u.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) { toast.error(data.error || "添加失败"); return; }
+                        setApprovals(prev => [...prev, data]);
+                        toast.success(`已为 ${addNomDialog.nominatorName} 添加评估人 ${u.name}`);
+                      } catch { toast.error("添加失败"); } finally { setAddingNom(false); }
+                    }}
+                  >
+                    <span>{u.name} ({u.department})</span>
+                    <span className="text-xs text-primary">+ 添加</span>
+                  </button>
+                ))
+              }
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
