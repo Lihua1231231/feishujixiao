@@ -694,7 +694,7 @@ function AdminContent() {
                           <TableCell className="text-xs">
                             {row.expectedEvaluators && row.expectedEvaluators.length > 0 ? (
                               <div className="space-y-0.5">
-                                {row.expectedEvaluators.filter(e => !["吴承霖", "邱翔"].includes(e)).map((evaluator, i) => {
+                                {row.expectedEvaluators.map((evaluator, i) => {
                                   const actual = row.supEval?.find(e => evaluator.startsWith(e.evaluator));
                                   return (
                                     <div key={i} className="flex items-center gap-1">
