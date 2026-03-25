@@ -111,7 +111,18 @@ export async function DELETE(req: NextRequest) {
     const nomination = await prisma.reviewerNomination.findUnique({ where: { id: nominationId } });
     if (!nomination) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Delete associated PeerReview if exists
+    // Check if associated PeerReview has been submitted
+    const pr = await prisma.peerReview.findFirst({
+      where: {
+        cycleId: nomination.cycleId,
+        reviewerId: nomination.nomineeId,
+        revieweeId: nomination.nominatorId,
+        status: "SUBMITTED",
+      },
+    });
+    if (pr) return NextResponse.json({ error: "该评估人已提交互评，无法删除" }, { status: 400 });
+
+    // Delete associated PeerReview if exists (only draft/pending)
     await prisma.peerReview.deleteMany({
       where: {
         cycleId: nomination.cycleId,
