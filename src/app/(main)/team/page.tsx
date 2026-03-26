@@ -54,6 +54,17 @@ type TeamEval = {
       innovationScore: number | null; innovationComment: string;
     }>;
   } | null;
+  isLegacyRecord?: boolean;
+  expectedEvaluatorNames?: string[];
+  currentEvaluatorNames?: string[];
+  legacyOwnerNames?: string[];
+  allSupervisorEvals?: Array<{
+    evaluatorId: string;
+    evaluatorName: string;
+    status: string;
+    weightedScore: number | null;
+    isCurrentAssignment: boolean;
+  }>;
 };
 
 type FormData = {
@@ -205,7 +216,7 @@ function TeamContent() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="绩效初评" description={`你有 ${evals.filter(e => e.evaluation?.status !== "SUBMITTED").length} 位下级待初评`} />
+      <PageHeader title="绩效初评" description={`你有 ${evals.filter(e => !e.isLegacyRecord && e.evaluation?.status !== "SUBMITTED").length} 条初评任务待完成`} />
 
       {/* 初评说明 - 页面顶部只显示一次 */}
       <Card>
@@ -276,7 +287,9 @@ function TeamContent() {
                 {e.evaluation?.weightedScore != null && (
                   <Badge variant="outline" className="text-xs">{e.evaluation.weightedScore.toFixed(1)}分</Badge>
                 )}
-                {e.evaluation?.status === "SUBMITTED" ? (
+                {e.isLegacyRecord ? (
+                  <Badge variant="outline">历史保留</Badge>
+                ) : e.evaluation?.status === "SUBMITTED" ? (
                   <Badge variant="success">已评估</Badge>
                 ) : (
                   <Badge variant="secondary">待评估</Badge>
@@ -289,6 +302,22 @@ function TeamContent() {
           <div>
             {selectedEval ? (
               <div className="space-y-4">
+                  <Card>
+                    <CardContent className="flex flex-wrap items-center gap-2 py-4 text-sm">
+                      {selectedEval.isLegacyRecord ? (
+                        <Badge variant="outline">历史保留，不计入当前待办</Badge>
+                      ) : (
+                        <Badge variant="secondary">当前初评任务</Badge>
+                      )}
+                      {selectedEval.currentEvaluatorNames && selectedEval.currentEvaluatorNames.length > 0 && (
+                        <span className="text-muted-foreground">当前初评人：{selectedEval.currentEvaluatorNames.join("、")}</span>
+                      )}
+                      {selectedEval.legacyOwnerNames && selectedEval.legacyOwnerNames.length > 0 && (
+                        <span className="text-muted-foreground">历史保留：{selectedEval.legacyOwnerNames.join("、")}</span>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   {/* Self evaluation */}
                   {selectedEval.selfEval && (
                     <Card>

@@ -63,9 +63,22 @@ type VerifyRow = {
   supervisor: string | null;
   selfEval: { status: string; hasUrl: boolean; hasContent: boolean; sourceUrl: string | null } | null;
   nominations: { total: number; approved: number; pending: number; rejected: number } | null;
-  peerReview: { total: number; submitted: number } | null;
-  supEval: { evaluator: string; status: string }[] | null;
-  expectedEvaluators?: string[];
+  peerNominationCount: number;
+  peerNominationComplete: boolean;
+  peerReviewReceivedSubmitted: number;
+  peerReviewReceivedTotal: number;
+  peerReviewReceivedComplete: boolean;
+  peerReviewAssignedSubmitted: number;
+  peerReviewAssignedTotal: number;
+  peerReviewAssignedComplete: boolean;
+  supEval: { evaluator: string; status: string }[];
+  supervisorExpectedEvaluatorNames: string[];
+  supervisorSubmittedEvaluatorNames: string[];
+  supervisorPendingEvaluatorNames: string[];
+  legacyEvaluators: string[];
+  supervisorComplete: boolean;
+  followUpFlags: string[];
+  followUpSummary: string;
 };
 
 type VerifyData = {
@@ -75,7 +88,10 @@ type VerifyData = {
     total: number; inSystem: number; missing: number;
     groupA: number; groupB: number;
     selfEvalDone: number; selfEvalMissing: number;
-    nominated: number; supEvalSubmitted: number;
+    peerNominationIncomplete: number;
+    peerReviewReceivedIncomplete: number;
+    peerReviewAssignedIncomplete: number;
+    supervisorIncomplete: number;
   };
   roster: VerifyRow[];
 };
@@ -106,6 +122,7 @@ function AdminContent() {
   const [userSearch, setUserSearch] = useState("");
   const [verifyData, setVerifyData] = useState<VerifyData | null>(null);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyExporting, setVerifyExporting] = useState(false);
   const [newCycle, setNewCycle] = useState({
     name: "2025年下半年绩效考核",
     selfEvalStart: "2026-03-17",
@@ -289,6 +306,50 @@ function AdminContent() {
     }
   };
 
+  const loadVerifyData = async () => {
+    if (preview) return;
+    setVerifyLoading(true);
+    try {
+      const res = await fetch("/api/admin/verify");
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      setVerifyData(data);
+    } catch (e) {
+      toast.error("加载核验数据失败: " + (e instanceof Error ? e.message : "未知错误"));
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const downloadVerifyExport = async () => {
+    if (preview) return;
+    setVerifyExporting(true);
+    try {
+      const res = await fetch("/api/admin/verify/export");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "导出失败");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "进度核验花名册.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("花名册已开始下载");
+    } catch (e) {
+      toast.error("导出失败: " + (e instanceof Error ? e.message : "未知错误"));
+    } finally {
+      setVerifyExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title="系统管理" description="考核周期、员工与数据管理" />
@@ -301,8 +362,7 @@ function AdminContent() {
           <TabsTrigger value="import">自评导入</TabsTrigger>
           <TabsTrigger value="verify" onClick={() => {
             if (!verifyData && !verifyLoading) {
-              setVerifyLoading(true);
-              fetch("/api/admin/verify").then(r => r.json()).then(d => { if (!d.error) setVerifyData(d); }).finally(() => setVerifyLoading(false));
+              loadVerifyData();
             }
           }}>数据核验</TabsTrigger>
         </TabsList>
@@ -614,7 +674,7 @@ function AdminContent() {
                   <CardDescription>周期：{verifyData.cycleName} · 阶段：{statusLabels[verifyData.cycleStatus] || verifyData.cycleStatus}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
                     <div className="rounded-lg border p-3 text-center">
                       <div className="text-2xl font-bold">{verifyData.summary.inSystem}<span className="text-base font-normal text-muted-foreground">/{verifyData.summary.total}</span></div>
                       <div className="text-xs text-muted-foreground">系统匹配</div>
@@ -626,12 +686,20 @@ function AdminContent() {
                       {verifyData.summary.selfEvalMissing > 0 && <Badge variant="destructive" className="mt-1">{verifyData.summary.selfEvalMissing} 缺失</Badge>}
                     </div>
                     <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold">{verifyData.summary.nominated}<span className="text-base font-normal text-muted-foreground">/{verifyData.summary.total}</span></div>
-                      <div className="text-xs text-muted-foreground">360提名≥3人</div>
+                      <div className="text-2xl font-bold text-red-600">{verifyData.summary.peerNominationIncomplete}</div>
+                      <div className="text-xs text-muted-foreground">360提名不足</div>
                     </div>
                     <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold">{verifyData.summary.supEvalSubmitted}<span className="text-base font-normal text-muted-foreground">/{verifyData.summary.total}</span></div>
-                      <div className="text-xs text-muted-foreground">初评已提交</div>
+                      <div className="text-2xl font-bold text-red-600">{verifyData.summary.peerReviewReceivedIncomplete}</div>
+                      <div className="text-xs text-muted-foreground">360被评未完成</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-red-600">{verifyData.summary.peerReviewAssignedIncomplete}</div>
+                      <div className="text-xs text-muted-foreground">360待评他人未完成</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-red-600">{verifyData.summary.supervisorIncomplete}</div>
+                      <div className="text-xs text-muted-foreground">初评未完成</div>
                     </div>
                   </div>
                 </CardContent>
@@ -639,8 +707,20 @@ function AdminContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">花名册逐人核验</CardTitle>
-                  <CardDescription>红色背景 = 异常项，需关注</CardDescription>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">花名册逐人核验</CardTitle>
+                      <CardDescription>红色背景 = 有异常项，支持先查看再导出 CSV 跟进</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={loadVerifyData} disabled={verifyLoading || preview}>
+                        {verifyLoading ? "刷新中..." : "刷新"}
+                      </Button>
+                      <Button size="sm" onClick={downloadVerifyExport} disabled={verifyExporting || preview}>
+                        {verifyExporting ? "导出中..." : "导出CSV花名册"}
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <Table>
@@ -652,13 +732,24 @@ function AdminContent() {
                         <TableHead className="w-20">直属上级</TableHead>
                         <TableHead className="w-20">自评链接</TableHead>
                         <TableHead className="w-24">360提名</TableHead>
-                        <TableHead className="w-20">互评进度</TableHead>
-                        <TableHead>初评评估人</TableHead>
+                        <TableHead className="w-24">360被评</TableHead>
+                        <TableHead className="w-24">360待评他人</TableHead>
+                        <TableHead className="w-48">初评进度</TableHead>
+                        <TableHead className="w-44">待跟进项</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {verifyData.roster.map((row) => (
-                        <TableRow key={row.name} className={!row.inSystem ? "bg-red-50" : ""}>
+                        <TableRow
+                          key={row.name}
+                          className={
+                            !row.inSystem ||
+                            (!row.isGroupB && !row.selfEval?.hasUrl && !row.selfEval?.hasContent) ||
+                            row.followUpFlags.length > 0
+                              ? "bg-red-50"
+                              : ""
+                          }
+                        >
                           <TableCell className="font-medium">
                             {row.name}
                             {row.isGroupB && <span className="ml-1 text-[10px] text-muted-foreground">(B组)</span>}
@@ -679,23 +770,28 @@ function AdminContent() {
                           </TableCell>
                           <TableCell className="text-xs">
                             {row.nominations ? (
-                              <span className={row.nominations.total < 3 ? "text-red-600 font-bold" : ""}>
-                                {row.nominations.total}人
+                              <span className={row.peerNominationComplete ? "" : "text-red-600 font-bold"}>
+                                {row.peerNominationCount}人
                                 {row.nominations.approved > 0 && <span className="text-green-600"> ({row.nominations.approved}批)</span>}
                                 {row.nominations.pending > 0 && <span className="text-yellow-600"> ({row.nominations.pending}待)</span>}
                               </span>
                             ) : <span className="text-red-600 font-bold">未提名</span>}
                           </TableCell>
                           <TableCell className="text-xs">
-                            {row.peerReview ? (
-                              <span>{row.peerReview.submitted}/{row.peerReview.total}</span>
-                            ) : "0/0"}
+                            <span className={row.peerReviewReceivedComplete ? "text-green-600" : "text-red-600 font-bold"}>
+                              {row.peerReviewReceivedSubmitted}/{row.peerReviewReceivedTotal}
+                            </span>
                           </TableCell>
                           <TableCell className="text-xs">
-                            {row.expectedEvaluators && row.expectedEvaluators.length > 0 ? (
-                              <div className="space-y-0.5">
-                                {row.expectedEvaluators.map((evaluator, i) => {
-                                  const actual = row.supEval?.find(e => evaluator.startsWith(e.evaluator));
+                            <span className={row.peerReviewAssignedComplete ? "text-green-600" : "text-red-600 font-bold"}>
+                              {row.peerReviewAssignedSubmitted}/{row.peerReviewAssignedTotal}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {row.supervisorExpectedEvaluatorNames.length > 0 ? (
+                              <div className="space-y-1">
+                                {row.supervisorExpectedEvaluatorNames.map((evaluator, i) => {
+                                  const actual = row.supEval.find((item) => evaluator === item.evaluator);
                                   return (
                                     <div key={i} className="flex items-center gap-1">
                                       <span>{evaluator}</span>
@@ -707,8 +803,26 @@ function AdminContent() {
                                     </div>
                                   );
                                 })}
+                                {row.legacyEvaluators.length > 0 && (
+                                  <div className="pt-1 text-[10px] text-muted-foreground">
+                                    历史保留：{row.legacyEvaluators.join("、")}
+                                  </div>
+                                )}
                               </div>
                             ) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {row.followUpFlags.length > 0 ? (
+                              <div className="space-y-1">
+                                {row.followUpFlags.map((flag) => (
+                                  <Badge key={flag} variant="destructive" className="mr-1">
+                                    {flag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-green-600">已完成</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

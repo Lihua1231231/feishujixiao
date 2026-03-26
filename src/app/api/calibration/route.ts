@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, getActiveCycle } from "@/lib/session";
 import { validateStars } from "@/lib/validate";
+import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
 
 // Get all calibration data
 export async function GET() {
@@ -17,18 +18,50 @@ export async function GET() {
 
     const users = await prisma.user.findMany({
       where: { role: { not: "ADMIN" } },
-      select: { id: true, name: true, department: true, jobTitle: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        jobTitle: true,
+        role: true,
+        supervisorId: true,
+        supervisor: { select: { id: true, name: true } },
+      },
     });
+
+    const allSupervisorEvals = await prisma.supervisorEval.findMany({
+      where: { cycleId: cycle.id },
+      include: {
+        evaluator: { select: { id: true, name: true } },
+      },
+    });
+
+    const assignments = buildSupervisorAssignmentMap(
+      users.map((item) => ({
+        id: item.id,
+        name: item.name,
+        supervisorId: item.supervisorId,
+        supervisor: item.supervisor,
+      })),
+      allSupervisorEvals.map((item) => ({
+        employeeId: item.employeeId,
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.name,
+      }))
+    );
+
+    const supervisorEvalsByEmployeeId = new Map<string, typeof allSupervisorEvals>();
+    for (const evalItem of allSupervisorEvals) {
+      const list = supervisorEvalsByEmployeeId.get(evalItem.employeeId) || [];
+      list.push(evalItem);
+      supervisorEvalsByEmployeeId.set(evalItem.employeeId, list);
+    }
 
     const data = await Promise.all(
       users.map(async (u) => {
         const selfEval = await prisma.selfEvaluation.findUnique({
           where: { cycleId_userId: { cycleId: cycle.id, userId: u.id } },
           select: { importedAt: true },
-        });
-
-        const supervisorEval = await prisma.supervisorEval.findUnique({
-          where: { cycleId_employeeId: { cycleId: cycle.id, employeeId: u.id } },
         });
 
         const calibration = await prisma.calibrationResult.findUnique({
@@ -42,19 +75,21 @@ export async function GET() {
         const peerAvg = peerReviews.length > 0
           ? (peerReviews.reduce((s, r) => s + (r.outputScore || 0) + (r.collaborationScore || 0) + (r.valuesScore || 0), 0) / (peerReviews.length * 3)).toFixed(1)
           : null;
-
-        const supervisorWeighted = supervisorEval?.weightedScore ?? null;
-        const proposedStars = calibration?.proposedStars != null
-          ? Math.round(calibration.proposedStars)
-          : supervisorWeighted != null
-            ? Math.round(supervisorWeighted)
-            : null;
+        const assignment = assignments.get(u.id);
+        const supervisorEvals = (supervisorEvalsByEmployeeId.get(u.id) || []).map((item) => ({
+          evaluatorName: item.evaluator.name,
+          status: item.status,
+          weightedScore: item.weightedScore != null ? Number(item.weightedScore) : null,
+          isCurrentAssignment: assignment?.currentEvaluatorIds.includes(item.evaluatorId) ?? false,
+        }));
+        const proposedStars = calibration?.proposedStars != null ? Math.round(calibration.proposedStars) : null;
 
         return {
           user: u,
           selfEvalStatus: selfEval?.importedAt ? "imported" : "not_imported",
           peerAvg,
-          supervisorWeighted: supervisorWeighted != null ? Number(supervisorWeighted) : null,
+          supervisorWeighted: null,
+          supervisorEvals,
           proposedStars,
           finalStars: calibration?.finalStars ?? null,
         };

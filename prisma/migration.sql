@@ -159,7 +159,9 @@ CREATE TABLE "Appeal" (
 CREATE UNIQUE INDEX "SelfEvaluation_cycleId_userId_key" ON "SelfEvaluation"("cycleId", "userId");
 CREATE UNIQUE INDEX "ReviewerNomination_cycleId_nominatorId_nomineeId_key" ON "ReviewerNomination"("cycleId", "nominatorId", "nomineeId");
 CREATE UNIQUE INDEX "PeerReview_cycleId_reviewerId_revieweeId_key" ON "PeerReview"("cycleId", "reviewerId", "revieweeId");
-CREATE UNIQUE INDEX "SupervisorEval_cycleId_employeeId_key" ON "SupervisorEval"("cycleId", "employeeId");
+CREATE UNIQUE INDEX "SupervisorEval_cycleId_employeeId_evaluatorId_key" ON "SupervisorEval"("cycleId", "employeeId", "evaluatorId");
+CREATE INDEX "SupervisorEval_cycleId_employeeId_idx" ON "SupervisorEval"("cycleId", "employeeId");
+CREATE INDEX "SupervisorEval_cycleId_evaluatorId_idx" ON "SupervisorEval"("cycleId", "evaluatorId");
 CREATE UNIQUE INDEX "CalibrationResult_cycleId_userId_key" ON "CalibrationResult"("cycleId", "userId");
 CREATE UNIQUE INDEX "Meeting_cycleId_employeeId_key" ON "Meeting"("cycleId", "employeeId");
 CREATE UNIQUE INDEX "Appeal_cycleId_userId_key" ON "Appeal"("cycleId", "userId");

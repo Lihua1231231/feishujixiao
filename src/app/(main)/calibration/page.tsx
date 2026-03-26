@@ -39,6 +39,12 @@ type CalibrationItem = {
   selfEvalStatus: "imported" | "not_imported";
   peerAvg: string | null;
   supervisorWeighted: number | null;
+  supervisorEvals?: Array<{
+    evaluatorName: string;
+    status: string;
+    weightedScore: number | null;
+    isCurrentAssignment?: boolean;
+  }>;
   proposedStars: number | null;
   finalStars: number | null;
 };
@@ -173,7 +179,7 @@ function CalibrationContent() {
                 <TableHead>部门</TableHead>
                 <TableHead className="text-center">自评状态</TableHead>
                 <TableHead className="text-center">360均分</TableHead>
-                <TableHead className="text-center">上级加权分</TableHead>
+                <TableHead className="text-center">初评参考</TableHead>
                 <TableHead className="text-center">最终星级</TableHead>
                 <TableHead className="text-center">操作</TableHead>
               </TableRow>
@@ -190,7 +196,16 @@ function CalibrationContent() {
                   </TableCell>
                   <TableCell className="text-center">{item.peerAvg || "-"}</TableCell>
                   <TableCell className="text-center">
-                    {item.supervisorWeighted != null ? (
+                    {item.supervisorEvals && item.supervisorEvals.length > 0 ? (
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {item.supervisorEvals.map((evalItem) => (
+                          <Badge key={`${item.user.id}-${evalItem.evaluatorName}`} variant={evalItem.status === "SUBMITTED" ? "default" : "outline"}>
+                            {evalItem.evaluatorName}
+                            {evalItem.weightedScore != null ? ` ${evalItem.weightedScore.toFixed(1)}` : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : item.supervisorWeighted != null ? (
                       <Badge variant="outline">{item.supervisorWeighted.toFixed(1)}</Badge>
                     ) : "-"}
                   </TableCell>

@@ -181,7 +181,9 @@ model SupervisorEval {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  @@unique([cycleId, employeeId])
+  @@unique([cycleId, employeeId, evaluatorId])
+  @@index([cycleId, employeeId])
+  @@index([cycleId, evaluatorId])
 }
 
 // ============ MODULE 4: CALIBRATION ============
