@@ -52,6 +52,16 @@ test("final review helper centralizes config parsing, access checks, and referen
     true,
     "final review helper should expose the workspace access guard",
   );
+  assert.equal(
+    source.includes("const [reviewUsers, directoryUsers] = await Promise.all(["),
+    true,
+    "final review helper should split review subjects from the directory used for config-name resolution",
+  );
+  assert.equal(
+    source.includes("const usersById = new Map(directoryUsers.map((item) => [item.id, item]));"),
+    true,
+    "final review helper should resolve configured users from directoryUsers so admin reviewers render with names",
+  );
 });
 
 test("final review routes expose config, workspace, opinion, leader review, and confirmation entrypoints", () => {
@@ -66,6 +76,11 @@ test("final review routes expose config, workspace, opinion, leader review, and 
     adminConfigRoute.includes("referenceStarRanges"),
     true,
     "admin config route should accept and return reference star ranges",
+  );
+  assert.equal(
+    adminConfigRoute.includes('where: { role: { not: "ADMIN" } }'),
+    false,
+    "admin config route should include admins when resolving final review configuration users",
   );
   assert.equal(
     workspaceRoute.includes("buildFinalReviewWorkspacePayload"),

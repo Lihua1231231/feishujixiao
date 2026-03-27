@@ -33,7 +33,7 @@ test("calibration page becomes a three-tab final review workspace", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
 
   assert.equal(
-    source.includes("原则与战情") && source.includes("非主管员工终评") && source.includes("主管层双人终评"),
+    source.includes("原则") && source.includes("非主管员工终评") && source.includes("主管层双人终评"),
     true,
     "calibration page should expose the three final review tabs",
   );
@@ -46,6 +46,31 @@ test("calibration page becomes a three-tab final review workspace", () => {
     source.includes("setInterval(loadWorkspace, 30000)"),
     true,
     "final review workspace should auto-refresh every 30 seconds",
+  );
+  assert.equal(
+    source.includes("这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪"),
+    true,
+    "principles tab should explain its purpose in plain operator language",
+  );
+  assert.equal(
+    source.includes("这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板"),
+    true,
+    "employee tab should explain the workflow in plain language",
+  );
+  assert.equal(
+    source.includes("这一页只处理主管层终评：先由两位填写人分别打分，再由最终确认人统一拍板"),
+    true,
+    "leader tab should explain the workflow in plain language",
+  );
+  assert.equal(
+    source.includes("5位终评相关人已完成的意见数"),
+    true,
+    "top progress cards should explain what the metric actually means",
+  );
+  assert.equal(
+    source.includes("主管层问卷填写进度"),
+    true,
+    "leader submission card should use plain-language wording",
   );
 });
 

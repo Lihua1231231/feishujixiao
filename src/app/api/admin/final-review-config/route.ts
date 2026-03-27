@@ -46,7 +46,6 @@ export async function GET(req: NextRequest) {
     const [record, users] = await Promise.all([
       prisma.finalReviewConfig.findUnique({ where: { cycleId: cycle.id } }),
       prisma.user.findMany({
-        where: { role: { not: "ADMIN" } },
         select: { id: true, name: true, department: true, role: true },
         orderBy: [{ department: "asc" }, { name: "asc" }],
       }),

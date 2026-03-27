@@ -232,24 +232,35 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     };
   }
 
-  const allUsers = await prisma.user.findMany({
-    where: { role: { not: "ADMIN" } },
-    select: {
-      id: true,
-      name: true,
-      department: true,
-      jobTitle: true,
-      role: true,
-      supervisorId: true,
-      supervisor: { select: { id: true, name: true } },
-    },
-    orderBy: [{ department: "asc" }, { name: "asc" }],
-  });
+  const [reviewUsers, directoryUsers] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: { not: "ADMIN" } },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        jobTitle: true,
+        role: true,
+        supervisorId: true,
+        supervisor: { select: { id: true, name: true } },
+      },
+      orderBy: [{ department: "asc" }, { name: "asc" }],
+    }),
+    prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        role: true,
+      },
+      orderBy: [{ department: "asc" }, { name: "asc" }],
+    }),
+  ]);
 
   const configRecord = await prisma.finalReviewConfig.findUnique({
     where: { cycleId: cycle.id },
   });
-  const config = getFinalReviewConfigValue(cycle.id, configRecord, allUsers);
+  const config = getFinalReviewConfigValue(cycle.id, configRecord, reviewUsers);
   const canAccess = await canAccessFinalReviewWorkspace(user, cycle.id);
   if (!canAccess) {
     return {
@@ -310,7 +321,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     }),
   ]);
 
-  const usersById = new Map(allUsers.map((item) => [item.id, item]));
+  const usersById = new Map(directoryUsers.map((item) => [item.id, item]));
   const configUsers = {
     accessUsers: config.accessUserIds.map((id) => usersById.get(id)).filter(Boolean),
     finalizers: config.finalizerUserIds.map((id) => usersById.get(id)).filter(Boolean),
@@ -319,7 +330,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
   };
 
   const assignments = buildSupervisorAssignmentMap(
-    allUsers.map((item) => ({
+    reviewUsers.map((item) => ({
       id: item.id,
       name: item.name,
       supervisorId: item.supervisorId,
@@ -362,7 +373,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     peerReviewAverageByEmployee.set(employeeId, roundToOneDecimal(total / (reviews.length * 3)) || 0);
   }
 
-  const companyPeople = allUsers.map((item) => {
+  const companyPeople = reviewUsers.map((item) => {
     const latestEmployeeConfirmation = latestConfirmationMap.get(`EMPLOYEE:${item.id}`);
     const latestLeaderConfirmation = latestConfirmationMap.get(`LEADER:${item.id}`);
     const officialStars = latestLeaderConfirmation?.officialStars
@@ -376,8 +387,8 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
   });
 
   const leaderSubjectIds = new Set(config.leaderSubjectUserIds);
-  const employeeUsers = allUsers.filter((item) => !leaderSubjectIds.has(item.id));
-  const leaderUsers = allUsers.filter((item) => leaderSubjectIds.has(item.id));
+  const employeeUsers = reviewUsers.filter((item) => !leaderSubjectIds.has(item.id));
+  const leaderUsers = reviewUsers.filter((item) => leaderSubjectIds.has(item.id));
 
   const employeeRows = employeeUsers.map((employee) => {
     const assignment = assignments.get(employee.id);
@@ -519,7 +530,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     employeeRows.map((item) => ({ name: item.name, stars: item.officialStars ?? item.referenceStars })),
   );
 
-  const assignmentEmployeeIds = allUsers
+  const assignmentEmployeeIds = reviewUsers
     .filter((item) => assignments.has(item.id))
     .map((item) => item.id);
   const submittedEmployeeCount = assignmentEmployeeIds.filter((employeeId) => {

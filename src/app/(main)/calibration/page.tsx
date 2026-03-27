@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, type ReactNode, useCallback, useEffect, useState } from "react";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -255,6 +255,40 @@ function DistributionBlock({
             </div>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GuideCard({
+  description,
+}: {
+  description: string;
+}) {
+  return (
+    <Card className="border-primary/20 bg-primary/[0.03]">
+      <CardContent className="py-4 text-sm text-muted-foreground">
+        {description}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewMetricCard({
+  value,
+  title,
+  description,
+}: {
+  value: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="py-5 text-center">
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="mt-1 text-sm font-medium">{title}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{description}</div>
       </CardContent>
     </Card>
   );
@@ -598,12 +632,14 @@ function CalibrationContent() {
 
       <Tabs defaultValue="battlefield">
         <TabsList>
-          <TabsTrigger value="battlefield">原则与战情</TabsTrigger>
+          <TabsTrigger value="battlefield">原则</TabsTrigger>
           <TabsTrigger value="employees">非主管员工终评</TabsTrigger>
           <TabsTrigger value="leaders">主管层双人终评</TabsTrigger>
         </TabsList>
 
         <TabsContent value="battlefield" className="space-y-4">
+          <GuideCard description="这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪。" />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">原则与链路</CardTitle>
@@ -678,19 +714,37 @@ function CalibrationContent() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-4">
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.overview.progress.employeeOpinionDone}/{workspace.overview.progress.employeeOpinionTotal}</div><div className="text-xs text-muted-foreground">普通员工终评意见进度</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.overview.progress.employeeConfirmedCount}/{workspace.overview.progress.employeeTotalCount}</div><div className="text-xs text-muted-foreground">普通员工官方确认</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.overview.progress.leaderConfirmedCount}/{workspace.overview.progress.leaderTotalCount}</div><div className="text-xs text-muted-foreground">主管层官方确认</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-sm font-medium">{workspace.overview.progress.leaderSubmittedCounts.map((item) => `${item.evaluatorName} ${item.submittedCount}`).join(" · ") || "未配置"}</div><div className="mt-1 text-xs text-muted-foreground">主管层问卷提交进度</div></CardContent></Card>
+            <OverviewMetricCard
+              value={`${workspace.overview.progress.employeeOpinionDone}/${workspace.overview.progress.employeeOpinionTotal}`}
+              title="普通员工意见收集进度"
+              description="5位终评相关人已完成的意见数"
+            />
+            <OverviewMetricCard
+              value={`${workspace.overview.progress.employeeConfirmedCount}/${workspace.overview.progress.employeeTotalCount}`}
+              title="普通员工正式拍板进度"
+              description="最终确认人已完成正式确认的人数"
+            />
+            <OverviewMetricCard
+              value={`${workspace.overview.progress.leaderConfirmedCount}/${workspace.overview.progress.leaderTotalCount}`}
+              title="主管层正式拍板进度"
+              description="主管层已完成官方确认的人数"
+            />
+            <OverviewMetricCard
+              value={workspace.overview.progress.leaderSubmittedCounts.map((item) => `${item.evaluatorName} ${item.submittedCount}`).join(" · ") || "未配置"}
+              title="主管层问卷填写进度"
+              description="吴承霖、邱翔分别已提交多少份主管层问卷"
+            />
           </div>
         </TabsContent>
 
         <TabsContent value="employees" className="space-y-4">
+          <GuideCard description="这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板。" />
+
           <div className="grid gap-4 lg:grid-cols-4">
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.employeeReview.overview.companyCount}</div><div className="text-xs text-muted-foreground">公司当前人数</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.employeeReview.overview.initialEvalSubmissionRate}%</div><div className="text-xs text-muted-foreground">绩效初评提交率</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.employeeReview.overview.officialCompletionRate}%</div><div className="text-xs text-muted-foreground">当前官方终评完成率</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.employeeReview.overview.pendingOfficialCount}</div><div className="text-xs text-muted-foreground">待最终确认人数</div></CardContent></Card>
+            <OverviewMetricCard value={workspace.employeeReview.overview.companyCount} title="公司当前人数" description="本轮参与绩效终评的员工总人数" />
+            <OverviewMetricCard value={`${workspace.employeeReview.overview.initialEvalSubmissionRate}%`} title="绩效初评提交率" description="普通员工初评问卷当前已提交的比例" />
+            <OverviewMetricCard value={`${workspace.employeeReview.overview.officialCompletionRate}%`} title="当前官方终评完成率" description="已经被最终确认人正式拍板的比例" />
+            <OverviewMetricCard value={workspace.employeeReview.overview.pendingOfficialCount} title="待最终确认人数" description="还没有正式拍板的普通员工人数" />
           </div>
 
           <DistributionBlock title="公司当前绩效分布全览" description="普通员工未最终确认前按参考星级进入统计，已确认后按官方结果进入统计" distribution={workspace.employeeReview.companyDistribution} />
@@ -897,11 +951,18 @@ function CalibrationContent() {
         </TabsContent>
 
         <TabsContent value="leaders" className="space-y-4">
+          <GuideCard description="这一页只处理主管层终评：先由两位填写人分别打分，再由最终确认人统一拍板。" />
+
           <div className="grid gap-4 lg:grid-cols-4">
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.leaderReview.overview.leaderCount}</div><div className="text-xs text-muted-foreground">主管层总人数</div></CardContent></Card>
-            <Card><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{workspace.leaderReview.overview.confirmedCount}</div><div className="text-xs text-muted-foreground">主管层已确认人数</div></CardContent></Card>
+            <OverviewMetricCard value={workspace.leaderReview.overview.leaderCount} title="主管层总人数" description="当前纳入主管层终评的对象人数" />
+            <OverviewMetricCard value={workspace.leaderReview.overview.confirmedCount} title="主管层已确认人数" description="已经被最终确认人正式拍板的主管人数" />
             {workspace.leaderReview.overview.evaluatorProgress.map((item) => (
-              <Card key={item.evaluatorId}><CardContent className="py-5 text-center"><div className="text-2xl font-bold">{item.submittedCount}</div><div className="text-xs text-muted-foreground">{item.evaluatorName} 已提交</div></CardContent></Card>
+              <OverviewMetricCard
+                key={item.evaluatorId}
+                value={item.submittedCount}
+                title={`${item.evaluatorName} 已提交`}
+                description={`${item.evaluatorName} 已提交的主管层问卷数量`}
+              />
             ))}
           </div>
 
