@@ -185,11 +185,22 @@ test("calibration page delegates cockpit shaping to shared final-review helpers"
   );
 });
 
+test("calibration page delegates employee-tab composition to dedicated cockpit components", () => {
+  const page = read("src/app/(main)/calibration/page.tsx");
+
+  assert.equal(
+    page.includes('from "@/components/final-review/employee-cockpit"') &&
+      page.includes('from "@/components/final-review/employee-detail-panel"'),
+    true,
+    "the page should import the dedicated employee cockpit and detail panel helpers",
+  );
+});
+
 test("calibration page keeps the pending employee metric on the server overview field", () => {
   const page = read("src/app/(main)/calibration/page.tsx");
 
   assert.equal(
-    page.includes('OverviewMetricCard value={workspace.employeeReview.overview.pendingOfficialCount} title="待最终确认人数"'),
+    page.includes("pendingOfficialCount={workspace.employeeReview.overview.pendingOfficialCount}"),
     true,
     "the live pending metric should keep using the server-provided overview count",
   );

@@ -2,10 +2,12 @@
 
 import { Suspense, type ReactNode, useCallback, useEffect, useState } from "react";
 import {
-  buildEmployeePriorityGroups,
+  buildEmployeePriorityCards,
   buildLeaderSubmissionSummary,
   buildScoreBandBuckets,
 } from "@/components/final-review/workspace-view";
+import { EmployeeCockpit } from "@/components/final-review/employee-cockpit";
+import { EmployeeDetailPanel } from "@/components/final-review/employee-detail-panel";
 import { PrinciplesTab } from "@/components/final-review/principles-tab";
 import type {
   DistributionEntry,
@@ -36,6 +38,23 @@ type EmployeeConfirmForm = {
   reason: string;
 };
 
+function buildDefaultEmployeeOpinionForm(employee: EmployeeRow): EmployeeOpinionForm {
+  const myOpinion = employee.opinions.find((item) => item.isMine);
+
+  return {
+    decision: (myOpinion?.decision || "PENDING") as EmployeeOpinionForm["decision"],
+    suggestedStars: myOpinion?.suggestedStars ?? employee.referenceStars,
+    reason: myOpinion?.reason || "",
+  };
+}
+
+function buildDefaultEmployeeConfirmForm(employee: EmployeeRow): EmployeeConfirmForm {
+  return {
+    officialStars: employee.officialStars ?? employee.referenceStars,
+    reason: employee.officialReason || "",
+  };
+}
+
 function computeAbilityStars(form: LeaderForm): number | null {
   if (form.comprehensiveStars == null || form.learningStars == null || form.adaptabilityStars == null) return null;
   return Math.round((form.comprehensiveStars + form.learningStars + form.adaptabilityStars) / 3);
@@ -51,17 +70,6 @@ function computeWeightedScore(form: LeaderForm): number | null {
   const valuesStars = computeValuesStars(form);
   if (form.performanceStars == null || abilityStars == null || valuesStars == null) return null;
   return Math.round((form.performanceStars * 0.5 + abilityStars * 0.3 + valuesStars * 0.2) * 10) / 10;
-}
-
-function formatTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
-
-function getOpinionTone(decision: string) {
-  if (decision === "AGREE") return "default";
-  if (decision === "OVERRIDE") return "destructive";
-  return "outline";
 }
 
 function DistributionBlock({
@@ -250,6 +258,7 @@ function CalibrationContent() {
   const [activeCompanyScope, setActiveCompanyScope] = useState<"all" | "leaderOnly" | "employeeOnly">("all");
   const [employeeForms, setEmployeeForms] = useState<Record<string, EmployeeOpinionForm>>({});
   const [employeeConfirmForms, setEmployeeConfirmForms] = useState<Record<string, EmployeeConfirmForm>>({});
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [leaderForms, setLeaderForms] = useState<Record<string, LeaderForm>>({});
   const [leaderConfirmForms, setLeaderConfirmForms] = useState<Record<string, EmployeeConfirmForm>>({});
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
@@ -269,12 +278,7 @@ function CalibrationContent() {
         const next = { ...prev };
         data.employeeReview?.employees.forEach((row: EmployeeRow) => {
           if (!next[row.id]) {
-            const myOpinion = row.opinions.find((item) => item.isMine);
-            next[row.id] = {
-              decision: (myOpinion?.decision || "PENDING") as "PENDING" | "AGREE" | "OVERRIDE",
-              suggestedStars: myOpinion?.suggestedStars ?? row.referenceStars,
-              reason: myOpinion?.reason || "",
-            };
+            next[row.id] = buildDefaultEmployeeOpinionForm(row);
           }
         });
         return next;
@@ -284,10 +288,7 @@ function CalibrationContent() {
         const next = { ...prev };
         data.employeeReview?.employees.forEach((row: EmployeeRow) => {
           if (!next[row.id]) {
-            next[row.id] = {
-              officialStars: row.officialStars ?? row.referenceStars,
-              reason: row.officialReason || "",
-            };
+            next[row.id] = buildDefaultEmployeeConfirmForm(row);
           }
         });
         return next;
@@ -319,6 +320,11 @@ function CalibrationContent() {
         return next;
       });
 
+      setSelectedEmployeeId((current) => {
+        const employees = data.employeeReview?.employees || [];
+        if (current && employees.some((employee: EmployeeRow) => employee.id === current)) return current;
+        return employees.find((employee: EmployeeRow) => !employee.officialConfirmedAt)?.id || employees[0]?.id || null;
+      });
       setSelectedLeaderId((current) => current || data.leaderReview?.leaders?.[0]?.id || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
@@ -466,8 +472,43 @@ function CalibrationContent() {
   const selectedLeader = workspace.leaderReview.leaders.find((leader) => leader.id === selectedLeaderId) || workspace.leaderReview.leaders[0] || null;
   const activeCompanyDistribution = workspace.leaderReview.companyDistributions[activeCompanyScope];
   const scoreBandBuckets = buildScoreBandBuckets(workspace.employeeReview.employees);
-  const employeePriorityGroups = buildEmployeePriorityGroups(workspace.employeeReview.employees);
+  const employeePriorityCards = buildEmployeePriorityCards(workspace.employeeReview.employees);
   const leaderSubmissionSummary = buildLeaderSubmissionSummary(workspace.leaderReview.leaders);
+  const selectedEmployee =
+    workspace.employeeReview.employees.find((employee) => employee.id === selectedEmployeeId) ||
+    workspace.employeeReview.employees[0] ||
+    null;
+  const selectedEmployeeOpinionForm = selectedEmployee
+    ? employeeForms[selectedEmployee.id] || buildDefaultEmployeeOpinionForm(selectedEmployee)
+    : null;
+  const selectedEmployeeConfirmForm = selectedEmployee
+    ? employeeConfirmForms[selectedEmployee.id] || buildDefaultEmployeeConfirmForm(selectedEmployee)
+    : null;
+  const pendingPriorityCount = employeePriorityCards.find((card) => card.key === "pending")?.count ?? 0;
+
+  const updateSelectedEmployeeOpinion = (patch: Partial<EmployeeOpinionForm>) => {
+    if (!selectedEmployee) return;
+
+    setEmployeeForms((prev) => ({
+      ...prev,
+      [selectedEmployee.id]: {
+        ...(prev[selectedEmployee.id] || buildDefaultEmployeeOpinionForm(selectedEmployee)),
+        ...patch,
+      },
+    }));
+  };
+
+  const updateSelectedEmployeeConfirm = (patch: Partial<EmployeeConfirmForm>) => {
+    if (!selectedEmployee) return;
+
+    setEmployeeConfirmForms((prev) => ({
+      ...prev,
+      [selectedEmployee.id]: {
+        ...(prev[selectedEmployee.id] || buildDefaultEmployeeConfirmForm(selectedEmployee)),
+        ...patch,
+      },
+    }));
+  };
 
   return (
     <div className="space-y-6">
@@ -493,217 +534,43 @@ function CalibrationContent() {
           />
         </TabsContent>
 
-        <TabsContent value="employees" className="space-y-4" data-priority-pending-count={employeePriorityGroups.pending.length}>
-          <GuideCard description="这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板。" />
-
-          <div className="grid gap-4 lg:grid-cols-4">
-            <OverviewMetricCard value={workspace.employeeReview.overview.companyCount} title="公司当前人数" description="本轮参与绩效终评的员工总人数" />
-            <OverviewMetricCard value={`${workspace.employeeReview.overview.initialEvalSubmissionRate}%`} title="绩效初评提交率" description="普通员工初评问卷当前已提交的比例" />
-            <OverviewMetricCard value={`${workspace.employeeReview.overview.officialCompletionRate}%`} title="当前官方终评完成率" description="已经被最终确认人正式拍板的比例" />
-            <OverviewMetricCard value={workspace.employeeReview.overview.pendingOfficialCount} title="待最终确认人数" description="还没有正式拍板的普通员工人数" />
-          </div>
-
-          <DistributionBlock title="公司当前绩效分布全览" description="普通员工未最终确认前按参考星级进入统计，已确认后按官方结果进入统计" distribution={workspace.employeeReview.companyDistribution} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">按团队的绩效分布</CardTitle>
-              <CardDescription>当前按系统现有部门字段分组，悬停人数可看该星级下的员工名单</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {workspace.employeeReview.departmentDistributions.map((item) => (
-                <div key={item.department} className="rounded-xl border p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="font-semibold">{item.department}</div>
-                    <div className="text-xs text-muted-foreground">{item.total} 人</div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-5">
-                    {item.distribution.map((bucket) => (
-                      <div key={bucket.stars} className={`rounded-lg border p-3 ${bucket.exceeded ? "border-red-200 bg-red-50" : ""}`}>
-                        <div className="text-xs text-muted-foreground">{bucket.stars}星</div>
-                        <div className="text-xl font-bold" title={bucket.names.join("、")}>{bucket.count}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">逐人终评台</CardTitle>
-              <CardDescription>参考星级由初评加权分换算；终评相关人可同意参考星级或更改为其他星级</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {workspace.employeeReview.employees.map((employee) => {
-                const myOpinion = employee.opinions.find((item) => item.isMine);
-                const opinionForm = employeeForms[employee.id] || {
-                  decision: (myOpinion?.decision || "PENDING") as "PENDING" | "AGREE" | "OVERRIDE",
-                  suggestedStars: myOpinion?.suggestedStars ?? employee.referenceStars,
-                  reason: myOpinion?.reason || "",
-                };
-                const confirmForm = employeeConfirmForms[employee.id] || {
-                  officialStars: employee.officialStars ?? employee.referenceStars,
-                  reason: employee.officialReason || "",
-                };
-
-                return (
-                  <div key={employee.id} className="rounded-2xl border p-4 shadow-sm">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-semibold">{employee.name}</span>
-                          <Badge variant="outline">{employee.department}</Badge>
-                          {employee.anomalyTags.map((tag) => (
-                            <Badge key={tag} variant="destructive">{tag}</Badge>
-                          ))}
-                        </div>
-                        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                          <div>初评人：{employee.currentEvaluatorNames.join("、") || "未配置"}</div>
-                          <div>自评状态：{employee.selfEvalStatus || "未导入"}</div>
-                          <div>初评加权分：{employee.weightedScore?.toFixed(1) ?? "—"}</div>
-                          <div>360均分：{employee.peerAverage?.toFixed(1) ?? "—"}</div>
-                          <div>参考星级：{employee.referenceStars != null ? `${employee.referenceStars}星` : "—"}</div>
-                          <div>官方结果：{employee.officialStars != null ? `${employee.officialStars}星` : "待确认"}</div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{employee.referenceSourceLabel}</p>
-                      </div>
-                      <div className="rounded-xl border bg-muted/30 px-3 py-2 text-sm">
-                        当前进度 {employee.handledCount}/{employee.totalReviewerCount}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-                      <div className="space-y-3">
-                        <p className="text-sm font-semibold">终评相关人意见</p>
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {employee.opinions.map((opinion) => (
-                            <div key={opinion.reviewerId} className="rounded-xl border p-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{opinion.reviewerName}</span>
-                                <Badge variant={getOpinionTone(opinion.decision) as "default" | "destructive" | "outline"}>
-                                  {opinion.decisionLabel}
-                                </Badge>
-                              </div>
-                              <div className="mt-2 text-sm text-muted-foreground">
-                                建议星级：{opinion.suggestedStars != null ? `${opinion.suggestedStars}星` : "—"}
-                              </div>
-                              {opinion.reason && (
-                                <p className="mt-2 text-sm">{opinion.reason}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-
-                        {myOpinion && (
-                          <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4">
-                            <p className="text-sm font-semibold">我的处理动作</p>
-                            <div className="mt-3 grid gap-3 md:grid-cols-[180px_140px_1fr]">
-                              <select
-                                value={opinionForm.decision}
-                                onChange={(e) => setEmployeeForms((prev) => ({
-                                  ...prev,
-                                  [employee.id]: {
-                                    ...opinionForm,
-                                    decision: e.target.value as EmployeeOpinionForm["decision"],
-                                  },
-                                }))}
-                                className="h-10 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                              >
-                                <option value="PENDING">待处理</option>
-                                <option value="AGREE">同意参考星级</option>
-                                <option value="OVERRIDE">更改为其他星级</option>
-                              </select>
-                              <select
-                                value={opinionForm.suggestedStars ?? ""}
-                                onChange={(e) => setEmployeeForms((prev) => ({
-                                  ...prev,
-                                  [employee.id]: {
-                                    ...opinionForm,
-                                    suggestedStars: e.target.value ? Number(e.target.value) : null,
-                                  },
-                                }))}
-                                className="h-10 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                                disabled={opinionForm.decision === "PENDING"}
-                              >
-                                <option value="">选择星级</option>
-                                {[1, 2, 3, 4, 5].map((stars) => (
-                                  <option key={stars} value={stars}>{stars}星</option>
-                                ))}
-                              </select>
-                              <Textarea
-                                value={opinionForm.reason}
-                                onChange={(e) => setEmployeeForms((prev) => ({
-                                  ...prev,
-                                  [employee.id]: {
-                                    ...opinionForm,
-                                    reason: e.target.value,
-                                  },
-                                }))}
-                                placeholder={opinionForm.decision === "OVERRIDE" ? "更改为其他星级时请填写理由" : "如有补充说明，可在此填写"}
-                              />
-                            </div>
-                            <div className="mt-3 flex justify-end">
-                              <Button onClick={() => saveOpinion(employee)} disabled={savingKey === `opinion:${employee.id}`}>
-                                {savingKey === `opinion:${employee.id}` ? "保存中..." : "保存我的终评意见"}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-sm font-semibold">官方结果区</p>
-                        <div className="rounded-xl border p-4">
-                          <div className="grid gap-2 text-sm">
-                            <div>当前参考星级：{employee.referenceStars != null ? `${employee.referenceStars}星` : "—"}</div>
-                            <div>当前官方星级：{employee.officialStars != null ? `${employee.officialStars}星` : "待确认"}</div>
-                            <div>最后确认人：{employee.officialConfirmerName || "—"}</div>
-                            <div>最后确认时间：{formatTime(employee.officialConfirmedAt)}</div>
-                          </div>
-                          {employee.finalizable && (
-                            <div className="mt-4 space-y-3 border-t pt-4">
-                              <select
-                                value={confirmForm.officialStars ?? ""}
-                                onChange={(e) => setEmployeeConfirmForms((prev) => ({
-                                  ...prev,
-                                  [employee.id]: {
-                                    ...confirmForm,
-                                    officialStars: e.target.value ? Number(e.target.value) : null,
-                                  },
-                                }))}
-                                className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm"
-                              >
-                                <option value="">选择官方星级</option>
-                                {[1, 2, 3, 4, 5].map((stars) => (
-                                  <option key={stars} value={stars}>{stars}星</option>
-                                ))}
-                              </select>
-                              <Textarea
-                                value={confirmForm.reason}
-                                onChange={(e) => setEmployeeConfirmForms((prev) => ({
-                                  ...prev,
-                                  [employee.id]: {
-                                    ...confirmForm,
-                                    reason: e.target.value,
-                                  },
-                                }))}
-                                placeholder="若官方星级不同于参考星级，必须填写理由"
-                              />
-                              <Button className="w-full" onClick={() => confirmEmployee(employee)} disabled={savingKey === `confirm:${employee.id}`}>
-                                {savingKey === `confirm:${employee.id}` ? "确认中..." : "最终确认"}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+        <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
+          <EmployeeCockpit
+            guideDescription="这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板。参考星级由初评加权分换算。"
+            priorityBoardTitle="重点名单"
+            priorityBoardDescription="重点名单会优先摆出待拍板、意见分歧大，以及其他需要先看证据再拍板的员工。"
+            companyCount={workspace.employeeReview.overview.companyCount}
+            initialEvalSubmissionRate={workspace.employeeReview.overview.initialEvalSubmissionRate}
+            officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
+            pendingOfficialCount={workspace.employeeReview.overview.pendingOfficialCount}
+            employeeDistribution={workspace.employeeReview.employeeDistribution}
+            scoreBandBuckets={scoreBandBuckets}
+            priorityCards={employeePriorityCards}
+            selectedEmployeeId={selectedEmployee?.id ?? null}
+            onSelectEmployee={setSelectedEmployeeId}
+            detailPanel={(
+              <EmployeeDetailPanel
+                title="最终决策"
+                employee={selectedEmployee}
+                opinionForm={selectedEmployeeOpinionForm}
+                confirmForm={selectedEmployeeConfirmForm}
+                savingOpinion={selectedEmployee ? savingKey === `opinion:${selectedEmployee.id}` : false}
+                savingConfirmation={selectedEmployee ? savingKey === `confirm:${selectedEmployee.id}` : false}
+                onOpinionChange={updateSelectedEmployeeOpinion}
+                onConfirmChange={updateSelectedEmployeeConfirm}
+                onSaveOpinion={() => {
+                  if (selectedEmployee) {
+                    void saveOpinion(selectedEmployee);
+                  }
+                }}
+                onConfirm={() => {
+                  if (selectedEmployee) {
+                    void confirmEmployee(selectedEmployee);
+                  }
+                }}
+              />
+            )}
+          />
         </TabsContent>
 
         <TabsContent

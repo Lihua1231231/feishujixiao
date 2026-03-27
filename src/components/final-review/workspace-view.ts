@@ -8,6 +8,16 @@ export type ScoreBandBucket = {
   names: string[];
 };
 
+export type EmployeePriorityCard = {
+  key: "pending" | "disagreement" | "anomaly" | "highBandPending" | "lowBandAnomaly";
+  title: string;
+  summary: string;
+  description: string;
+  count: number;
+  rows: EmployeeRow[];
+  accent: "slate" | "amber" | "rose" | "blue" | "violet";
+};
+
 export function buildScoreBandBuckets(rows: EmployeeRow[]): ScoreBandBucket[] {
   const bands = [
     { label: "1.0-1.9", min: 1, max: 1.99 },
@@ -36,6 +46,74 @@ export function buildEmployeePriorityGroups(rows: EmployeeRow[]) {
     highBandPending: rows.filter((row) => (row.weightedScore ?? 0) >= 4 && !row.officialConfirmedAt),
     lowBandAnomaly: rows.filter((row) => (row.weightedScore ?? 99) < 3 && row.anomalyTags.length > 0),
   };
+}
+
+function summarizeRows(rows: EmployeeRow[], emptySummary: string) {
+  if (!rows.length) return emptySummary;
+  const names = rows.slice(0, 3).map((row) => row.name).join("、");
+  return rows.length > 3 ? `${names} 等 ${rows.length} 人` : names;
+}
+
+export function buildEmployeePriorityCards(rows: EmployeeRow[]): EmployeePriorityCard[] {
+  const groups = buildEmployeePriorityGroups(rows);
+
+  return [
+    {
+      key: "pending",
+      title: "待拍板",
+      summary: groups.pending.length ? `${groups.pending.length} 人还没有最终确认` : "当前没有待拍板员工",
+      description: groups.pending.length
+        ? `优先处理 ${summarizeRows(groups.pending, "")}，先完成最终确认再看其余队列。`
+        : "当前每位普通员工都已经有官方结果。",
+      count: groups.pending.length,
+      rows: groups.pending,
+      accent: "slate",
+    },
+    {
+      key: "disagreement",
+      title: "意见分歧大",
+      summary: groups.disagreement.length ? `${groups.disagreement.length} 人出现改星意见` : "当前没有明显分歧",
+      description: groups.disagreement.length
+        ? `重点核对 ${summarizeRows(groups.disagreement, "")} 的理由，避免遗漏需要解释的改星意见。`
+        : "终评相关人的意见暂时没有出现明显冲突。",
+      count: groups.disagreement.length,
+      rows: groups.disagreement,
+      accent: "amber",
+    },
+    {
+      key: "anomaly",
+      title: "超线敏感区",
+      summary: groups.anomaly.length ? `${groups.anomaly.length} 人带有异常标签` : "当前没有异常标签",
+      description: groups.anomaly.length
+        ? `这些员工带有超线或风险提示，建议先确认 ${summarizeRows(groups.anomaly, "")} 的证据。`
+        : "当前没有员工落在超线或异常敏感区。",
+      count: groups.anomaly.length,
+      rows: groups.anomaly,
+      accent: "rose",
+    },
+    {
+      key: "highBandPending",
+      title: "高分带未定",
+      summary: groups.highBandPending.length ? `${groups.highBandPending.length} 位高分员工未拍板` : "高分带都已完成确认",
+      description: groups.highBandPending.length
+        ? `高分带里的 ${summarizeRows(groups.highBandPending, "")} 仍在等待最终拍板。`
+        : "当前高分带员工都已经确认完毕。",
+      count: groups.highBandPending.length,
+      rows: groups.highBandPending,
+      accent: "blue",
+    },
+    {
+      key: "lowBandAnomaly",
+      title: "低分带异常",
+      summary: groups.lowBandAnomaly.length ? `${groups.lowBandAnomaly.length} 位低分异常待解释` : "低分带暂无异常组合",
+      description: groups.lowBandAnomaly.length
+        ? `低分带里的 ${summarizeRows(groups.lowBandAnomaly, "")} 同时伴随异常标签，需要补足理由。`
+        : "当前低分带没有同时带异常标签的员工。",
+      count: groups.lowBandAnomaly.length,
+      rows: groups.lowBandAnomaly,
+      accent: "violet",
+    },
+  ];
 }
 
 export function buildLeaderSubmissionSummary(rows: LeaderRow[]) {
