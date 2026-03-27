@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 import { sanitizeText, validateStars } from "@/lib/validate";
 
+function normalizeUnknownComment(score: number | null, comment: unknown) {
+  const sanitized = sanitizeText(comment);
+  if (score === 0) return sanitized || "不了解";
+  return sanitized;
+}
+
 // Get peer reviews assigned to current user
 export async function GET() {
   try {
@@ -67,6 +73,14 @@ export async function POST(req: NextRequest) {
     const progressStars = validateStars(body.progressStars);
     const altruismStars = validateStars(body.altruismStars);
     const rootStars = validateStars(body.rootStars);
+    const performanceComment = normalizeUnknownComment(performanceStars, body.performanceComment);
+    const comprehensiveComment = normalizeUnknownComment(comprehensiveStars, body.comprehensiveComment);
+    const learningComment = normalizeUnknownComment(learningStars, body.learningComment);
+    const adaptabilityComment = normalizeUnknownComment(adaptabilityStars, body.adaptabilityComment);
+    const candidComment = normalizeUnknownComment(candidStars, body.candidComment);
+    const progressComment = normalizeUnknownComment(progressStars, body.progressComment);
+    const altruismComment = normalizeUnknownComment(altruismStars, body.altruismComment);
+    const rootComment = normalizeUnknownComment(rootStars, body.rootComment);
 
     if (isSubmit) {
       if (performanceStars === null || comprehensiveStars === null || learningStars === null || adaptabilityStars === null || candidStars === null || progressStars === null || altruismStars === null || rootStars === null) {
@@ -74,14 +88,14 @@ export async function POST(req: NextRequest) {
       }
       // 选了"不了解"(0)的维度不要求评语
       const missingComments: string[] = [];
-      if (performanceStars! > 0 && !sanitizeText(body.performanceComment)) missingComments.push("业绩产出");
-      if (comprehensiveStars! > 0 && !sanitizeText(body.comprehensiveComment)) missingComments.push("综合能力");
-      if (learningStars! > 0 && !sanitizeText(body.learningComment)) missingComments.push("学习能力");
-      if (adaptabilityStars! > 0 && !sanitizeText(body.adaptabilityComment)) missingComments.push("适应能力");
-      if (candidStars! > 0 && !sanitizeText(body.candidComment)) missingComments.push("坦诚真实");
-      if (progressStars! > 0 && !sanitizeText(body.progressComment)) missingComments.push("极致进取");
-      if (altruismStars! > 0 && !sanitizeText(body.altruismComment)) missingComments.push("成就利他");
-      if (rootStars! > 0 && !sanitizeText(body.rootComment)) missingComments.push("ROOT");
+      if (performanceStars! > 0 && !performanceComment) missingComments.push("业绩产出");
+      if (comprehensiveStars! > 0 && !comprehensiveComment) missingComments.push("综合能力");
+      if (learningStars! > 0 && !learningComment) missingComments.push("学习能力");
+      if (adaptabilityStars! > 0 && !adaptabilityComment) missingComments.push("适应能力");
+      if (candidStars! > 0 && !candidComment) missingComments.push("坦诚真实");
+      if (progressStars! > 0 && !progressComment) missingComments.push("极致进取");
+      if (altruismStars! > 0 && !altruismComment) missingComments.push("成就利他");
+      if (rootStars! > 0 && !rootComment) missingComments.push("ROOT");
       if (missingComments.length > 0) {
         return NextResponse.json({ error: `请填写以下维度的文字评语：${missingComments.join("、")}` }, { status: 400 });
       }
@@ -91,22 +105,22 @@ export async function POST(req: NextRequest) {
       where: { id: body.id },
       data: {
         performanceStars,
-        performanceComment: sanitizeText(body.performanceComment),
+        performanceComment,
         comprehensiveStars,
-        comprehensiveComment: sanitizeText(body.comprehensiveComment),
+        comprehensiveComment,
         learningStars,
-        learningComment: sanitizeText(body.learningComment),
+        learningComment,
         adaptabilityStars,
-        adaptabilityComment: sanitizeText(body.adaptabilityComment),
+        adaptabilityComment,
         abilityComment: sanitizeText(body.abilityComment),
         candidStars,
-        candidComment: sanitizeText(body.candidComment),
+        candidComment,
         progressStars,
-        progressComment: sanitizeText(body.progressComment),
+        progressComment,
         altruismStars,
-        altruismComment: sanitizeText(body.altruismComment),
+        altruismComment,
         rootStars,
-        rootComment: sanitizeText(body.rootComment),
+        rootComment,
         status: isSubmit ? "SUBMITTED" : "DRAFT",
         submittedAt: isSubmit ? new Date() : undefined,
       },

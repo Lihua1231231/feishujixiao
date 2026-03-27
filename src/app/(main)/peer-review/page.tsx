@@ -62,6 +62,65 @@ type User = {
   department: string;
 };
 
+type ReviewScoreField =
+  | "performanceStars"
+  | "comprehensiveStars"
+  | "learningStars"
+  | "adaptabilityStars"
+  | "candidStars"
+  | "progressStars"
+  | "altruismStars"
+  | "rootStars";
+
+type ReviewCommentField =
+  | "performanceComment"
+  | "comprehensiveComment"
+  | "learningComment"
+  | "adaptabilityComment"
+  | "candidComment"
+  | "progressComment"
+  | "altruismComment"
+  | "rootComment";
+
+function getReviewStatusMeta(status: string): {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+  terminal: boolean;
+  isUnexpected: boolean;
+} {
+  if (status === "SUBMITTED") {
+    return { label: "已提交", variant: "default" as const, terminal: true, isUnexpected: false };
+  }
+  if (status === "DECLINED") {
+    return { label: "已拒评", variant: "destructive" as const, terminal: true, isUnexpected: false };
+  }
+  if (status === "DRAFT") {
+    return { label: "待完成", variant: "secondary" as const, terminal: false, isUnexpected: false };
+  }
+  return { label: `异常状态: ${status}`, variant: "outline", terminal: false, isUnexpected: true };
+}
+
+function getUnknownComment(value: number, currentComment: string) {
+  if (value === 0) {
+    return "不了解";
+  }
+  return currentComment;
+}
+
+function withUnknownCommentFallback(review: PeerReview): PeerReview {
+  return {
+    ...review,
+    performanceComment: review.performanceStars === 0 ? review.performanceComment?.trim() || "不了解" : review.performanceComment,
+    comprehensiveComment: review.comprehensiveStars === 0 ? review.comprehensiveComment?.trim() || "不了解" : review.comprehensiveComment,
+    learningComment: review.learningStars === 0 ? review.learningComment?.trim() || "不了解" : review.learningComment,
+    adaptabilityComment: review.adaptabilityStars === 0 ? review.adaptabilityComment?.trim() || "不了解" : review.adaptabilityComment,
+    candidComment: review.candidStars === 0 ? review.candidComment?.trim() || "不了解" : review.candidComment,
+    progressComment: review.progressStars === 0 ? review.progressComment?.trim() || "不了解" : review.progressComment,
+    altruismComment: review.altruismStars === 0 ? review.altruismComment?.trim() || "不了解" : review.altruismComment,
+    rootComment: review.rootStars === 0 ? review.rootComment?.trim() || "不了解" : review.rootComment,
+  };
+}
+
 function NominationStatusBadges({ nomination }: { nomination: Nomination }) {
   if (nomination.supervisorStatus === "PENDING") {
     return <Badge variant="secondary">待审批</Badge>;
@@ -190,15 +249,43 @@ function PeerReviewContent() {
     }
   };
 
+  const updateReviewComment = (reviewId: string, field: ReviewCommentField, value: string) => {
+    setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, [field]: value } : r)));
+  };
+
+  const updateReviewScore = (reviewId: string, scoreField: ReviewScoreField, commentField: ReviewCommentField, value: number) => {
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? {
+              ...r,
+              [scoreField]: value,
+              [commentField]: getUnknownComment(value, r[commentField] || ""),
+            }
+          : r
+      )
+    );
+  };
+
   const saveReview = async (review: PeerReview, action: "save" | "submit") => {
     if (preview) return;
+    const normalizedReview = withUnknownCommentFallback(review);
     if (action === "submit") {
-      if (!review.performanceStars || !review.comprehensiveStars || !review.learningStars || !review.adaptabilityStars || !review.candidStars || !review.progressStars || !review.altruismStars || !review.rootStars) {
-        toast.error("请完成所有维度的星级评分");
+      if (review.performanceStars == null || review.comprehensiveStars == null || review.learningStars == null || review.adaptabilityStars == null || review.candidStars == null || review.progressStars == null || review.altruismStars == null || review.rootStars == null) {
+        toast.error("请完成所有维度的星级评分（可选「不了解」）");
         return;
       }
-      if (!review.performanceComment?.trim() || !review.comprehensiveComment?.trim() || !review.learningComment?.trim() || !review.adaptabilityComment?.trim() || !review.candidComment?.trim() || !review.progressComment?.trim() || !review.altruismComment?.trim() || !review.rootComment?.trim()) {
-        toast.error("请填写所有维度的文字评语");
+      const missingComments: string[] = [];
+      if (review.performanceStars != null && review.performanceStars > 0 && !review.performanceComment?.trim()) missingComments.push("业绩产出");
+      if (review.comprehensiveStars != null && review.comprehensiveStars > 0 && !review.comprehensiveComment?.trim()) missingComments.push("综合能力");
+      if (review.learningStars != null && review.learningStars > 0 && !review.learningComment?.trim()) missingComments.push("学习能力");
+      if (review.adaptabilityStars != null && review.adaptabilityStars > 0 && !review.adaptabilityComment?.trim()) missingComments.push("适应能力");
+      if (review.candidStars != null && review.candidStars > 0 && !review.candidComment?.trim()) missingComments.push("坦诚真实");
+      if (review.progressStars != null && review.progressStars > 0 && !review.progressComment?.trim()) missingComments.push("极致进取");
+      if (review.altruismStars != null && review.altruismStars > 0 && !review.altruismComment?.trim()) missingComments.push("成就利他");
+      if (review.rootStars != null && review.rootStars > 0 && !review.rootComment?.trim()) missingComments.push("ROOT");
+      if (missingComments.length > 0) {
+        toast.error(`请填写以下维度的文字评语：${missingComments.join("、")}`);
         return;
       }
       if (!confirm("提交后将无法修改，确认提交？")) return;
@@ -209,7 +296,7 @@ function PeerReviewContent() {
       const res = await fetch("/api/peer-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...review, action }),
+        body: JSON.stringify({ ...normalizedReview, action }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -420,6 +507,7 @@ function PeerReviewContent() {
               {/* 人员选择器 */}
               <div className="flex flex-wrap gap-2">
                 {reviews.map((r) => {
+                  const statusMeta = getReviewStatusMeta(r.status);
                   const isSelected = selectedReviewId === r.id || (!selectedReviewId && reviews[0]?.id === r.id);
                   const isDone = r.status === "SUBMITTED";
                   const isDecl = r.status === "DECLINED";
@@ -436,7 +524,7 @@ function PeerReviewContent() {
                       {r.reviewee.name}
                       {isDone && <span className="text-green-600">✓</span>}
                       {isDecl && <span className="text-red-500">✗</span>}
-                      {!isDone && !isDecl && <Badge variant="secondary" className="ml-1 h-5 text-[10px]">待完成</Badge>}
+                      {!isDone && !isDecl && <Badge variant={statusMeta.variant} className="ml-1 h-5 text-[10px]">{statusMeta.isUnexpected ? "异常状态" : statusMeta.label}</Badge>}
                     </button>
                   );
                 })}
@@ -446,9 +534,10 @@ function PeerReviewContent() {
               {(() => {
                 const review = reviews.find(r => r.id === selectedReviewId) || reviews[0];
                 if (!review) return null;
-                const isDraft = review.status !== "SUBMITTED" && review.status !== "DECLINED";
+                const statusMeta = getReviewStatusMeta(review.status);
+                const isDraft = !statusMeta.terminal;
                 const isDeclined = review.status === "DECLINED";
-                const isDisabled = review.status === "SUBMITTED" || review.status === "DECLINED";
+                const isDisabled = statusMeta.terminal;
 
                 return (
                   <Card>
@@ -477,8 +566,8 @@ function PeerReviewContent() {
                               拒绝评估
                             </Button>
                           )}
-                          <Badge variant={review.status === "SUBMITTED" ? "default" : isDeclined ? "destructive" : "secondary"}>
-                            {review.status === "SUBMITTED" ? "已提交" : isDeclined ? "已拒评" : "待完成"}
+                          <Badge variant={statusMeta.variant}>
+                            {statusMeta.label}
                           </Badge>
                         </div>
                       </div>
@@ -490,6 +579,11 @@ function PeerReviewContent() {
                         </div>
                       ) : (
                         <>
+                        {statusMeta.isUnexpected && (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            当前任务状态为 {review.status}，系统按可编辑任务处理。如仍无法编辑，请刷新页面后重试。
+                          </div>
+                        )}
                         <div className="space-y-6">
                           {/* 业绩产出 */}
                           <div className="space-y-2">
@@ -498,8 +592,8 @@ function PeerReviewContent() {
                               <span className="text-xs text-muted-foreground">权重50%</span>
                               <a href="https://deepwisdom.feishu.cn/wiki/wikcnslHgjvS2goELNp0dX1PiPS" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">考核方案</a>
                             </div>
-                            <StarRating value={review.performanceStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, performanceStars: v } : r))} disabled={isDisabled} showUnknown />
-                            <Textarea value={review.performanceComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, performanceComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                            <StarRating value={review.performanceStars} onChange={(v) => updateReviewScore(review.id, "performanceStars", "performanceComment", v)} disabled={isDisabled} showUnknown />
+                            <Textarea value={review.performanceComment || ""} onChange={(e) => updateReviewComment(review.id, "performanceComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                           </div>
 
                           {/* 个人能力 */}
@@ -513,18 +607,18 @@ function PeerReviewContent() {
                             <div className="space-y-4 rounded-lg border border-border/50 p-4">
                               <div className="space-y-1.5">
                                 <p className="text-sm font-medium">综合能力 <span className="text-xs font-normal text-muted-foreground">— vibe coding能力（必含，对所有岗位生效）、复杂问题解决与业务闭环、专业纵深与角色履职、跨边界协同与组织价值创造、团队赋能与价值带动、领导力-基础管理执行（限leader）</span></p>
-                                <StarRating value={review.comprehensiveStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, comprehensiveStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.comprehensiveComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, comprehensiveComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.comprehensiveStars} onChange={(v) => updateReviewScore(review.id, "comprehensiveStars", "comprehensiveComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.comprehensiveComment || ""} onChange={(e) => updateReviewComment(review.id, "comprehensiveComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                               <div className="space-y-1.5 border-t pt-3">
                                 <p className="text-sm font-medium">学习能力 <span className="text-xs font-normal text-muted-foreground">— 问题分析与判断力、推动执行力、主动性与批判性思考。</span></p>
-                                <StarRating value={review.learningStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, learningStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.learningComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, learningComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.learningStars} onChange={(v) => updateReviewScore(review.id, "learningStars", "learningComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.learningComment || ""} onChange={(e) => updateReviewComment(review.id, "learningComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                               <div className="space-y-1.5 border-t pt-3">
                                 <p className="text-sm font-medium">适应能力 <span className="text-xs font-normal text-muted-foreground">— 指的是，面对业务复杂性、场景变化、节奏加速、组织调整或目标切换时，能够快速调整认知、情绪、方法和资源配置，持续保持有效产出的能力。</span></p>
-                                <StarRating value={review.adaptabilityStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, adaptabilityStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.adaptabilityComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, adaptabilityComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.adaptabilityStars} onChange={(v) => updateReviewScore(review.id, "adaptabilityStars", "adaptabilityComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.adaptabilityComment || ""} onChange={(e) => updateReviewComment(review.id, "adaptabilityComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                             </div>
                           </div>
@@ -541,26 +635,26 @@ function PeerReviewContent() {
                               <div className="space-y-1.5">
                                 <p className="text-sm font-medium">坦诚真实 <span className="text-xs font-normal text-muted-foreground">Be candid and honest — 行为基础</span></p>
                                 <p className="text-[11px] text-muted-foreground">简单直接，对事不对人 · 敢于承认错误，不装不爱面子 · 暴露问题，不向上管理 · 不找借口，只找解法</p>
-                                <StarRating value={review.candidStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, candidStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.candidComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, candidComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.candidStars} onChange={(v) => updateReviewScore(review.id, "candidStars", "candidComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.candidComment || ""} onChange={(e) => updateReviewComment(review.id, "candidComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                               <div className="space-y-1.5 border-t pt-4">
                                 <p className="text-sm font-medium">极致进取 <span className="text-xs font-normal text-muted-foreground">Move fast, aim higher — 动机驱动</span></p>
                                 <p className="text-[11px] text-muted-foreground">目标明确，积极主动 · 用 demo 代替文档，用行动代替沟通 · 敢于挑战更优解，用实验代替争论 · 深入体验，消灭锯齿</p>
-                                <StarRating value={review.progressStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, progressStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.progressComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, progressComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.progressStars} onChange={(v) => updateReviewScore(review.id, "progressStars", "progressComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.progressComment || ""} onChange={(e) => updateReviewComment(review.id, "progressComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                               <div className="space-y-1.5 border-t pt-4">
                                 <p className="text-sm font-medium">成就利他 <span className="text-xs font-normal text-muted-foreground">Build together, win together — 协作胸怀</span></p>
                                 <p className="text-[11px] text-muted-foreground">用户第一，以用户成功为价值 · 内心阳光，信任伙伴，真诚合作 · 敏锐谦逊，ego 小，乐于贡献</p>
-                                <StarRating value={review.altruismStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, altruismStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.altruismComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, altruismComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.altruismStars} onChange={(v) => updateReviewScore(review.id, "altruismStars", "altruismComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.altruismComment || ""} onChange={(e) => updateReviewComment(review.id, "altruismComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                               <div className="space-y-1.5 border-t pt-4">
                                 <p className="text-sm font-medium">ROOT <span className="text-xs font-normal text-muted-foreground">组织导向</span></p>
                                 <p className="text-[11px] text-muted-foreground">有 ownership，不踢皮球，不设边界 · 独立思考，快速学习，与 AI 共同进化 · 关注结果而非过程 · 始终像公司创业第一天那样思考</p>
-                                <StarRating value={review.rootStars} onChange={(v) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, rootStars: v } : r))} disabled={isDisabled} showUnknown />
-                                <Textarea value={review.rootComment || ""} onChange={(e) => setReviews((prev) => prev.map((r) => r.id === review.id ? { ...r, rootComment: e.target.value } : r))} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
+                                <StarRating value={review.rootStars} onChange={(v) => updateReviewScore(review.id, "rootStars", "rootComment", v)} disabled={isDisabled} showUnknown />
+                                <Textarea value={review.rootComment || ""} onChange={(e) => updateReviewComment(review.id, "rootComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isDisabled} />
                               </div>
                             </div>
                           </div>

@@ -13,7 +13,12 @@ test("peer review page keeps non-terminal review statuses editable", () => {
   const source = read("src/app/(main)/peer-review/page.tsx");
 
   assert.equal(
-    source.includes("const isDisabled = review.status === \"SUBMITTED\" || review.status === \"DECLINED\";"),
+    source.includes("function getReviewStatusMeta(status: string): {"),
+    true,
+    "peer review page should centralize review status handling",
+  );
+  assert.equal(
+    source.includes("const isDisabled = statusMeta.terminal;"),
     true,
     "peer review form should only disable submitted or declined records",
   );
@@ -21,6 +26,21 @@ test("peer review page keeps non-terminal review statuses editable", () => {
     source.includes("const editableCount = reviews.filter(r => r.status !== \"SUBMITTED\" && r.status !== \"DECLINED\").length;"),
     true,
     "peer review tab count should include any editable non-terminal status",
+  );
+});
+
+test("peer review page does not disguise unexpected statuses as generic pending", () => {
+  const source = read("src/app/(main)/peer-review/page.tsx");
+
+  assert.equal(
+    source.includes("return { label: `异常状态: ${status}`, variant: \"outline\", terminal: false, isUnexpected: true };"),
+    true,
+    "unexpected review statuses should be labeled explicitly",
+  );
+  assert.equal(
+    source.includes("statusMeta.isUnexpected && ("),
+    true,
+    "peer review page should surface an explicit warning for unexpected review statuses",
   );
 });
 
