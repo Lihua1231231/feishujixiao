@@ -18,6 +18,25 @@ export type EmployeePriorityCard = {
   accent: "slate" | "amber" | "rose" | "blue" | "violet";
 };
 
+export type LeaderPriorityCard = {
+  key: "pending" | "awaitingDualSubmission" | "ready";
+  title: string;
+  summary: string;
+  description: string;
+  count: number;
+  rows: LeaderRow[];
+  accent: "slate" | "amber" | "emerald";
+};
+
+export type LeaderSubmissionSummary = {
+  id: string;
+  name: string;
+  bothSubmitted: boolean;
+  submittedCount: number;
+  pendingReviewerCount: number;
+  officialStars: number | null;
+};
+
 export function buildScoreBandBuckets(rows: EmployeeRow[]): ScoreBandBucket[] {
   const bands = [
     { label: "1.0-1.9", min: 1, max: 1.99 },
@@ -49,6 +68,12 @@ export function buildEmployeePriorityGroups(rows: EmployeeRow[]) {
 }
 
 function summarizeRows(rows: EmployeeRow[], emptySummary: string) {
+  if (!rows.length) return emptySummary;
+  const names = rows.slice(0, 3).map((row) => row.name).join("、");
+  return rows.length > 3 ? `${names} 等 ${rows.length} 人` : names;
+}
+
+function summarizeLeaders(rows: LeaderRow[], emptySummary: string) {
   if (!rows.length) return emptySummary;
   const names = rows.slice(0, 3).map((row) => row.name).join("、");
   return rows.length > 3 ? `${names} 等 ${rows.length} 人` : names;
@@ -122,5 +147,49 @@ export function buildLeaderSubmissionSummary(rows: LeaderRow[]) {
     name: row.name,
     bothSubmitted: row.bothSubmitted,
     submittedCount: row.evaluations.filter((evaluation) => evaluation.status === "SUBMITTED").length,
+    pendingReviewerCount: row.evaluations.filter((evaluation) => evaluation.status !== "SUBMITTED").length,
+    officialStars: row.officialStars,
   }));
+}
+
+export function buildLeaderPriorityCards(rows: LeaderRow[]): LeaderPriorityCard[] {
+  const pending = rows.filter((row) => row.officialStars == null);
+  const awaitingDualSubmission = rows.filter((row) => !row.bothSubmitted);
+  const ready = rows.filter((row) => row.bothSubmitted && row.officialStars == null);
+
+  return [
+    {
+      key: "pending",
+      title: "待拍板",
+      summary: pending.length ? `${pending.length} 位主管还没有官方结果` : "当前没有待拍板主管",
+      description: pending.length
+        ? `优先关注 ${summarizeLeaders(pending, "")}，先补齐最终决策再回看其他主管。`
+        : "当前所有主管都已经有正式拍板结果。",
+      count: pending.length,
+      rows: pending,
+      accent: "slate",
+    },
+    {
+      key: "awaitingDualSubmission",
+      title: "待双人齐备",
+      summary: awaitingDualSubmission.length ? `${awaitingDualSubmission.length} 位主管还在等双人提交` : "双人问卷都已齐备",
+      description: awaitingDualSubmission.length
+        ? `先提醒 ${summarizeLeaders(awaitingDualSubmission, "")} 的填写人完成提交，避免最终确认卡住。`
+        : "当前每位主管的两份终评问卷都已经提交。",
+      count: awaitingDualSubmission.length,
+      rows: awaitingDualSubmission,
+      accent: "amber",
+    },
+    {
+      key: "ready",
+      title: "可拍板",
+      summary: ready.length ? `${ready.length} 位主管已经双人齐备` : "暂时还没有可直接拍板的主管",
+      description: ready.length
+        ? `双人意见已经齐备的 ${summarizeLeaders(ready, "")} 可以直接进入最终决策。`
+        : "等两位填写人都提交后，这里会自动出现可拍板主管。",
+      count: ready.length,
+      rows: ready,
+      accent: "emerald",
+    },
+  ];
 }

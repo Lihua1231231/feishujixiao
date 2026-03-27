@@ -196,6 +196,17 @@ test("calibration page delegates employee-tab composition to dedicated cockpit c
   );
 });
 
+test("leader tab composes a dual-review cockpit with paired comparison and detail panel", () => {
+  const page = read("src/app/(main)/calibration/page.tsx");
+
+  assert.equal(
+    page.includes('from "@/components/final-review/leader-cockpit"') &&
+      page.includes('from "@/components/final-review/leader-detail-panel"'),
+    true,
+    "leader final review UI should be split into dedicated cockpit components",
+  );
+});
+
 test("employee cockpit keeps a reachable all-employee roster alongside priority queues", () => {
   const cockpit = read("src/components/final-review/employee-cockpit.tsx");
 
