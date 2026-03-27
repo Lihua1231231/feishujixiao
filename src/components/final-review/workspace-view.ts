@@ -40,10 +40,10 @@ export function buildScoreBandBuckets(rows: EmployeeRow[]): ScoreBandBucket[] {
 
 export function buildEmployeePriorityGroups(rows: EmployeeRow[]) {
   return {
-    pending: rows.filter((row) => !row.officialConfirmedAt),
+    pending: rows.filter((row) => row.officialStars == null),
     disagreement: rows.filter((row) => row.opinions.some((opinion) => opinion.decision === "OVERRIDE")),
     anomaly: rows.filter((row) => row.anomalyTags.length > 0),
-    highBandPending: rows.filter((row) => (row.weightedScore ?? 0) >= 4 && !row.officialConfirmedAt),
+    highBandPending: rows.filter((row) => (row.weightedScore ?? 0) >= 4 && row.officialStars == null),
     lowBandAnomaly: rows.filter((row) => (row.weightedScore ?? 99) < 3 && row.anomalyTags.length > 0),
   };
 }

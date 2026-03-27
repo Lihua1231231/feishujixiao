@@ -546,6 +546,7 @@ function CalibrationContent() {
             employeeDistribution={workspace.employeeReview.employeeDistribution}
             scoreBandBuckets={scoreBandBuckets}
             priorityCards={employeePriorityCards}
+            allEmployees={workspace.employeeReview.employees}
             selectedEmployeeId={selectedEmployee?.id ?? null}
             onSelectEmployee={setSelectedEmployeeId}
             detailPanel={(

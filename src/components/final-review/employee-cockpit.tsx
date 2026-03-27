@@ -18,6 +18,7 @@ type EmployeeCockpitProps = {
   employeeDistribution: DistributionEntry[];
   scoreBandBuckets: ScoreBandBucket[];
   priorityCards: EmployeePriorityCard[];
+  allEmployees: EmployeeRow[];
   selectedEmployeeId: string | null;
   onSelectEmployee: (employeeId: string) => void;
   detailPanel: ReactNode;
@@ -57,7 +58,7 @@ function EmployeeQueueButton({
           <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{employee.department}</p>
         </div>
         <Badge variant={employee.officialConfirmedAt ? "secondary" : "outline"}>
-          {employee.officialConfirmedAt ? "已确认" : "待拍板"}
+          {employee.officialStars == null ? "待拍板" : "已确认"}
         </Badge>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--cockpit-muted-foreground)]">
@@ -80,6 +81,7 @@ export function EmployeeCockpit({
   employeeDistribution,
   scoreBandBuckets,
   priorityCards,
+  allEmployees,
   selectedEmployeeId,
   onSelectEmployee,
   detailPanel,
@@ -168,6 +170,31 @@ export function EmployeeCockpit({
                   </div>
                 )}
               </section>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">全部员工</h2>
+              <p className="text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+                所有普通员工都能从这里重新选中，已经确认的人也不会从左侧导航里消失。
+              </p>
+            </div>
+            <Badge variant="outline" className="w-fit">
+              共 {allEmployees.length} 人
+            </Badge>
+          </div>
+
+          <div className="mt-5 max-h-[420px] space-y-2 overflow-auto pr-1">
+            {allEmployees.map((employee) => (
+              <EmployeeQueueButton
+                key={`all:${employee.id}`}
+                employee={employee}
+                selected={employee.id === selectedEmployeeId}
+                onSelect={() => onSelectEmployee(employee.id)}
+              />
             ))}
           </div>
         </section>

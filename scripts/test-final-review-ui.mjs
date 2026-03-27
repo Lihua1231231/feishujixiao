@@ -196,6 +196,31 @@ test("calibration page delegates employee-tab composition to dedicated cockpit c
   );
 });
 
+test("employee cockpit keeps a reachable all-employee roster alongside priority queues", () => {
+  const cockpit = read("src/components/final-review/employee-cockpit.tsx");
+
+  assert.equal(
+    cockpit.includes("全部员工"),
+    true,
+    "the employee cockpit should include a dedicated all-employee roster so confirmed employees stay reachable",
+  );
+});
+
+test("employee priority queues treat missing official stars as pending", () => {
+  const workspaceView = read("src/components/final-review/workspace-view.ts");
+
+  assert.equal(
+    workspaceView.includes("row.officialStars == null"),
+    true,
+    "pending employee queues should key off missing official stars to match the official pending metric",
+  );
+  assert.equal(
+    workspaceView.includes("!row.officialConfirmedAt"),
+    false,
+    "pending employee queues should not rely on missing confirmation time anymore",
+  );
+});
+
 test("calibration page keeps the pending employee metric on the server overview field", () => {
   const page = read("src/app/(main)/calibration/page.tsx");
 
