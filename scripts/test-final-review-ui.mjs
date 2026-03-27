@@ -117,6 +117,16 @@ test("calibration page delegates cockpit shaping to shared final-review helpers"
   );
 });
 
+test("calibration page keeps the pending employee metric on the server overview field", () => {
+  const page = read("src/app/(main)/calibration/page.tsx");
+
+  assert.equal(
+    page.includes('OverviewMetricCard value={workspace.employeeReview.overview.pendingOfficialCount} title="待最终确认人数"'),
+    true,
+    "the live pending metric should keep using the server-provided overview count",
+  );
+});
+
 test("navigation and dashboard can surface configured final review access beyond static roles", () => {
   const navSource = read("src/components/nav.tsx");
   const layoutSource = read("src/app/(main)/layout.tsx");

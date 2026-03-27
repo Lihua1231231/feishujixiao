@@ -598,7 +598,7 @@ function CalibrationContent() {
             <OverviewMetricCard value={workspace.employeeReview.overview.companyCount} title="公司当前人数" description="本轮参与绩效终评的员工总人数" />
             <OverviewMetricCard value={`${workspace.employeeReview.overview.initialEvalSubmissionRate}%`} title="绩效初评提交率" description="普通员工初评问卷当前已提交的比例" />
             <OverviewMetricCard value={`${workspace.employeeReview.overview.officialCompletionRate}%`} title="当前官方终评完成率" description="已经被最终确认人正式拍板的比例" />
-            <OverviewMetricCard value={employeePriorityGroups.pending.length} title="待最终确认人数" description="还没有正式拍板的普通员工人数" />
+            <OverviewMetricCard value={workspace.employeeReview.overview.pendingOfficialCount} title="待最终确认人数" description="还没有正式拍板的普通员工人数" />
           </div>
 
           <DistributionBlock title="公司当前绩效分布全览" description="普通员工未最终确认前按参考星级进入统计，已确认后按官方结果进入统计" distribution={workspace.employeeReview.companyDistribution} />
