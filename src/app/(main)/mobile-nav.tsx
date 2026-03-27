@@ -10,6 +10,7 @@ type Props = {
     name: string;
     avatarUrl: string | null;
     role: string;
+    canAccessFinalReview?: boolean;
   };
 };
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, getActiveCycle } from "@/lib/session";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
+import { canAccessFinalReviewWorkspace } from "@/lib/final-review";
 
 export async function GET(req: NextRequest) {
   try {
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
           })()
         : 0;
       const hasAppeal = cycle ? await prisma.appeal.count({ where: { userId: user.id, cycleId: cycle.id } }) > 0 : false;
+      const canAccessFinalReview = await canAccessFinalReviewWorkspace(user, cycle?.id);
       return NextResponse.json({
         name: user.name,
         role: user.role,
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest) {
         pendingPeerReviews,
         pendingTeamEvals,
         hasAppeal,
+        canAccessFinalReview,
       });
     }
 

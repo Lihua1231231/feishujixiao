@@ -30,6 +30,7 @@ type NavProps = {
     name: string;
     avatarUrl: string | null;
     role: string;
+    canAccessFinalReview?: boolean;
   };
 };
 
@@ -50,7 +51,12 @@ export function Nav({ user }: NavProps) {
   const activeRole = user.role;
   const now = new Date();
   const visibleItems = navItems
-    .filter((item) => item.roles.includes(activeRole))
+    .filter((item) => {
+      if (item.href === "/calibration") {
+        return item.roles.includes(activeRole) || Boolean(user.canAccessFinalReview);
+      }
+      return item.roles.includes(activeRole);
+    })
     .map((item) => {
       const av = item as typeof item & { availableUntil?: string };
       const lockedBefore = !!(item.availableFrom && activeRole !== "ADMIN" && now < new Date(item.availableFrom));

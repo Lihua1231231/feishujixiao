@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getActiveCycle, getSessionUser } from "@/lib/session";
+import { getFinalReviewConfigValue } from "@/lib/final-review";
+import { sanitizeText, validateStars } from "@/lib/validate";
+
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const cycle = await getActiveCycle();
+    if (!cycle) return NextResponse.json({ error: "No active cycle" }, { status: 400 });
+    if (user.role !== "ADMIN" && cycle.status !== "CALIBRATION") {
+      return NextResponse.json({ error: "当前不在终评阶段，无法执行此操作" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    if (!body?.employeeId || typeof body.employeeId !== "string") {
+      return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
+    }
+
+    const configRecord = await prisma.finalReviewConfig.findUnique({ where: { cycleId: cycle.id } });
+    const config = getFinalReviewConfigValue(cycle.id, configRecord);
+    const canReview = user.role === "ADMIN" || config.accessUserIds.includes(user.id);
+    if (!canReview) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const decision = typeof body.decision === "string" ? body.decision : "PENDING";
+    if (!["PENDING", "AGREE", "OVERRIDE"].includes(decision)) {
+      return NextResponse.json({ error: "decision must be PENDING, AGREE, or OVERRIDE" }, { status: 400 });
+    }
+
+    const employee = await prisma.user.findUnique({
+      where: { id: body.employeeId },
+      select: { id: true },
+    });
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+
+    let suggestedStars: number | null = null;
+    let reason = "";
+
+    if (decision === "AGREE") {
+      suggestedStars = validateStars(body.referenceStars ?? body.suggestedStars);
+      if (suggestedStars == null) {
+        return NextResponse.json({ error: "referenceStars is required when agreeing" }, { status: 400 });
+      }
+    }
+
+    if (decision === "OVERRIDE") {
+      suggestedStars = validateStars(body.suggestedStars);
+      reason = sanitizeText(body.reason);
+      if (suggestedStars == null) {
+        return NextResponse.json({ error: "suggestedStars is required when overriding" }, { status: 400 });
+      }
+      if (!reason) {
+        return NextResponse.json({ error: "更改参考星级时必须填写理由" }, { status: 400 });
+      }
+    }
+
+    const result = await prisma.finalReviewOpinion.upsert({
+      where: {
+        cycleId_employeeId_reviewerId: {
+          cycleId: cycle.id,
+          employeeId: body.employeeId,
+          reviewerId: user.id,
+        },
+      },
+      update: {
+        decision,
+        suggestedStars,
+        reason,
+      },
+      create: {
+        cycleId: cycle.id,
+        employeeId: body.employeeId,
+        reviewerId: user.id,
+        decision,
+        suggestedStars,
+        reason,
+      },
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}

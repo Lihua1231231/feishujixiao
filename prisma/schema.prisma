@@ -65,6 +65,10 @@ model ReviewCycle {
   meetings        Meeting[]
   calibrations    CalibrationResult[]
   appeals         Appeal[]
+  finalReviewConfig FinalReviewConfig?
+  finalReviewOpinions FinalReviewOpinion[]
+  leaderFinalReviews LeaderFinalReview[]
+  finalReviewConfirmations FinalReviewConfirmation[]
 }
 
 // ============ MODULE 1: SELF-EVALUATION ============
@@ -202,6 +206,87 @@ model CalibrationResult {
   updatedAt     DateTime  @updatedAt
 
   @@unique([cycleId, userId])
+}
+
+// ============ MODULE 4.5: FINAL REVIEW WORKSPACE ============
+
+model FinalReviewConfig {
+  id                   String   @id @default(cuid())
+  cycleId              String   @unique
+  cycle                ReviewCycle @relation(fields: [cycleId], references: [id])
+  accessUserIds        String   @default("[]")
+  finalizerUserIds     String   @default("[]")
+  leaderEvaluatorUserIds String @default("[]")
+  leaderSubjectUserIds String   @default("[]")
+  referenceStarRanges  String   @default("[]")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model FinalReviewOpinion {
+  id            String   @id @default(cuid())
+  cycleId       String
+  cycle         ReviewCycle @relation(fields: [cycleId], references: [id])
+  employeeId    String
+  reviewerId    String
+  decision      String   @default("PENDING") // PENDING, AGREE, OVERRIDE
+  suggestedStars Int?
+  reason        String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cycleId, employeeId, reviewerId])
+  @@index([cycleId, employeeId])
+  @@index([cycleId, reviewerId])
+}
+
+model LeaderFinalReview {
+  id                 String   @id @default(cuid())
+  cycleId            String
+  cycle              ReviewCycle @relation(fields: [cycleId], references: [id])
+  employeeId         String
+  evaluatorId        String
+  performanceStars   Int?
+  performanceComment String   @default("")
+  abilityStars       Int?
+  abilityComment     String   @default("")
+  comprehensiveStars Int?
+  learningStars      Int?
+  adaptabilityStars  Int?
+  valuesStars        Int?
+  valuesComment      String   @default("")
+  candidStars        Int?
+  candidComment      String   @default("")
+  progressStars      Int?
+  progressComment    String   @default("")
+  altruismStars      Int?
+  altruismComment    String   @default("")
+  rootStars          Int?
+  rootComment        String   @default("")
+  weightedScore      Float?
+  status             String   @default("DRAFT") // DRAFT, SUBMITTED
+  submittedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([cycleId, employeeId, evaluatorId])
+  @@index([cycleId, employeeId])
+  @@index([cycleId, evaluatorId])
+}
+
+model FinalReviewConfirmation {
+  id           String   @id @default(cuid())
+  cycleId      String
+  cycle        ReviewCycle @relation(fields: [cycleId], references: [id])
+  userId       String
+  confirmerId  String
+  scope        String   // EMPLOYEE, LEADER
+  officialStars Int
+  reason       String
+  createdAt    DateTime @default(now())
+
+  @@index([cycleId, userId, scope])
+  @@index([cycleId, confirmerId, scope])
 }
 
 // ============ MODULE 5: 1-ON-1 MEETING ============

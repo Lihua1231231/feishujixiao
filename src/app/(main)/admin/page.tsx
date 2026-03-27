@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,29 @@ type VerifyData = {
   }>;
 };
 
+type ReferenceStarRange = {
+  stars: number;
+  min: number;
+  max: number;
+};
+
+type FinalReviewConfigForm = {
+  cycleId: string;
+  accessUserIds: string[];
+  finalizerUserIds: string[];
+  leaderEvaluatorUserIds: string[];
+  leaderSubjectUserIds: string[];
+  referenceStarRanges: ReferenceStarRange[];
+};
+
+const defaultReferenceStarRanges: ReferenceStarRange[] = [
+  { stars: 1, min: 0, max: 1.49 },
+  { stars: 2, min: 1.5, max: 2.49 },
+  { stars: 3, min: 2.5, max: 3.49 },
+  { stars: 4, min: 3.5, max: 4.49 },
+  { stars: 5, min: 4.5, max: 5 },
+];
+
 const statusFlow = ["DRAFT", "SELF_EVAL", "PEER_REVIEW", "SUPERVISOR_EVAL", "CALIBRATION", "MEETING", "APPEAL", "ARCHIVED"];
 const statusLabels: Record<string, string> = {
   DRAFT: "未开始",
@@ -133,6 +156,10 @@ function AdminContent() {
   const [verifyData, setVerifyData] = useState<VerifyData | null>(null);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyExporting, setVerifyExporting] = useState(false);
+  const [finalReviewCycleId, setFinalReviewCycleId] = useState("");
+  const [finalReviewConfig, setFinalReviewConfig] = useState<FinalReviewConfigForm | null>(null);
+  const [finalReviewLoading, setFinalReviewLoading] = useState(false);
+  const [finalReviewSaving, setFinalReviewSaving] = useState(false);
   const [newCycle, setNewCycle] = useState({
     name: "2025年下半年绩效考核",
     selfEvalStart: "2026-03-17",
@@ -160,6 +187,15 @@ function AdminContent() {
     fetch("/api/admin/cycle").then((r) => r.json()).then((d) => Array.isArray(d) ? setCycles(d) : null);
     fetch("/api/admin/users").then((r) => r.json()).then((d) => Array.isArray(d) ? setUsers(d) : null);
   }, [preview, previewRole, getData]);
+
+  useEffect(() => {
+    if (preview) return;
+    if (finalReviewCycleId || cycles.length === 0) return;
+    const preferred = cycles.find((cycle) => cycle.status !== "ARCHIVED") || cycles[0];
+    if (preferred) {
+      setFinalReviewCycleId(preferred.id);
+    }
+  }, [cycles, finalReviewCycleId, preview]);
 
   const createCycle = async () => {
     if (preview) return;
@@ -360,6 +396,73 @@ function AdminContent() {
     }
   };
 
+  const loadFinalReviewConfig = useCallback(async (cycleId = finalReviewCycleId) => {
+    if (preview || !cycleId) return;
+    setFinalReviewLoading(true);
+    try {
+      const res = await fetch(`/api/admin/final-review-config?cycleId=${cycleId}`);
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      setFinalReviewConfig({
+        cycleId: data.config.cycleId,
+        accessUserIds: data.config.accessUserIds || [],
+        finalizerUserIds: data.config.finalizerUserIds || [],
+        leaderEvaluatorUserIds: data.config.leaderEvaluatorUserIds || [],
+        leaderSubjectUserIds: data.config.leaderSubjectUserIds || [],
+        referenceStarRanges: data.config.referenceStarRanges || defaultReferenceStarRanges,
+      });
+    } catch (e) {
+      toast.error("加载终评配置失败: " + (e instanceof Error ? e.message : "未知错误"));
+    } finally {
+      setFinalReviewLoading(false);
+    }
+  }, [finalReviewCycleId, preview]);
+
+  useEffect(() => {
+    if (preview || !finalReviewCycleId || finalReviewConfig || finalReviewLoading) return;
+    loadFinalReviewConfig(finalReviewCycleId);
+  }, [finalReviewCycleId, finalReviewConfig, finalReviewLoading, preview, loadFinalReviewConfig]);
+
+  const saveFinalReviewConfig = async () => {
+    if (preview || !finalReviewConfig) return;
+    setFinalReviewSaving(true);
+    try {
+      const res = await fetch("/api/admin/final-review-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(finalReviewConfig),
+      });
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      toast.success("终评配置已保存");
+      await loadFinalReviewConfig(finalReviewConfig.cycleId);
+    } catch (e) {
+      toast.error("保存终评配置失败: " + (e instanceof Error ? e.message : "未知错误"));
+    } finally {
+      setFinalReviewSaving(false);
+    }
+  };
+
+  const updateFinalReviewIds = (
+    field: keyof Omit<FinalReviewConfigForm, "cycleId" | "referenceStarRanges">,
+    selected: string[],
+  ) => {
+    setFinalReviewConfig((prev) => prev ? { ...prev, [field]: selected } : prev);
+  };
+
+  const updateReferenceStarRange = (stars: number, key: "min" | "max", value: string) => {
+    setFinalReviewConfig((prev) => prev ? {
+      ...prev,
+      referenceStarRanges: prev.referenceStarRanges.map((range) => (
+        range.stars === stars ? { ...range, [key]: Number(value) } : range
+      )),
+    } : prev);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title="系统管理" description="考核周期、员工与数据管理" />
@@ -370,6 +473,7 @@ function AdminContent() {
           <TabsTrigger value="users">员工管理 ({users.length})</TabsTrigger>
           <TabsTrigger value="sync">组织同步</TabsTrigger>
           <TabsTrigger value="import">自评导入</TabsTrigger>
+          <TabsTrigger value="finalReview">终评配置</TabsTrigger>
           <TabsTrigger value="verify" onClick={() => {
             if (!verifyData && !verifyLoading) {
               loadVerifyData();
@@ -672,6 +776,129 @@ function AdminContent() {
                 )}
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="finalReview" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">终评配置</CardTitle>
+              <CardDescription>
+                为指定考核周期配置终评工作台权限、主管层名单，以及参考星级分数区间
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">考核周期</label>
+                  <select
+                    value={finalReviewCycleId}
+                    onChange={(e) => {
+                      setFinalReviewCycleId(e.target.value);
+                      setFinalReviewConfig(null);
+                    }}
+                    className="h-9 min-w-[260px] rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm"
+                    disabled={preview}
+                  >
+                    <option value="">请选择周期</option>
+                    {cycles.map((cycle) => (
+                      <option key={cycle.id} value={cycle.id}>
+                        {cycle.name} · {statusLabels[cycle.status] || cycle.status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => loadFinalReviewConfig()} disabled={finalReviewLoading || preview || !finalReviewCycleId}>
+                    {finalReviewLoading ? "加载中..." : "加载配置"}
+                  </Button>
+                  <Button onClick={saveFinalReviewConfig} disabled={finalReviewSaving || preview || !finalReviewConfig}>
+                    {finalReviewSaving ? "保存中..." : "保存终评配置"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {finalReviewConfig && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">终评工作台名单</CardTitle>
+                  <CardDescription>
+                    工作台访问名单、最终确认人、主管层双人终评填写人、主管层终评名单都按周期配置
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 lg:grid-cols-2">
+                  {[
+                    ["accessUserIds", "终评工作台权限名单"],
+                    ["finalizerUserIds", "最终确认名单"],
+                    ["leaderEvaluatorUserIds", "主管层双人终评填写人"],
+                    ["leaderSubjectUserIds", "主管层终评名单"],
+                  ].map(([field, label]) => (
+                    <div key={field} className="space-y-2">
+                      <label className="text-sm font-medium">{label}</label>
+                      <select
+                        multiple
+                        value={finalReviewConfig[field as keyof Omit<FinalReviewConfigForm, "cycleId" | "referenceStarRanges">]}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions).map((option) => option.value);
+                          updateFinalReviewIds(field as keyof Omit<FinalReviewConfigForm, "cycleId" | "referenceStarRanges">, selected);
+                        }}
+                        className="min-h-[200px] w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm"
+                        disabled={preview}
+                      >
+                        {users.map((userItem) => (
+                          <option key={userItem.id} value={userItem.id}>
+                            {userItem.name} · {userItem.department || "未分配部门"} · {userItem.role}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">参考星级分数区间</CardTitle>
+                  <CardDescription>
+                    标签2会根据初评加权分，将普通员工自动换算成参考星级；第三页主管层不复用这套自动换星
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {finalReviewConfig.referenceStarRanges
+                    .slice()
+                    .sort((a, b) => a.stars - b.stars)
+                    .map((range) => (
+                      <div key={range.stars} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[100px_1fr_1fr]">
+                        <div className="flex items-center text-sm font-semibold">{range.stars}星</div>
+                        <div>
+                          <label className="mb-1 block text-xs text-muted-foreground">最小分数</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={range.min}
+                            onChange={(e) => updateReferenceStarRange(range.stars, "min", e.target.value)}
+                            className="h-9 w-full rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm"
+                            disabled={preview}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-muted-foreground">最大分数</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={range.max}
+                            onChange={(e) => updateReferenceStarRange(range.stars, "max", e.target.value)}
+                            className="h-9 w-full rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm"
+                            disabled={preview}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
         <TabsContent value="verify" className="space-y-4">

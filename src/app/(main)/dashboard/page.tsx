@@ -2,9 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { PageSkeleton } from "@/components/page-skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/page-header";
 import { ClipboardList, Users, UserCheck, BarChart3, MessageSquare, MessageSquareWarning, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePreview } from "@/hooks/use-preview";
@@ -48,6 +47,7 @@ type DashboardData = {
   pendingPeerReviews: number;
   pendingTeamEvals: number;
   hasAppeal: boolean;
+  canAccessFinalReview: boolean;
 };
 
 function DashboardContent() {
@@ -83,6 +83,7 @@ function DashboardContent() {
           pendingPeerReviews: userData.pendingPeerReviews || 0,
           pendingTeamEvals: userData.pendingTeamEvals || 0,
           hasAppeal: userData.hasAppeal || false,
+          canAccessFinalReview: Boolean(userData.canAccessFinalReview),
         });
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
@@ -110,7 +111,7 @@ function DashboardContent() {
   }
 
   const isSupervisor = ["SUPERVISOR", "HRBP", "ADMIN"].includes(data.user.role);
-  const isAdmin = ["HRBP", "ADMIN"].includes(data.user.role);
+  const isAdmin = ["HRBP", "ADMIN"].includes(data.user.role) || data.canAccessFinalReview;
 
   // 预览模式的链接带 preview 参数
   function buildHref(href: string): string {

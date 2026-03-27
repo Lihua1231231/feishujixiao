@@ -165,3 +165,82 @@ CREATE INDEX "SupervisorEval_cycleId_evaluatorId_idx" ON "SupervisorEval"("cycle
 CREATE UNIQUE INDEX "CalibrationResult_cycleId_userId_key" ON "CalibrationResult"("cycleId", "userId");
 CREATE UNIQUE INDEX "Meeting_cycleId_employeeId_key" ON "Meeting"("cycleId", "employeeId");
 CREATE UNIQUE INDEX "Appeal_cycleId_userId_key" ON "Appeal"("cycleId", "userId");
+
+-- 11. Final review workspace tables
+CREATE TABLE "FinalReviewConfig" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "cycleId" TEXT NOT NULL,
+    "accessUserIds" TEXT NOT NULL DEFAULT '[]',
+    "finalizerUserIds" TEXT NOT NULL DEFAULT '[]',
+    "leaderEvaluatorUserIds" TEXT NOT NULL DEFAULT '[]',
+    "leaderSubjectUserIds" TEXT NOT NULL DEFAULT '[]',
+    "referenceStarRanges" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "FinalReviewConfig_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "ReviewCycle" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "FinalReviewOpinion" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "cycleId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "reviewerId" TEXT NOT NULL,
+    "decision" TEXT NOT NULL DEFAULT 'PENDING',
+    "suggestedStars" INTEGER,
+    "reason" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "FinalReviewOpinion_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "ReviewCycle" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "LeaderFinalReview" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "cycleId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "evaluatorId" TEXT NOT NULL,
+    "performanceStars" INTEGER,
+    "performanceComment" TEXT NOT NULL DEFAULT '',
+    "abilityStars" INTEGER,
+    "abilityComment" TEXT NOT NULL DEFAULT '',
+    "comprehensiveStars" INTEGER,
+    "learningStars" INTEGER,
+    "adaptabilityStars" INTEGER,
+    "valuesStars" INTEGER,
+    "valuesComment" TEXT NOT NULL DEFAULT '',
+    "candidStars" INTEGER,
+    "candidComment" TEXT NOT NULL DEFAULT '',
+    "progressStars" INTEGER,
+    "progressComment" TEXT NOT NULL DEFAULT '',
+    "altruismStars" INTEGER,
+    "altruismComment" TEXT NOT NULL DEFAULT '',
+    "rootStars" INTEGER,
+    "rootComment" TEXT NOT NULL DEFAULT '',
+    "weightedScore" REAL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "submittedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "LeaderFinalReview_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "ReviewCycle" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "FinalReviewConfirmation" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "cycleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "confirmerId" TEXT NOT NULL,
+    "scope" TEXT NOT NULL,
+    "officialStars" INTEGER NOT NULL,
+    "reason" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "FinalReviewConfirmation_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "ReviewCycle" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX "FinalReviewConfig_cycleId_key" ON "FinalReviewConfig"("cycleId");
+CREATE UNIQUE INDEX "FinalReviewOpinion_cycleId_employeeId_reviewerId_key" ON "FinalReviewOpinion"("cycleId", "employeeId", "reviewerId");
+CREATE INDEX "FinalReviewOpinion_cycleId_employeeId_idx" ON "FinalReviewOpinion"("cycleId", "employeeId");
+CREATE INDEX "FinalReviewOpinion_cycleId_reviewerId_idx" ON "FinalReviewOpinion"("cycleId", "reviewerId");
+CREATE UNIQUE INDEX "LeaderFinalReview_cycleId_employeeId_evaluatorId_key" ON "LeaderFinalReview"("cycleId", "employeeId", "evaluatorId");
+CREATE INDEX "LeaderFinalReview_cycleId_employeeId_idx" ON "LeaderFinalReview"("cycleId", "employeeId");
+CREATE INDEX "LeaderFinalReview_cycleId_evaluatorId_idx" ON "LeaderFinalReview"("cycleId", "evaluatorId");
+CREATE INDEX "FinalReviewConfirmation_cycleId_userId_scope_idx" ON "FinalReviewConfirmation"("cycleId", "userId", "scope");
+CREATE INDEX "FinalReviewConfirmation_cycleId_confirmerId_scope_idx" ON "FinalReviewConfirmation"("cycleId", "confirmerId", "scope");
