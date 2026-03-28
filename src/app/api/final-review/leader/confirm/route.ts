@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCycle, getSessionUser } from "@/lib/session";
-import { getFinalReviewConfigValue } from "@/lib/final-review";
+import { getFinalReviewConfigValue, isLeaderFinalReviewReady } from "@/lib/final-review";
 import { sanitizeText, validateStars } from "@/lib/validate";
 
 export async function POST(req: NextRequest) {
@@ -40,10 +40,7 @@ export async function POST(req: NextRequest) {
       where: { cycleId: cycle.id, employeeId: body.userId },
       select: { evaluatorId: true, status: true },
     });
-    const submittedEvaluatorIds = new Set(
-      allReviews.filter((item) => item.status === "SUBMITTED").map((item) => item.evaluatorId),
-    );
-    const isReady = config.leaderEvaluatorUserIds.every((evaluatorId) => submittedEvaluatorIds.has(evaluatorId));
+    const isReady = isLeaderFinalReviewReady(config, allReviews);
     if (!isReady) {
       return NextResponse.json({ error: "主管层双人终评尚未全部提交" }, { status: 400 });
     }

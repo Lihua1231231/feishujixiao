@@ -99,6 +99,11 @@ export type LeaderRow = {
   officialConfirmerName: string | null;
   finalizable: boolean;
   canViewLeaderEvaluationDetails: boolean;
+  submissionSummary: {
+    configuredEvaluatorCount: number;
+    submittedCount: number;
+    pendingCount: number;
+  };
   evaluations: LeaderEvaluation[];
   bothSubmitted: boolean;
 };

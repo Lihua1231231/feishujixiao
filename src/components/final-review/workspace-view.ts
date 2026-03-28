@@ -146,8 +146,8 @@ export function buildLeaderSubmissionSummary(rows: LeaderRow[]) {
     id: row.id,
     name: row.name,
     bothSubmitted: row.bothSubmitted,
-    submittedCount: row.evaluations.filter((evaluation) => evaluation.status === "SUBMITTED").length,
-    pendingReviewerCount: row.evaluations.filter((evaluation) => evaluation.status !== "SUBMITTED").length,
+    submittedCount: row.submissionSummary.submittedCount,
+    pendingReviewerCount: row.submissionSummary.pendingCount,
     officialStars: row.officialStars,
   }));
 }

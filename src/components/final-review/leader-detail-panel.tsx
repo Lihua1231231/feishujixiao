@@ -215,7 +215,7 @@ export function LeaderDetailPanel({
     );
   }
 
-  const pendingReviewCount = leader.evaluations.filter((evaluation) => evaluation.status !== "SUBMITTED").length;
+  const pendingReviewCount = leader.submissionSummary.pendingCount;
   const statusLabel = leader.officialStars != null ? "已拍板" : leader.bothSubmitted ? "待拍板" : "待双人齐备";
 
   return (
@@ -394,17 +394,23 @@ export function LeaderDetailPanel({
             <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认时间</p>
             <p className="mt-2 text-[var(--cockpit-foreground)]">{formatTime(leader.officialConfirmedAt)}</p>
           </div>
-          <div className="space-y-2">
-            {leader.evaluations.map((evaluation) => (
-              <div key={`${evaluation.evaluatorId}:audit`} className="flex items-center justify-between rounded-2xl border px-4 py-3">
-                <div>
-                  <p className="text-[var(--cockpit-foreground)]">{evaluation.evaluatorName}</p>
-                  <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{evaluation.status === "SUBMITTED" ? "已提交终评问卷" : "仍是草稿"}</p>
+          {leader.canViewLeaderEvaluationDetails ? (
+            <div className="space-y-2">
+              {leader.evaluations.map((evaluation) => (
+                <div key={`${evaluation.evaluatorId}:audit`} className="flex items-center justify-between rounded-2xl border px-4 py-3">
+                  <div>
+                    <p className="text-[var(--cockpit-foreground)]">{evaluation.evaluatorName}</p>
+                    <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{evaluation.status === "SUBMITTED" ? "已提交终评问卷" : "仍是草稿"}</p>
+                  </div>
+                  <span className="text-[var(--cockpit-muted-foreground)]">{formatTime(evaluation.submittedAt)}</span>
                 </div>
-                <span className="text-[var(--cockpit-muted-foreground)]">{formatTime(evaluation.submittedAt)}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+              当前视图只保留官方结论和双人提交摘要，不展示每位填写人的留痕。
+            </div>
+          )}
         </div>
       </section>
     </aside>

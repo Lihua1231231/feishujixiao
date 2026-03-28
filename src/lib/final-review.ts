@@ -138,6 +138,29 @@ export function getFinalReviewConfigValue(
   };
 }
 
+export function isOrdinaryEmployeeFinalReviewSubject(
+  config: Pick<FinalReviewConfigValue, "employeeSubjectUserIds" | "leaderSubjectUserIds">,
+  userId: string,
+) {
+  return config.employeeSubjectUserIds.includes(userId) && !config.leaderSubjectUserIds.includes(userId);
+}
+
+export function isLeaderFinalReviewReady(
+  config: Pick<FinalReviewConfigValue, "leaderEvaluatorUserIds">,
+  reviews: Array<{ evaluatorId: string; status: string }>,
+) {
+  if (config.leaderEvaluatorUserIds.length < 2) return false;
+
+  const configuredEvaluatorIds = [...new Set(config.leaderEvaluatorUserIds)];
+  if (configuredEvaluatorIds.length < 2) return false;
+
+  const submittedEvaluatorIds = new Set(
+    reviews.filter((item) => item.status === "SUBMITTED").map((item) => item.evaluatorId),
+  );
+
+  return configuredEvaluatorIds.every((evaluatorId) => submittedEvaluatorIds.has(evaluatorId));
+}
+
 export async function canAccessFinalReviewWorkspace(
   user: Pick<SessionUser, "id" | "role">,
   cycleId?: string | null,
@@ -278,6 +301,19 @@ function buildOpinionSummary(opinions: Array<{ decision: string }>) {
     { label: "同意参考星级", count: opinions.filter((item) => item.decision === "AGREE").length },
     { label: "主张改星", count: opinions.filter((item) => item.decision === "OVERRIDE").length },
   ];
+}
+
+function buildLeaderEvaluatorProgress(
+  evaluatorIds: string[],
+  usersById: Map<string, { id: string; name: string; department: string; role: string }>,
+  leaderReviews: Array<{ evaluatorId: string; status: string }>,
+  canViewLeaderEvaluationDetails: boolean,
+) {
+  return evaluatorIds.map((evaluatorId, index) => ({
+    evaluatorId,
+    evaluatorName: canViewLeaderEvaluationDetails ? usersById.get(evaluatorId)?.name || evaluatorId : `第${index + 1}位填写人`,
+    submittedCount: leaderReviews.filter((review) => review.evaluatorId === evaluatorId && review.status === "SUBMITTED").length,
+  }));
 }
 
 export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
@@ -589,6 +625,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         },
       };
     });
+    const submittedCount = evaluations.filter((item) => item.status === "SUBMITTED").length;
     const latestConfirmation = latestConfirmationMap.get(`LEADER:${leader.id}`);
 
     return {
@@ -602,31 +639,16 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       officialConfirmerName: latestConfirmation ? usersById.get(latestConfirmation.confirmerId)?.name || latestConfirmation.confirmerId : null,
       finalizable: canFinalize,
       canViewLeaderEvaluationDetails,
-      evaluations: evaluations.map((evaluation) => ({
+      submissionSummary: {
+        configuredEvaluatorCount: config.leaderEvaluatorUserIds.length,
+        submittedCount,
+        pendingCount: Math.max(config.leaderEvaluatorUserIds.length - submittedCount, 0),
+      },
+      evaluations: canViewLeaderEvaluationDetails ? evaluations.map((evaluation) => ({
         ...evaluation,
-        form: canViewLeaderEvaluationDetails
-          ? evaluation.form
-          : {
-              performanceStars: null,
-              performanceComment: "",
-              abilityStars: null,
-              abilityComment: "",
-              comprehensiveStars: null,
-              learningStars: null,
-              adaptabilityStars: null,
-              valuesStars: null,
-              valuesComment: "",
-              candidStars: null,
-              candidComment: "",
-              progressStars: null,
-              progressComment: "",
-              altruismStars: null,
-              altruismComment: "",
-              rootStars: null,
-              rootComment: "",
-            },
-      })),
-      bothSubmitted: evaluations.every((item) => item.status === "SUBMITTED"),
+        form: evaluation.form,
+      })) : [],
+      bothSubmitted: isLeaderFinalReviewReady(config, evaluations),
     };
   });
 
@@ -669,7 +691,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       ...config,
       accessUsers: configUsers.accessUsers,
       finalizers: configUsers.finalizers,
-      leaderEvaluators: configUsers.leaderEvaluators,
+      leaderEvaluators: canViewLeaderEvaluationDetails ? configUsers.leaderEvaluators : [],
       leaderSubjects: configUsers.leaderSubjects,
     },
     overview: {
@@ -699,11 +721,12 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         employeeOpinionTotal: employeeRows.length * Math.max(config.accessUserIds.length, 1),
         employeeConfirmedCount: employeeRows.filter((item) => item.officialStars != null).length,
         employeeTotalCount: employeeRows.length,
-        leaderSubmittedCounts: config.leaderEvaluatorUserIds.map((evaluatorId) => ({
-          evaluatorId,
-          evaluatorName: usersById.get(evaluatorId)?.name || evaluatorId,
-          submittedCount: leaderRows.filter((leader) => leader.evaluations.find((item) => item.evaluatorId === evaluatorId)?.status === "SUBMITTED").length,
-        })),
+        leaderSubmittedCounts: buildLeaderEvaluatorProgress(
+          config.leaderEvaluatorUserIds,
+          usersById,
+          leaderReviews,
+          canViewLeaderEvaluationDetails,
+        ),
         leaderConfirmedCount: leaderRows.filter((item) => item.officialStars != null).length,
         leaderTotalCount: leaderRows.length,
       },
@@ -731,11 +754,12 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       overview: {
         leaderCount: leaderRows.length,
         confirmedCount: leaderRows.filter((item) => item.officialStars != null).length,
-        evaluatorProgress: config.leaderEvaluatorUserIds.map((evaluatorId) => ({
-          evaluatorId,
-          evaluatorName: usersById.get(evaluatorId)?.name || evaluatorId,
-          submittedCount: leaderRows.filter((leader) => leader.evaluations.find((item) => item.evaluatorId === evaluatorId)?.status === "SUBMITTED").length,
-        })),
+        evaluatorProgress: buildLeaderEvaluatorProgress(
+          config.leaderEvaluatorUserIds,
+          usersById,
+          leaderReviews,
+          canViewLeaderEvaluationDetails,
+        ),
       },
       leaders: leaderRows,
       leaderDistribution,

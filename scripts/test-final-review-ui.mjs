@@ -115,6 +115,11 @@ test("calibration page becomes a three-tab final review workspace", () => {
     true,
     "leader submission card should use plain-language wording",
   );
+  assert.equal(
+    principles.includes("吴承霖、邱翔分别已提交多少份主管层问卷"),
+    false,
+    "principles tab should not hardcode named leader reviewers into summary copy that ordinary viewers can see",
+  );
 });
 
 test("principles-tab source includes redesign tokens", () => {
@@ -305,6 +310,12 @@ test("leader detail panel keeps dual-review comparisons summary-only until the p
     summarySlice.includes("computeWeightedScore(form)"),
     false,
     "leader detail panel should keep the detailed score breakdown out of the default comparison summary",
+  );
+  assert.equal(
+    detailPanel.includes("leader.canViewLeaderEvaluationDetails ? (") &&
+      detailPanel.includes("当前视图只保留官方结论和双人提交摘要，不展示每位填写人的留痕。"),
+    true,
+    "leader detail panel should hide the named audit trail behind the same permission gate as the rest of the detailed dual-review content",
   );
 });
 

@@ -123,6 +123,12 @@ export function PrinciplesTab({
 
   const leaderSubmissionText =
     overview.progress.leaderSubmittedCounts.map((item) => `${item.evaluatorName} ${item.submittedCount}`).join(" · ") || "未配置";
+  const leaderEvaluatorCount = overview.progress.leaderSubmittedCounts.length;
+  const leaderEvaluatorLabel = config.leaderEvaluators.length > 0
+    ? config.leaderEvaluators.map((user) => user.name).join("、")
+    : leaderEvaluatorCount > 0
+      ? `已配置 ${leaderEvaluatorCount} 位填写人`
+      : "未配置";
 
   const metrics: CockpitMetric[] = [
     {
@@ -143,7 +149,7 @@ export function PrinciplesTab({
     {
       title: "主管层问卷填写进度",
       value: leaderSubmissionText,
-      description: "吴承霖、邱翔分别已提交多少份主管层问卷",
+      description: "每位主管层填写人已提交多少份主管层问卷",
     },
   ];
 
@@ -187,7 +193,7 @@ export function PrinciplesTab({
               </div>
               <div>
                 <p className="font-medium text-[var(--cockpit-foreground)]">主管层双人终评填写人</p>
-                <p className="mt-1 leading-6 text-[var(--cockpit-muted-foreground)]">{config.leaderEvaluators.map((user) => user.name).join("、") || "未配置"}</p>
+                <p className="mt-1 leading-6 text-[var(--cockpit-muted-foreground)]">{leaderEvaluatorLabel}</p>
               </div>
             </CardContent>
           </Card>

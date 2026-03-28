@@ -180,6 +180,27 @@ test("workspace builder filters ordinary employees to the configured employee ro
     true,
     "workspace helpers should use summary-first employee stats when building priority queues",
   );
+  assert.equal(
+    types.includes("submissionSummary"),
+    true,
+    "leader row types should expose aggregate dual-review progress so ordinary viewers can stay on summary-only data",
+  );
+  assert.equal(
+    source.includes("evaluations: canViewLeaderEvaluationDetails ? evaluations.map") &&
+      source.includes(": [],"),
+    true,
+    "workspace builder should strip per-evaluator leader details from unauthorized payloads instead of leaking named review data",
+  );
+  assert.equal(
+    source.includes("leaderEvaluators: canViewLeaderEvaluationDetails ? configUsers.leaderEvaluators : []"),
+    true,
+    "workspace config should redact named leader evaluator identities for viewers who only get summary access",
+  );
+  assert.equal(
+    source.includes("evaluatorName: canViewLeaderEvaluationDetails ? usersById.get(evaluatorId)?.name || evaluatorId : `第${index + 1}位填写人`"),
+    true,
+    "leader progress summaries should stop sending configured reviewer names to unauthorized viewers",
+  );
 });
 
 test("final review default roster helper lists the exact 54 names and maps them to ids", () => {
@@ -214,5 +235,44 @@ test("admin final review config seeds empty employee rosters from the default na
     source.includes("getFinalReviewConfigValue(cycleId, record, users)"),
     true,
     "admin final review config should keep passing directory users through so fallback leader subjects still resolve",
+  );
+});
+
+test("final review write routes enforce configured subject scopes and leader dual-review readiness", () => {
+  const opinionRoute = read("src/app/api/final-review/opinion/route.ts");
+  const confirmRoute = read("src/app/api/final-review/confirm/route.ts");
+  const leaderConfirmRoute = read("src/app/api/final-review/leader/confirm/route.ts");
+  const helper = read("src/lib/final-review.ts");
+
+  assert.equal(
+    helper.includes("export function isOrdinaryEmployeeFinalReviewSubject"),
+    true,
+    "final review helper should centralize the configured ordinary employee subject check",
+  );
+  assert.equal(
+    opinionRoute.includes("isOrdinaryEmployeeFinalReviewSubject"),
+    true,
+    "employee opinion writes should reject targets outside the configured ordinary employee roster",
+  );
+  assert.equal(
+    confirmRoute.includes("isOrdinaryEmployeeFinalReviewSubject"),
+    true,
+    "employee final-confirm writes should reject targets outside the configured ordinary employee roster",
+  );
+  assert.equal(
+    helper.includes("export function isLeaderFinalReviewReady"),
+    true,
+    "final review helper should centralize leader dual-review readiness checks",
+  );
+  assert.equal(
+    leaderConfirmRoute.includes("isLeaderFinalReviewReady"),
+    true,
+    "leader final-confirm route should require a valid configured evaluator roster before confirming",
+  );
+  assert.equal(
+    leaderConfirmRoute.includes("config.leaderEvaluatorUserIds.length < 2") ||
+      helper.includes("config.leaderEvaluatorUserIds.length < 2"),
+    true,
+    "leader dual-review readiness should fail closed when fewer than two configured evaluators exist",
   );
 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCycle, getSessionUser } from "@/lib/session";
-import { getFinalReviewConfigValue } from "@/lib/final-review";
+import { getFinalReviewConfigValue, isOrdinaryEmployeeFinalReviewSubject } from "@/lib/final-review";
 import { sanitizeText, validateStars } from "@/lib/validate";
 
 export async function POST(req: NextRequest) {
@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
     const canFinalize = user.role === "ADMIN" || config.finalizerUserIds.includes(user.id);
     if (!canFinalize) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!isOrdinaryEmployeeFinalReviewSubject(config, body.userId)) {
+      return NextResponse.json({ error: "该员工不在普通员工终评名单中" }, { status: 400 });
     }
 
     const reason = sanitizeText(body.reason);
