@@ -188,4 +188,9 @@ test("admin final review config seeds empty employee rosters from the default na
     true,
     "admin final review config should persist the employee roster field",
   );
+  assert.equal(
+    source.includes("getFinalReviewConfigValue(cycleId, record, users)"),
+    true,
+    "admin final review config should keep passing directory users through so fallback leader subjects still resolve",
+  );
 });

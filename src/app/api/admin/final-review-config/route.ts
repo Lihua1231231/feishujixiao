@@ -41,7 +41,7 @@ function buildAdminConfigValue(
   } | null,
   users: Array<{ id: string; name: string; department: string; role: string }>,
 ): AdminFinalReviewConfigValue {
-  const config = getFinalReviewConfigValue(cycleId, record);
+  const config = getFinalReviewConfigValue(cycleId, record, users);
   const employeeSubjectUserIds = parseStoredIds(record?.employeeSubjectUserIds);
 
   return {
