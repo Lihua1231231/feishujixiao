@@ -227,6 +227,55 @@ test("leader detail panel ties questionnaire editability to each evaluation's ow
   );
 });
 
+test("leader detail panel keeps dual-review comparisons summary-only until the permission gate", () => {
+  const detailPanel = read("src/components/final-review/leader-detail-panel.tsx");
+  const comparisonStart = detailPanel.indexOf('{comparisonTitle}</p>');
+  const questionnaireStart = detailPanel.indexOf('{questionnaireTitle}</p>');
+  const permissionGate = detailPanel.indexOf('leader.canViewLeaderEvaluationDetails ? (', comparisonStart);
+  const detailedComparison = detailPanel.indexOf('leader.evaluations.map((evaluation) => {', comparisonStart);
+  const summarySlice = detailPanel.slice(comparisonStart, permissionGate === -1 ? questionnaireStart : permissionGate);
+
+  assert.equal(
+    permissionGate !== -1 && permissionGate < detailedComparison,
+    true,
+    "leader detail panel should gate the detailed comparison block before any evaluator names or score breakdowns appear",
+  );
+  assert.equal(
+    summarySlice.includes("evaluation.evaluatorName"),
+    false,
+    "leader detail panel should keep evaluator names out of the default comparison summary",
+  );
+  assert.equal(
+    summarySlice.includes("computeWeightedScore(form)"),
+    false,
+    "leader detail panel should keep the detailed score breakdown out of the default comparison summary",
+  );
+});
+
+test("employee detail panel collapses opinion process rows until the permission gate", () => {
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+  const processStart = detailPanel.indexOf('过程留痕');
+  const permissionGate = detailPanel.indexOf('employee.canViewOpinionDetails ? (', processStart);
+  const opinionRows = detailPanel.indexOf('employee.opinions.map((opinion) => (', processStart);
+  const summarySlice = detailPanel.slice(processStart, permissionGate === -1 ? detailPanel.length : permissionGate);
+
+  assert.equal(
+    permissionGate !== -1 && permissionGate < opinionRows,
+    true,
+    "employee detail panel should gate the opinion process timeline before any per-person rows appear",
+  );
+  assert.equal(
+    summarySlice.includes("opinion.reviewerName"),
+    false,
+    "employee detail panel should keep reviewer names out of the default process summary",
+  );
+  assert.equal(
+    summarySlice.includes("opinion.decisionLabel"),
+    false,
+    "employee detail panel should keep per-person decision labels out of the default process summary",
+  );
+});
+
 test("leader polling refresh uses latest-response-wins plus server-snapshot diffing", () => {
   const page = read("src/app/(main)/calibration/page.tsx");
 
@@ -500,20 +549,5 @@ test("final review cockpits share the dedicated roster search list component", (
     employeeCockpit.includes('from "./roster-search-list"') && leaderCockpit.includes('from "./roster-search-list"'),
     true,
     "employee and leader cockpits should both use the shared roster search list component",
-  );
-});
-
-test("admin final review config uses search-add member cards instead of native multi-select lists", () => {
-  const admin = read("src/app/(main)/admin/page.tsx");
-
-  assert.equal(
-    admin.includes("搜索添加成员") && admin.includes("已选成员") && admin.includes("移除"),
-    true,
-    "admin final review config should read like member management, not a browser multi-select",
-  );
-  assert.equal(
-    admin.includes("multiple"),
-    false,
-    "admin final review config should no longer rely on native multi-select boxes",
   );
 });

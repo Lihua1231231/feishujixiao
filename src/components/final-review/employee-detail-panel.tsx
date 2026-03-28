@@ -314,14 +314,20 @@ export function EmployeeDetailPanel({
             <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认人</p>
             <p className="mt-2 text-[var(--cockpit-foreground)]">{employee.officialConfirmerName || "—"}</p>
           </div>
-          <div className="space-y-2">
-            {employee.opinions.map((opinion) => (
-              <div key={`${opinion.reviewerId}:audit`} className="flex items-center justify-between rounded-2xl border px-4 py-3">
-                <span className="text-[var(--cockpit-foreground)]">{employee.canViewOpinionDetails ? opinion.reviewerName : opinion.decisionLabel}</span>
-                <span className="text-[var(--cockpit-muted-foreground)]">{formatTime(opinion.updatedAt)}</span>
-              </div>
-            ))}
-          </div>
+          {employee.canViewOpinionDetails ? (
+            <div className="space-y-2">
+              {employee.opinions.map((opinion) => (
+                <div key={`${opinion.reviewerId}:audit`} className="flex items-center justify-between rounded-2xl border px-4 py-3">
+                  <span className="text-[var(--cockpit-foreground)]">{opinion.reviewerName}</span>
+                  <span className="text-[var(--cockpit-muted-foreground)]">{formatTime(opinion.updatedAt)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+              当前视图只显示处理汇总，不逐人展开每位终评相关人的留痕。
+            </div>
+          )}
         </div>
       </section>
     </aside>

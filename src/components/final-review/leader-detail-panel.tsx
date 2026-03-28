@@ -288,7 +288,11 @@ export function LeaderDetailPanel({
           <div>
             <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{comparisonTitle}</p>
             <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-              {pendingReviewCount > 0 ? `还有 ${pendingReviewCount} 份问卷待提交` : "两位填写人的问卷都已经提交"}
+              {leader.canViewLeaderEvaluationDetails
+                ? pendingReviewCount > 0
+                  ? `还有 ${pendingReviewCount} 份问卷待提交`
+                  : "两位填写人的问卷都已经提交"
+                : "当前视图只保留双人摘要，不展开每位填写人的姓名和分数。"}
             </p>
           </div>
           <Badge variant={leader.bothSubmitted ? "default" : "outline"}>
@@ -296,41 +300,47 @@ export function LeaderDetailPanel({
           </Badge>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {leader.evaluations.map((evaluation) => {
-            const key = `${leader.id}:${evaluation.evaluatorId}`;
-            const form = leaderForms[key] || evaluation.form;
-            return (
-              <div key={key} className="rounded-2xl border px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--cockpit-foreground)]">{evaluation.evaluatorName}</p>
-                    <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-                      加权分 {computeWeightedScore(form)?.toFixed(1) ?? evaluation.weightedScore?.toFixed(1) ?? "—"}
-                    </p>
+        {leader.canViewLeaderEvaluationDetails ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {leader.evaluations.map((evaluation) => {
+              const key = `${leader.id}:${evaluation.evaluatorId}`;
+              const form = leaderForms[key] || evaluation.form;
+              return (
+                <div key={key} className="rounded-2xl border px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--cockpit-foreground)]">{evaluation.evaluatorName}</p>
+                      <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
+                        加权分 {computeWeightedScore(form)?.toFixed(1) ?? evaluation.weightedScore?.toFixed(1) ?? "—"}
+                      </p>
+                    </div>
+                    <Badge variant={evaluation.status === "SUBMITTED" ? "default" : "outline"}>
+                      {evaluation.status === "SUBMITTED" ? "已提交" : "草稿"}
+                    </Badge>
                   </div>
-                  <Badge variant={evaluation.status === "SUBMITTED" ? "default" : "outline"}>
-                    {evaluation.status === "SUBMITTED" ? "已提交" : "草稿"}
-                  </Badge>
+                  <div className="mt-3 grid gap-2 text-xs text-[var(--cockpit-muted-foreground)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>业绩产出</span>
+                      <span>{renderStars(form.performanceStars, "—")}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>个人能力均值</span>
+                      <span>{renderStars(computeAbilityStars(form), "—")}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>价值观均值</span>
+                      <span>{renderStars(computeValuesStars(form), "—")}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-3 grid gap-2 text-xs text-[var(--cockpit-muted-foreground)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>业绩产出</span>
-                    <span>{renderStars(form.performanceStars, "—")}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>个人能力均值</span>
-                    <span>{renderStars(computeAbilityStars(form), "—")}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>价值观均值</span>
-                    <span>{renderStars(computeValuesStars(form), "—")}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+            详细双人对照只对具备查看权限的终评角色开放，当前页面只保留双人提交状态和官方结论摘要。
+          </div>
+        )}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
