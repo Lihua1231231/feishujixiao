@@ -465,6 +465,44 @@ test("employee cockpit uses a searchable roster rail instead of select controls"
   );
 });
 
+test("leader cockpit uses a searchable roster rail and gates detailed dual-review content", () => {
+  const cockpit = read("src/components/final-review/leader-cockpit.tsx");
+  const detail = read("src/components/final-review/leader-detail-panel.tsx");
+
+  assert.equal(
+    cockpit.includes("搜索主管") && cockpit.includes("待拍板") && cockpit.includes("待双人齐备"),
+    true,
+    "leader cockpit should expose a searchable roster rail and queue-first navigation",
+  );
+  assert.equal(
+    detail.includes("canViewLeaderEvaluationDetails") && detail.includes("详细双人问卷"),
+    true,
+    "leader detail panel should explicitly gate detailed dual-review content by visibility",
+  );
+  assert.equal(
+    detail.includes("<select"),
+    false,
+    "leader detail panel should stop using raw select controls for confirmation",
+  );
+});
+
+test("final review cockpits share the dedicated roster search list component", () => {
+  const shared = read("src/components/final-review/roster-search-list.tsx");
+  const employeeCockpit = read("src/components/final-review/employee-cockpit.tsx");
+  const leaderCockpit = read("src/components/final-review/leader-cockpit.tsx");
+
+  assert.equal(
+    shared.includes("搜索结果") && shared.includes("Input"),
+    true,
+    "the shared roster search list should provide a searchable result rail",
+  );
+  assert.equal(
+    employeeCockpit.includes('from "./roster-search-list"') && leaderCockpit.includes('from "./roster-search-list"'),
+    true,
+    "employee and leader cockpits should both use the shared roster search list component",
+  );
+});
+
 test("admin final review config uses search-add member cards instead of native multi-select lists", () => {
   const admin = read("src/app/(main)/admin/page.tsx");
 

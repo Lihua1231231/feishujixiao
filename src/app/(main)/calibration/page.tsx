@@ -406,7 +406,7 @@ function CalibrationContent() {
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
-            guideDescription="这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板。参考星级由初评加权分换算。"
+            guideDescription="这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板。参考星级由初评加权分换算。可以结合重点名单和搜索员工名册来回切换。"
             priorityBoardTitle="重点名单"
             priorityBoardDescription="重点名单会优先摆出待拍板、意见分歧大，以及其他需要先看证据再拍板的员工。"
             companyCount={workspace.employeeReview.overview.companyCount}
@@ -451,11 +451,11 @@ function CalibrationContent() {
           data-leader-submitted-total={leaderSubmissionSummary.reduce((total, item) => total + item.submittedCount, 0)}
         >
           <LeaderCockpit
-            guideDescription="这一页只处理主管层终评：先由两位填写人分别打分，再由最终确认人统一拍板。"
+            guideDescription="这一页只处理主管层终评：先由两位填写人分别打分，再由最终确认人统一拍板。可以结合优先队列和搜索主管名册快速定位对象。"
             progressTitle="双人提交进度"
             progressDescription="先看两位填写人的整体提交进度，再决定哪些主管已经可以进入最终决策。"
             rosterTitle="主管名单"
-            rosterDescription="左侧会优先摆出待拍板、待双人齐备和已可拍板的主管，全部主管也都能从这里重新选中。"
+            rosterDescription="左侧会优先摆出待拍板、待双人齐备和已可拍板的主管，右侧搜索名册可以随时跳回任意一位主管。"
             leaderCount={workspace.leaderReview.overview.leaderCount}
             confirmedCount={workspace.leaderReview.overview.confirmedCount}
             leaderDistribution={workspace.leaderReview.leaderDistribution}
@@ -472,7 +472,7 @@ function CalibrationContent() {
               <LeaderDetailPanel
                 title="最终决策"
                 comparisonTitle="双人意见对照"
-                questionnaireTitle="问卷详情"
+                questionnaireTitle="详细双人问卷"
                 auditTrailTitle="过程留痕"
                 leader={selectedLeader}
                 leaderForms={leaderForms}

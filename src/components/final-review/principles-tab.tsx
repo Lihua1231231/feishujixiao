@@ -86,7 +86,7 @@ export function PrinciplesTab({
   const deadline = describeDeadline(cycle.calibrationEnd);
   const briefingBlocks: CockpitBriefingBlock[] = [
     {
-      title: "核心原则",
+      title: "这轮先看什么",
       content: (
         <div className="flex flex-wrap gap-2">
           {overview.principles.map((item) => (
@@ -98,7 +98,7 @@ export function PrinciplesTab({
       ),
     },
     {
-      title: "链路提醒",
+      title: "谁在拍板",
       content: (
         <ul className="space-y-2">
           {overview.chainGuidance.map((item) => (
@@ -108,7 +108,7 @@ export function PrinciplesTab({
       ),
     },
     {
-      title: "建议分布",
+      title: "分布提醒",
       content: (
         <div className="flex flex-wrap gap-2">
           {overview.distributionHints.map((item) => (
@@ -149,9 +149,9 @@ export function PrinciplesTab({
 
   return (
     <CockpitShell
-      title="原则与链路"
-      description="把本轮终评的判断标准、参与角色和当前全局节奏放进一个更容易扫读的驾驶舱。"
-      guideDescription="这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪。"
+      title="原则简报"
+      description="先在这里统一口径，再去员工和主管名单里处理具体对象。"
+      guideDescription="这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪。默认先看公司整体分布、当前风险和优先处理对象。"
       summaryLabel="一句话解读"
       summary={buildSummary(cycle, overview)}
       briefingBlocks={briefingBlocks}

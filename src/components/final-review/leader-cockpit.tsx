@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
 import { StarDistributionChart } from "./star-distribution-chart";
 import type { DistributionEntry, LeaderRow } from "./types";
 import type { LeaderPriorityCard, LeaderSubmissionSummary } from "./workspace-view";
@@ -111,6 +112,13 @@ export function LeaderCockpit({
   const pendingCount = priorityCards.find((card) => card.key === "pending")?.count ?? 0;
   const pendingDualCount = priorityCards.find((card) => card.key === "awaitingDualSubmission")?.count ?? 0;
   const summaryByLeader = new Map(submissionSummary.map((item) => [item.id, item]));
+  const rosterItems: RosterSearchItem[] = allLeaders.map((leader) => ({
+    id: leader.id,
+    name: leader.name,
+    meta: `${leader.department}${leader.jobTitle ? ` · ${leader.jobTitle}` : ""}`,
+    status: leader.officialStars != null ? "已拍板" : leader.bothSubmitted ? "待拍板" : "待双人齐备",
+    tone: leader.officialStars != null ? "secondary" : leader.bothSubmitted ? "outline" : "destructive",
+  }));
 
   const metricCards = [
     { title: "主管层总人数", value: `${leaderCount}`, description: "当前纳入主管层双人终评的对象人数" },
@@ -244,22 +252,36 @@ export function LeaderCockpit({
               </section>
             ))}
           </div>
-
-          <div className="mt-5 max-h-[420px] space-y-2 overflow-auto pr-1">
-            {allLeaders.map((leader) => (
-              <LeaderRosterButton
-                key={`all:${leader.id}`}
-                leader={leader}
-                summary={summaryByLeader.get(leader.id)}
-                selected={leader.id === selectedLeaderId}
-                onSelect={() => onSelectLeader(leader.id)}
-              />
-            ))}
-          </div>
         </section>
       </div>
 
-      <div>{detailPanel}</div>
+      <div className="space-y-4">
+        <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">{rosterTitle}</h2>
+              <p className="text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+                除了优先队列，也可以直接搜索主管，快速回到任意一位主管的总结卡片。
+              </p>
+            </div>
+            <Badge variant="outline" className="w-fit">
+              共 {allLeaders.length} 人
+            </Badge>
+          </div>
+
+          <div className="mt-5">
+            <RosterSearchList
+              searchPlaceholder="搜索主管"
+              emptyText="没有匹配的主管"
+              selectedId={selectedLeaderId}
+              items={rosterItems}
+              onSelect={onSelectLeader}
+            />
+          </div>
+        </section>
+
+        {detailPanel}
+      </div>
     </div>
   );
 }

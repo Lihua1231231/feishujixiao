@@ -60,6 +60,15 @@ function renderStars(value: number | null, fallback: string) {
   return `${value} 星`;
 }
 
+function SummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border px-4 py-3">
+      <p className="text-xs text-[var(--cockpit-muted-foreground)]">{label}</p>
+      <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{value}</p>
+    </div>
+  );
+}
+
 function LeaderQuestionnaire({
   title,
   evaluation,
@@ -200,7 +209,7 @@ export function LeaderDetailPanel({
     return (
       <aside className="sticky top-6">
         <section className="rounded-[28px] border border-dashed p-8 text-sm leading-7 text-[var(--cockpit-muted-foreground)]" style={panelStyle}>
-          从左侧主管名单选择一位主管，右侧会依次显示最终决策、双人意见对照、问卷详情和过程留痕。
+          从左侧优先队列或搜索主管名册里选择一位主管，右侧会先显示决策摘要，再按权限展开详细双人问卷。
         </section>
       </aside>
     );
@@ -224,67 +233,54 @@ export function LeaderDetailPanel({
           <Badge variant={leader.officialStars == null ? "outline" : "default"}>{statusLabel}</Badge>
         </div>
 
-        <div className="mt-4 grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border px-4 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前官方星级</p>
-              <p className="mt-2 text-lg font-semibold text-[var(--cockpit-foreground)]">
-                {renderStars(leader.officialStars, leader.bothSubmitted ? "待最终确认" : "待双人齐备")}
-              </p>
-            </div>
-            <div className="rounded-2xl border px-4 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">双人提交状态</p>
-              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
-                {pendingReviewCount > 0 ? `还有 ${pendingReviewCount} 份问卷待提交` : "两位填写人都已提交"}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border px-4 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认人</p>
-              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{leader.officialConfirmerName || "—"}</p>
-            </div>
-            <div className="rounded-2xl border px-4 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前状态</p>
-              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{statusLabel}</p>
-            </div>
-          </div>
-
-          {leader.finalizable ? (
-            <div className="space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
-              <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
-                <select
-                  value={confirmForm?.officialStars ?? ""}
-                  onChange={(event) => onConfirmChange({ officialStars: event.target.value ? Number(event.target.value) : null })}
-                  className="h-10 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                >
-                  <option value="">选择主管层官方星级</option>
-                  {[1, 2, 3, 4, 5].map((stars) => (
-                    <option key={stars} value={stars}>
-                      {stars}星
-                    </option>
-                  ))}
-                </select>
-                <Textarea
-                  value={confirmForm?.reason || ""}
-                  onChange={(event) => onConfirmChange({ reason: event.target.value })}
-                  placeholder="主管层最终确认理由始终必填"
-                />
-              </div>
-              <Button className="w-full" onClick={onConfirm} disabled={!leader.bothSubmitted || savingConfirmation}>
-                {savingConfirmation ? "确认中..." : "确认主管层官方结果"}
-              </Button>
-              {!leader.bothSubmitted ? (
-                <p className="text-xs text-red-600">两位主管层终评填写人都提交后，才能最终确认。</p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
-              当前你不是最终确认人，这里会持续显示最新官方结果和确认理由。
-            </div>
-          )}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <SummaryCard
+            label="当前官方星级"
+            value={renderStars(leader.officialStars, leader.bothSubmitted ? "待最终确认" : "待双人齐备")}
+          />
+          <SummaryCard
+            label="双人提交状态"
+            value={pendingReviewCount > 0 ? `还有 ${pendingReviewCount} 份问卷待提交` : "两位填写人都已提交"}
+          />
+          <SummaryCard label="最后确认人" value={leader.officialConfirmerName || "—"} />
+          <SummaryCard label="当前状态" value={statusLabel} />
         </div>
+
+        {leader.finalizable ? (
+          <div className="mt-4 space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终拍板</p>
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">双人意见齐备后，再选择主管层官方星级并填写确认理由。</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-5">
+              {[1, 2, 3, 4, 5].map((stars) => (
+                <Button
+                  key={stars}
+                  type="button"
+                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
+                  onClick={() => onConfirmChange({ officialStars: stars })}
+                >
+                  {stars}星
+                </Button>
+              ))}
+            </div>
+            <Textarea
+              value={confirmForm?.reason || ""}
+              onChange={(event) => onConfirmChange({ reason: event.target.value })}
+              placeholder="主管层最终确认理由始终必填"
+            />
+            <Button className="w-full" onClick={onConfirm} disabled={!leader.bothSubmitted || savingConfirmation}>
+              {savingConfirmation ? "确认中..." : "确认主管层官方结果"}
+            </Button>
+            {!leader.bothSubmitted ? (
+              <p className="text-xs text-red-600">两位主管层终评填写人都提交后，才能最终确认。</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
+            当前你不是最终确认人，这里会持续显示最新官方结果和确认理由。
+          </div>
+        )}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
@@ -342,29 +338,39 @@ export function LeaderDetailPanel({
           <div>
             <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{questionnaireTitle}</p>
             <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-              只有对应的填写人可以编辑自己的问卷，其他人始终只读。
+              {leader.canViewLeaderEvaluationDetails
+                ? "只有对应的填写人可以编辑自己的问卷，其他人始终只读。"
+                : "当前视图只展示双人摘要，不展开详细双人问卷。"}
             </p>
           </div>
-          <Badge variant="outline">问卷详情</Badge>
+          <Badge variant={leader.canViewLeaderEvaluationDetails ? "secondary" : "outline"}>
+            {leader.canViewLeaderEvaluationDetails ? "已开放" : "已隐藏"}
+          </Badge>
         </div>
 
-        <div className="mt-4 space-y-4">
-          {leader.evaluations.map((evaluation) => {
-            const key = `${leader.id}:${evaluation.evaluatorId}`;
-            return (
-              <LeaderQuestionnaire
-                key={key}
-                title={`${evaluation.evaluatorName} 终评问卷`}
-                evaluation={evaluation}
-                form={leaderForms[key] || evaluation.form}
-                editable={evaluation.editable}
-                saving={savingEvaluationKey === `leader:${key}`}
-                onChange={(field, value) => onEvaluationChange(leader.id, evaluation, field, value)}
-                onSave={(action) => onSaveEvaluation(leader, evaluation, action)}
-              />
-            );
-          })}
-        </div>
+        {leader.canViewLeaderEvaluationDetails ? (
+          <div className="mt-4 space-y-4">
+            {leader.evaluations.map((evaluation) => {
+              const key = `${leader.id}:${evaluation.evaluatorId}`;
+              return (
+                <LeaderQuestionnaire
+                  key={key}
+                  title={`${evaluation.evaluatorName} 终评问卷`}
+                  evaluation={evaluation}
+                  form={leaderForms[key] || evaluation.form}
+                  editable={evaluation.editable}
+                  saving={savingEvaluationKey === `leader:${key}`}
+                  onChange={(field, value) => onEvaluationChange(leader.id, evaluation, field, value)}
+                  onSave={(action) => onSaveEvaluation(leader, evaluation, action)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+            详细双人问卷只对具备查看权限的终评角色开放，当前页面继续保留双人意见对照和官方结论摘要。
+          </div>
+        )}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>

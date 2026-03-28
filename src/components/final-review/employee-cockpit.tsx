@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
 import { ScoreBandChart } from "./score-band-chart";
 import { StarDistributionChart } from "./star-distribution-chart";
 import type { DistributionEntry, EmployeeRow } from "./types";
@@ -98,6 +99,13 @@ export function EmployeeCockpit({
     { title: "当前官方终评完成率", value: `${officialCompletionRate}%`, description: "已经被最终确认人正式拍板的比例" },
     { title: "待最终确认人数", value: `${pendingOfficialCount}`, description: "还没有正式拍板的普通员工人数" },
   ];
+  const rosterItems: RosterSearchItem[] = allEmployees.map((employee) => ({
+    id: employee.id,
+    name: employee.name,
+    meta: `${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
+    status: employee.officialStars == null ? "待拍板" : employee.summaryStats.overrideCount > 0 ? "有分歧" : "已拍板",
+    tone: employee.officialStars == null ? "outline" : employee.summaryStats.overrideCount > 0 ? "destructive" : "secondary",
+  }));
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,420px)] xl:items-start">
@@ -173,13 +181,15 @@ export function EmployeeCockpit({
             ))}
           </div>
         </section>
+      </div>
 
+      <div className="space-y-4">
         <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">全部员工</h2>
               <p className="text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-                所有普通员工都能从这里重新选中，已经确认的人也不会从左侧导航里消失。
+                重点名单之外，也可以直接搜索员工，已经确认的人仍然会保留在这条名册里。
               </p>
             </div>
             <Badge variant="outline" className="w-fit">
@@ -187,20 +197,19 @@ export function EmployeeCockpit({
             </Badge>
           </div>
 
-          <div className="mt-5 max-h-[420px] space-y-2 overflow-auto pr-1">
-            {allEmployees.map((employee) => (
-              <EmployeeQueueButton
-                key={`all:${employee.id}`}
-                employee={employee}
-                selected={employee.id === selectedEmployeeId}
-                onSelect={() => onSelectEmployee(employee.id)}
-              />
-            ))}
+          <div className="mt-5">
+            <RosterSearchList
+              searchPlaceholder="搜索员工"
+              emptyText="没有匹配的员工"
+              selectedId={selectedEmployeeId}
+              items={rosterItems}
+              onSelect={onSelectEmployee}
+            />
           </div>
         </section>
-      </div>
 
-      <div>{detailPanel}</div>
+        {detailPanel}
+      </div>
     </div>
   );
 }
