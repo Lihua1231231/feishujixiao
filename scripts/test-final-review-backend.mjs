@@ -159,3 +159,33 @@ test("workspace builder filters ordinary employees to the configured employee ro
     "workspace rows should include explicit visibility flags instead of forcing the UI to guess",
   );
 });
+
+test("final review default roster helper lists the exact 54 names and maps them to ids", () => {
+  const source = read("src/lib/final-review-defaults.ts");
+
+  assert.equal(
+    source.includes("DEFAULT_EMPLOYEE_FINAL_REVIEW_NAMES"),
+    true,
+    "default roster helper should export the fixed 54-person name list",
+  );
+  assert.equal(
+    source.includes("resolveDefaultEmployeeSubjectIds"),
+    true,
+    "default roster helper should map roster names to user ids",
+  );
+});
+
+test("admin final review config seeds empty employee rosters from the default name list", () => {
+  const source = read("src/app/api/admin/final-review-config/route.ts");
+
+  assert.equal(
+    source.includes("resolveDefaultEmployeeSubjectIds"),
+    true,
+    "admin final review config should seed empty employee rosters from the fixed default list",
+  );
+  assert.equal(
+    source.includes("employeeSubjectUserIds"),
+    true,
+    "admin final review config should persist the employee roster field",
+  );
+});

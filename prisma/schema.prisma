@@ -211,16 +211,17 @@ model CalibrationResult {
 // ============ MODULE 4.5: FINAL REVIEW WORKSPACE ============
 
 model FinalReviewConfig {
-  id                   String   @id @default(cuid())
-  cycleId              String   @unique
-  cycle                ReviewCycle @relation(fields: [cycleId], references: [id])
-  accessUserIds        String   @default("[]")
-  finalizerUserIds     String   @default("[]")
-  leaderEvaluatorUserIds String @default("[]")
-  leaderSubjectUserIds String   @default("[]")
-  referenceStarRanges  String   @default("[]")
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                      String      @id @default(cuid())
+  cycleId                 String      @unique
+  cycle                   ReviewCycle @relation(fields: [cycleId], references: [id])
+  accessUserIds           String      @default("[]")
+  finalizerUserIds        String      @default("[]")
+  leaderEvaluatorUserIds  String      @default("[]")
+  leaderSubjectUserIds    String      @default("[]")
+  employeeSubjectUserIds  String      @default("[]")
+  referenceStarRanges     String      @default("[]")
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 }
 
 model FinalReviewOpinion {

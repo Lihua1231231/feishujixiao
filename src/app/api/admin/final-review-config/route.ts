@@ -3,14 +3,52 @@ import { prisma } from "@/lib/db";
 import { getSessionUser, getActiveCycle } from "@/lib/session";
 import {
   DEFAULT_REFERENCE_STAR_RANGES,
+  type FinalReviewConfigValue,
   getFinalReviewConfigValue,
   serializeReferenceStarRanges,
   type ReferenceStarRange,
 } from "@/lib/final-review";
+import { resolveDefaultEmployeeSubjectIds } from "@/lib/final-review-defaults";
+
+type AdminFinalReviewConfigValue = FinalReviewConfigValue & {
+  employeeSubjectUserIds: string[];
+};
 
 function normalizeIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function parseStoredIds(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildAdminConfigValue(
+  cycleId: string,
+  record: {
+    accessUserIds: string;
+    finalizerUserIds: string;
+    leaderEvaluatorUserIds: string;
+    leaderSubjectUserIds: string;
+    employeeSubjectUserIds: string;
+    referenceStarRanges: string;
+  } | null,
+  users: Array<{ id: string; name: string; department: string; role: string }>,
+): AdminFinalReviewConfigValue {
+  const config = getFinalReviewConfigValue(cycleId, record);
+  const employeeSubjectUserIds = parseStoredIds(record?.employeeSubjectUserIds);
+
+  return {
+    ...config,
+    employeeSubjectUserIds:
+      employeeSubjectUserIds.length > 0 ? employeeSubjectUserIds : resolveDefaultEmployeeSubjectIds(users),
+  };
 }
 
 function normalizeRanges(value: unknown): ReferenceStarRange[] {
@@ -51,7 +89,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const config = getFinalReviewConfigValue(cycle.id, record, users);
+    const config = buildAdminConfigValue(cycle.id, record, users);
     return NextResponse.json({
       cycle: { id: cycle.id, name: cycle.name, status: cycle.status },
       config,
@@ -78,6 +116,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "referenceStarRanges contains invalid min/max values" }, { status: 400 });
     }
 
+    const existingConfig = await prisma.finalReviewConfig.findUnique({
+      where: { cycleId: body.cycleId },
+      select: { employeeSubjectUserIds: true },
+    });
+
+    const explicitEmployeeSubjectUserIds =
+      Object.prototype.hasOwnProperty.call(body, "employeeSubjectUserIds") ? normalizeIds(body.employeeSubjectUserIds) : null;
+    const storedEmployeeSubjectUserIds = parseStoredIds(existingConfig?.employeeSubjectUserIds);
+    const users =
+      explicitEmployeeSubjectUserIds != null || storedEmployeeSubjectUserIds.length > 0
+        ? []
+        : await prisma.user.findMany({
+            select: { id: true, name: true, department: true, role: true },
+            orderBy: [{ department: "asc" }, { name: "asc" }],
+          });
+    const employeeSubjectUserIds =
+      explicitEmployeeSubjectUserIds ??
+      (storedEmployeeSubjectUserIds.length > 0
+        ? storedEmployeeSubjectUserIds
+        : resolveDefaultEmployeeSubjectIds(users));
+
     const config = await prisma.finalReviewConfig.upsert({
       where: { cycleId: body.cycleId },
       update: {
@@ -85,6 +144,7 @@ export async function POST(req: NextRequest) {
         finalizerUserIds: JSON.stringify(normalizeIds(body.finalizerUserIds)),
         leaderEvaluatorUserIds: JSON.stringify(normalizeIds(body.leaderEvaluatorUserIds)),
         leaderSubjectUserIds: JSON.stringify(normalizeIds(body.leaderSubjectUserIds)),
+        employeeSubjectUserIds: JSON.stringify(employeeSubjectUserIds),
         referenceStarRanges: serializeReferenceStarRanges(ranges),
       },
       create: {
@@ -93,13 +153,14 @@ export async function POST(req: NextRequest) {
         finalizerUserIds: JSON.stringify(normalizeIds(body.finalizerUserIds)),
         leaderEvaluatorUserIds: JSON.stringify(normalizeIds(body.leaderEvaluatorUserIds)),
         leaderSubjectUserIds: JSON.stringify(normalizeIds(body.leaderSubjectUserIds)),
+        employeeSubjectUserIds: JSON.stringify(employeeSubjectUserIds),
         referenceStarRanges: serializeReferenceStarRanges(ranges),
       },
     });
 
     return NextResponse.json({
       ok: true,
-      config: getFinalReviewConfigValue(body.cycleId, config),
+      config: buildAdminConfigValue(body.cycleId, config, users.length > 0 ? users : []),
     });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
