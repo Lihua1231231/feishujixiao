@@ -39,6 +39,7 @@ test("admin page adds a dedicated final review configuration tab", () => {
 
 test("admin final review config uses roster cards instead of multi-select lists", () => {
   const source = read("src/app/(main)/admin/page.tsx");
+  const rosterCard = read("src/components/final-review/member-roster-card.tsx");
 
   assert.equal(
     source.includes('from "@/components/final-review/member-roster-card"'),
@@ -56,9 +57,14 @@ test("admin final review config uses roster cards instead of multi-select lists"
     "admin final review config should label the ordinary employee roster clearly",
   );
   assert.equal(
-    source.includes("<select multiple>"),
+    source.includes("multiple"),
     false,
     "admin final review config should stop using native multi-select lists for member management",
+  );
+  assert.equal(
+    rosterCard.includes("已选成员") && rosterCard.includes("搜索成员") && rosterCard.includes("添加"),
+    true,
+    "admin final review config should expose a search-add/remove member card instead of a browser multi-select",
   );
 });
 
@@ -249,6 +255,31 @@ test("leader detail panel ties questionnaire editability to each evaluation's ow
     detailPanel.includes('{!editable ? <Badge variant="outline">只读</Badge> : null}'),
     true,
     "leader questionnaire should visibly mark non-owned evaluations as read-only",
+  );
+});
+
+test("self-eval preview mode resolves content synchronously and skips the loading skeleton", () => {
+  const source = read("src/app/(main)/self-eval/page.tsx");
+
+  assert.equal(
+    source.includes('const previewData = preview && previewRole ? getData("self-eval") : null;'),
+    true,
+    "self-eval preview should derive preview content directly from the preview hook",
+  );
+  assert.equal(
+    source.includes('const isPreviewEmployee = preview && previewRole === "EMPLOYEE";'),
+    true,
+    "self-eval preview should still distinguish employee preview from supervisor/admin preview",
+  );
+  assert.equal(
+    source.includes("if (!preview && loading) {"),
+    true,
+    "self-eval should only show the loading skeleton outside preview mode",
+  );
+  assert.equal(
+    source.includes("if (preview && previewRole && previewRole !== \"EMPLOYEE\") {"),
+    true,
+    "self-eval should render supervisor and admin preview views directly",
   );
 });
 

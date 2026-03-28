@@ -65,7 +65,7 @@ function SelfEvalContent() {
       .finally(() => setLoading(false));
   }, [preview, previewRole, getData]);
 
-  if (!isPreviewEmployee && loading) {
+  if (!preview && loading) {
     return <FormPageSkeleton />;
   }
 
