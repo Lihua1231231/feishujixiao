@@ -216,7 +216,7 @@ export function LeaderDetailPanel({
   }
 
   const pendingReviewCount = leader.submissionSummary.pendingCount;
-  const statusLabel = leader.officialStars != null ? "已拍板" : leader.bothSubmitted ? "待拍板" : "待双人齐备";
+  const statusLabel = leader.officialStars != null ? "已确认，可切换下一位" : leader.bothSubmitted ? "待拍板" : "待双人齐备";
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -233,6 +233,13 @@ export function LeaderDetailPanel({
           <Badge variant={leader.officialStars == null ? "outline" : "default"}>{statusLabel}</Badge>
         </div>
 
+        <div className="mt-4 rounded-2xl border px-4 py-3">
+          <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+            先看双人问卷是否齐备，再决定是否正式确认为主管层官方结果。
+          </p>
+        </div>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <SummaryCard
             label="当前官方星级"
@@ -246,47 +253,17 @@ export function LeaderDetailPanel({
           <SummaryCard label="当前状态" value={statusLabel} />
         </div>
 
-        {leader.finalizable ? (
-          <div className="mt-4 space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
-            <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终拍板</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">双人意见齐备后，再选择主管层官方星级并填写确认理由。</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <Button
-                  key={stars}
-                  type="button"
-                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
-                  onClick={() => onConfirmChange({ officialStars: stars })}
-                >
-                  {stars}星
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              value={confirmForm?.reason || ""}
-              onChange={(event) => onConfirmChange({ reason: event.target.value })}
-              placeholder="主管层最终确认理由始终必填"
-            />
-            <Button className="w-full" onClick={onConfirm} disabled={!leader.bothSubmitted || savingConfirmation}>
-              {savingConfirmation ? "确认中..." : "确认主管层官方结果"}
-            </Button>
-            {!leader.bothSubmitted ? (
-              <p className="text-xs text-red-600">两位主管层终评填写人都提交后，才能最终确认。</p>
-            ) : null}
+        {leader.officialStars != null ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
+            已确认，可切换下一位。
           </div>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
-            当前你不是最终确认人，这里会持续显示最新官方结果和确认理由。
-          </div>
-        )}
+        ) : null}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{comparisonTitle}</p>
+            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{comparisonTitle || "双人意见摘要"}</p>
             <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
               {leader.canViewLeaderEvaluationDetails
                 ? pendingReviewCount > 0
@@ -378,13 +355,51 @@ export function LeaderDetailPanel({
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-            详细双人问卷只对具备查看权限的终评角色开放，当前页面继续保留双人意见对照和官方结论摘要。
+            详细双人问卷只对具备查看权限的终评角色开放，当前页面继续保留双人意见摘要和官方结论摘要。
           </div>
         )}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
-        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{auditTrailTitle}</p>
+        {leader.finalizable ? (
+          <div className="space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终确认</p>
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">双人意见齐备后，再选择主管层官方星级并填写确认理由。</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-5">
+              {[1, 2, 3, 4, 5].map((stars) => (
+                <Button
+                  key={stars}
+                  type="button"
+                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
+                  onClick={() => onConfirmChange({ officialStars: stars })}
+                >
+                  {stars}星
+                </Button>
+              ))}
+            </div>
+            <Textarea
+              value={confirmForm?.reason || ""}
+              onChange={(event) => onConfirmChange({ reason: event.target.value })}
+              placeholder="主管层最终确认理由始终必填"
+            />
+            <Button className="w-full" onClick={onConfirm} disabled={!leader.bothSubmitted || savingConfirmation}>
+              {savingConfirmation ? "确认中..." : "确认主管层官方结果"}
+            </Button>
+            {!leader.bothSubmitted ? (
+              <p className="text-xs text-red-600">两位主管层终评填写人都提交后，才能最终确认。</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
+            当前你不是最终确认人，这里会持续显示最新官方结果和确认理由。
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-[28px] border p-5" style={panelStyle}>
+        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{auditTrailTitle || "过程留痕"}</p>
         <div className="mt-4 space-y-3 text-sm">
           <div className="rounded-2xl border px-4 py-3">
             <p className="text-xs text-[var(--cockpit-muted-foreground)]">官方确认理由</p>

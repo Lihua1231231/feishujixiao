@@ -128,8 +128,15 @@ export function EmployeeDetailPanel({
             </p>
           </div>
           <Badge variant={employee.officialStars == null ? "outline" : "default"}>
-            {employee.officialStars == null ? "待拍板" : "已拍板"}
+            {employee.officialStars == null ? "待拍板" : "已确认，可切换下一位"}
           </Badge>
+        </div>
+
+        <div className="mt-4 rounded-2xl border px-4 py-3">
+          <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
+            参考星级来自初评加权分换算。先核对证据和意见，再决定是否正式确认为官方结果。
+          </p>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -146,44 +153,64 @@ export function EmployeeDetailPanel({
           <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前判断</p>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">
             {employee.summaryStats.pendingCount > 0
-              ? `还有 ${employee.summaryStats.pendingCount} 位终评相关人待处理。`
-              : "终评相关人都已经给出意见。"}
+              ? `还有 ${employee.summaryStats.pendingCount} 位具名拍板人待处理。`
+              : "具名拍板人都已经给出意见。"}
             {employee.anomalyTags.length > 0 ? ` 当前风险信号：${employee.anomalyTags.join("、")}。` : " 当前没有额外风险信号。"}
           </p>
         </div>
 
-        {employee.finalizable ? (
-          <div className="mt-4 space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
-            <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终拍板</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">先点选官方星级，再补充正式确认理由。</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <Button
-                  key={stars}
-                  type="button"
-                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
-                  onClick={() => onConfirmChange({ officialStars: stars })}
-                >
-                  {stars}星
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              value={confirmForm?.reason || ""}
-              onChange={(event) => onConfirmChange({ reason: event.target.value })}
-              placeholder="若官方星级不同于参考星级，必须填写理由"
-            />
-            <Button className="w-full" onClick={onConfirm} disabled={savingConfirmation}>
-              {savingConfirmation ? "确认中..." : "最终确认"}
+        {employee.officialStars != null ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
+            已确认，可切换下一位。
+          </div>
+        ) : null}
+      </section>
+
+      <section className="rounded-[28px] border p-5" style={panelStyle}>
+        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">证据摘要</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <SummaryCard label="初评加权分" value={employee.weightedScore?.toFixed(1) ?? "—"} />
+          <SummaryCard label="360 均分" value={employee.peerAverage?.toFixed(1) ?? "—"} />
+          <SummaryCard label="自评状态" value={employee.selfEvalStatus || "未导入"} />
+          <SummaryCard label="初评人" value={employee.currentEvaluatorNames.join("、") || "未配置"} />
+        </div>
+        <div className="mt-4 rounded-2xl border px-4 py-3">
+          <p className="text-xs text-[var(--cockpit-muted-foreground)]">参考说明</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">{employee.referenceSourceLabel}</p>
+        </div>
+        <div className="mt-4 rounded-2xl border px-4 py-3">
+          <p className="text-xs text-[var(--cockpit-muted-foreground)]">初评评语摘要</p>
+          <p
+            className={cn(
+              "mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]",
+              !expandedSupervisorComment && "line-clamp-4",
+            )}
+          >
+            {employee.supervisorCommentSummary || "当前还没有可供参考的初评评语摘要。"}
+          </p>
+          {canExpandSupervisorComment ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2 h-auto px-0 text-sm text-[var(--cockpit-accent-strong)] hover:bg-transparent"
+              onClick={() =>
+                setExpandedSupervisorCommentEmployeeId((current) => (current === employee.id ? null : employee.id))
+              }
+            >
+              {expandedSupervisorComment ? "收起全文" : "展开全文"}
             </Button>
-          </div>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
-            当前你不是最终确认人，这里只持续显示最新官方结果和确认理由。
-          </div>
-        )}
+          ) : null}
+        </div>
+        <div className="mt-4 space-y-2">
+          {employee.currentEvaluatorStatuses.map((status) => (
+            <div key={status.evaluatorId} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
+              <span className="text-[var(--cockpit-foreground)]">{status.evaluatorName}</span>
+              <span className="text-[var(--cockpit-muted-foreground)]">
+                {status.status} · 加权分 {status.weightedScore?.toFixed(1) ?? "—"}
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
@@ -210,8 +237,8 @@ export function EmployeeDetailPanel({
           </div>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
             {employee.canViewOpinionDetails
-              ? "你可以直接查看每位终评相关人的建议星级和补充说明。"
-              : "当前视图只保留汇总口径，不展开每位终评相关人的姓名和原文。"}
+              ? "你可以直接查看每位具名拍板人的建议星级和补充说明。"
+              : "当前视图只保留汇总口径，不展开每位具名拍板人的姓名和原文。"}
           </p>
         </div>
 
@@ -274,50 +301,38 @@ export function EmployeeDetailPanel({
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
-        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">证据摘要</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <SummaryCard label="初评加权分" value={employee.weightedScore?.toFixed(1) ?? "—"} />
-          <SummaryCard label="360 均分" value={employee.peerAverage?.toFixed(1) ?? "—"} />
-          <SummaryCard label="自评状态" value={employee.selfEvalStatus || "未导入"} />
-          <SummaryCard label="初评人" value={employee.currentEvaluatorNames.join("、") || "未配置"} />
-        </div>
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">参考说明</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">{employee.referenceSourceLabel}</p>
-        </div>
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">初评评语摘要</p>
-          <p
-            className={cn(
-              "mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]",
-              !expandedSupervisorComment && "line-clamp-4",
-            )}
-          >
-            {employee.supervisorCommentSummary || "当前还没有可供参考的初评评语摘要。"}
-          </p>
-          {canExpandSupervisorComment ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="mt-2 h-auto px-0 text-sm text-[var(--cockpit-accent-strong)] hover:bg-transparent"
-              onClick={() =>
-                setExpandedSupervisorCommentEmployeeId((current) => (current === employee.id ? null : employee.id))
-              }
-            >
-              {expandedSupervisorComment ? "收起全文" : "展开全文"}
-            </Button>
-          ) : null}
-        </div>
-        <div className="mt-4 space-y-2">
-          {employee.currentEvaluatorStatuses.map((status) => (
-            <div key={status.evaluatorId} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
-              <span className="text-[var(--cockpit-foreground)]">{status.evaluatorName}</span>
-              <span className="text-[var(--cockpit-muted-foreground)]">
-                {status.status} · 加权分 {status.weightedScore?.toFixed(1) ?? "—"}
-              </span>
+        {employee.finalizable ? (
+          <div className="space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
+            <div>
+              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终确认</p>
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">先点选官方星级，再补充正式确认理由。</p>
             </div>
-          ))}
-        </div>
+            <div className="grid gap-2 sm:grid-cols-5">
+              {[1, 2, 3, 4, 5].map((stars) => (
+                <Button
+                  key={stars}
+                  type="button"
+                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
+                  onClick={() => onConfirmChange({ officialStars: stars })}
+                >
+                  {stars}星
+                </Button>
+              ))}
+            </div>
+            <Textarea
+              value={confirmForm?.reason || ""}
+              onChange={(event) => onConfirmChange({ reason: event.target.value })}
+              placeholder="若官方星级不同于参考星级，必须填写理由"
+            />
+            <Button className="w-full" onClick={onConfirm} disabled={savingConfirmation}>
+              {savingConfirmation ? "确认中..." : "最终确认"}
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
+            当前你不是最终确认人，这里只持续显示最新官方结果和确认理由。
+          </div>
+        )}
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
@@ -346,7 +361,7 @@ export function EmployeeDetailPanel({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-              当前视图只显示处理汇总，不逐人展开每位终评相关人的留痕。
+              当前视图只显示处理汇总，不逐人展开每位具名拍板人的留痕。
             </div>
           )}
         </div>

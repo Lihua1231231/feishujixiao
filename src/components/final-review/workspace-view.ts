@@ -67,6 +67,16 @@ export function buildEmployeePriorityGroups(rows: EmployeeRow[]) {
   };
 }
 
+export function buildEmployeeQueueGroups(rows: EmployeeRow[]) {
+  const groups = buildEmployeePriorityGroups(rows);
+
+  return {
+    pending: groups.pending,
+    disagreement: groups.disagreement,
+    all: rows,
+  };
+}
+
 function summarizeRows(rows: EmployeeRow[], emptySummary: string) {
   if (!rows.length) return emptySummary;
   const names = rows.slice(0, 3).map((row) => row.name).join("、");
@@ -100,7 +110,7 @@ export function buildEmployeePriorityCards(rows: EmployeeRow[]): EmployeePriorit
       summary: groups.disagreement.length ? `${groups.disagreement.length} 人出现改星意见` : "当前没有明显分歧",
       description: groups.disagreement.length
         ? `重点核对 ${summarizeRows(groups.disagreement, "")} 的理由，避免遗漏需要解释的改星意见。`
-        : "终评相关人的意见暂时没有出现明显冲突。",
+        : "具名拍板人的意见暂时没有出现明显冲突。",
       count: groups.disagreement.length,
       rows: groups.disagreement,
       accent: "amber",
@@ -192,4 +202,15 @@ export function buildLeaderPriorityCards(rows: LeaderRow[]): LeaderPriorityCard[
       accent: "emerald",
     },
   ];
+}
+
+export function buildLeaderQueueGroups(rows: LeaderRow[]) {
+  const pending = rows.filter((row) => row.officialStars == null);
+  const awaitingDual = rows.filter((row) => !row.bothSubmitted);
+
+  return {
+    pending,
+    awaitingDual,
+    all: rows,
+  };
 }

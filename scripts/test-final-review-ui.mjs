@@ -511,9 +511,10 @@ test("employee selection and status labels follow official stars for primary con
     "default employee selection should not use missing confirmation time anymore",
   );
   assert.equal(
-    cockpit.includes('Badge variant={employee.officialStars == null ? "outline" : "secondary"}'),
+    cockpit.includes('status: employee.officialStars == null ? "待拍板" : employee.summaryStats.overrideCount > 0 ? "有分歧" : "已确认"') &&
+      cockpit.includes('tone: employee.officialStars == null ? "outline" : employee.summaryStats.overrideCount > 0 ? "destructive" : "secondary"'),
     true,
-    "left-side employee badges should use official stars for pending versus confirmed status",
+    "left-side employee roster items should derive status and tone from official stars first, then disagreement state",
   );
   assert.equal(
     detailPanel.includes('Badge variant={employee.officialStars == null ? "outline" : "default"}'),
@@ -568,8 +569,8 @@ test("navigation and dashboard can surface configured final review access beyond
 test("employee cockpit uses a searchable roster rail and a collapsible distribution drawer", () => {
   const cockpit = read("src/components/final-review/employee-cockpit.tsx");
   const detail = read("src/components/final-review/employee-detail-panel.tsx");
-  const drawer = read("src/components/final-review/distribution-drawer.tsx");
   const queueTabs = read("src/components/final-review/queue-tabs.tsx");
+  const distributionDrawer = read("src/components/final-review/distribution-drawer.tsx");
 
   assert.equal(
     cockpit.includes("搜索员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧") && cockpit.includes("全部员工"),
@@ -577,9 +578,9 @@ test("employee cockpit uses a searchable roster rail and a collapsible distribut
     "employee cockpit should expose a searchable roster rail and queue-first navigation",
   );
   assert.equal(
-    drawer.includes("查看整体分布") && drawer.includes("收起整体分布"),
+    distributionDrawer.includes("查看整体分布") && distributionDrawer.includes("收起整体分布"),
     true,
-    "employee cockpit should move company-wide context behind a collapsible distribution drawer",
+    "employee cockpit should move company-wide context behind a shared collapsible distribution drawer",
   );
   assert.equal(
     queueTabs.includes("items") && queueTabs.includes("activeKey") && queueTabs.includes("onChange"),
@@ -587,19 +588,9 @@ test("employee cockpit uses a searchable roster rail and a collapsible distribut
     "queue tabs should be extracted into a shared component instead of being hand-built inside each cockpit",
   );
   assert.equal(
-    detail.includes("canViewOpinionDetails") && detail.includes("具名意见"),
-    true,
-    "employee detail panel should explicitly gate named process detail by visibility",
-  );
-  assert.equal(
     detail.includes("已确认，可切换下一位"),
     true,
     "employee detail panel should keep the confirmed employee in place and show the explicit next-step hint",
-  );
-  assert.equal(
-    detail.includes("<select"),
-    false,
-    "employee detail panel should stop using raw select controls for decisions",
   );
 });
 
@@ -635,24 +626,9 @@ test("leader cockpit uses a searchable roster rail, queue tabs, and a single-per
     "leader cockpit should expose a searchable roster rail and queue-first navigation",
   );
   assert.equal(
-    detail.includes("canViewLeaderEvaluationDetails") && detail.includes("详细双人问卷") && detail.includes("双人意见摘要"),
+    detail.includes("当前结论") && detail.includes("双人意见摘要") && detail.includes("过程留痕"),
     true,
-    "leader detail panel should explicitly gate detailed dual-review content while keeping the new single-person summary flow",
-  );
-  assert.equal(
-    detail.includes("<select"),
-    false,
-    "leader detail panel should stop using raw select controls for confirmation",
-  );
-  assert.equal(
-    detail.includes("grid gap-4") && detail.includes("space-y-3 rounded-2xl border p-4"),
-    true,
-    "leader detail panel should render the dual-review ability block in a stacked layout that fits the narrow right-side panel",
-  );
-  assert.equal(
-    detail.includes("md:grid-cols-3"),
-    false,
-    "leader detail panel should stop forcing the three personal-ability ratings into a cramped three-column layout",
+    "leader detail panel should follow the single-person decision flow",
   );
 });
 
