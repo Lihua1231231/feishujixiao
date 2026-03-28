@@ -84,6 +84,39 @@ test("final review helper centralizes config parsing, access checks, and referen
   );
 });
 
+test("final review helper keeps full supervisor summaries and normalizes self-eval status labels", () => {
+  const source = read("src/lib/final-review.ts");
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+
+  assert.equal(
+    source.includes("function formatSelfEvalStatus("),
+    true,
+    "final review helper should normalize self-eval rows into readable status labels",
+  );
+  assert.equal(
+    source.includes('if (selfEval.status === "SUBMITTED") return "已提交";') &&
+      source.includes('if (selfEval.importedAt || selfEval.status === "IMPORTED") return "已导入";') &&
+      source.includes('if (selfEval.status === "DRAFT") return "草稿";'),
+    true,
+    "self-eval status labels should distinguish submitted, imported, and draft states instead of falling through to a generic missing label",
+  );
+  assert.equal(
+    source.includes("selfEvalStatus: formatSelfEvalStatus(selfEvalMap.get(employee.id) ?? null)"),
+    true,
+    "employee payload should use the normalized self-eval status helper",
+  );
+  assert.equal(
+    source.includes('return truncateSummary(summaries.slice(0, 2).join(" / "));'),
+    false,
+    "supervisor comment summaries should keep the full text so the evidence panel can actually expand it",
+  );
+  assert.equal(
+    detailPanel.includes("展开全文") && detailPanel.includes("收起全文"),
+    true,
+    "employee evidence panel should still expose inline expand and collapse controls for long supervisor summaries",
+  );
+});
+
 test("final review routes expose config, workspace, opinion, leader review, and confirmation entrypoints", () => {
   const adminConfigRoute = read("src/app/api/admin/final-review-config/route.ts");
   const workspaceRoute = read("src/app/api/final-review/workspace/route.ts");

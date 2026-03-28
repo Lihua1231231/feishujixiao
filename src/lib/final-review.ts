@@ -190,9 +190,12 @@ function normalizeSummaryText(value: string | null | undefined): string | null {
   return normalized ? normalized : null;
 }
 
-function truncateSummary(value: string, maxLength = 160): string {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
+function formatSelfEvalStatus(selfEval: { status: string; importedAt: Date | null } | null): string {
+  if (!selfEval) return "未导入";
+  if (selfEval.status === "SUBMITTED") return "已提交";
+  if (selfEval.importedAt || selfEval.status === "IMPORTED") return "已导入";
+  if (selfEval.status === "DRAFT") return "草稿";
+  return selfEval.status;
 }
 
 function buildSupervisorCommentSummary(evaluations: Array<{
@@ -222,7 +225,7 @@ function buildSupervisorCommentSummary(evaluations: Array<{
   });
 
   if (!summaries.length) return null;
-  return truncateSummary(summaries.slice(0, 2).join(" / "));
+  return summaries.join(" / ");
 }
 
 function getWeightedScoreSpread(scores: Array<number | null | undefined>): number | null {
@@ -568,7 +571,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         status: item.status,
         weightedScore: item.weightedScore != null ? Number(item.weightedScore) : null,
       })),
-      selfEvalStatus: selfEvalMap.get(employee.id)?.status || null,
+      selfEvalStatus: formatSelfEvalStatus(selfEvalMap.get(employee.id) ?? null),
       peerAverage: peerReviewAverageByEmployee.get(employee.id) ?? null,
       supervisorCommentSummary: supervisorCommentSummary,
       handledCount,

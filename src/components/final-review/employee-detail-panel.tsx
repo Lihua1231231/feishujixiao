@@ -106,7 +106,7 @@ export function EmployeeDetailPanel({
 
   const myOpinion = employee.opinions.find((item) => item.isMine);
   const expandedSupervisorComment = expandedSupervisorCommentEmployeeId === employee.id;
-  const canExpandSupervisorComment = (employee.supervisorCommentSummary?.length || 0) > 180;
+  const canExpandSupervisorComment = (employee.supervisorCommentSummary?.length || 0) > 120;
   const opinionSummaryText =
     employee.opinionSummary.map((item) => `${item.label} ${item.count} 人`).join(" · ") || "当前还没有形成意见分布。";
   const opinionDecisionOptions: Array<{ value: EmployeeOpinionFormValue["decision"]; label: string }> = [
