@@ -128,3 +128,34 @@ test("final review routes expose config, workspace, opinion, leader review, and 
     "leader confirmation route should finalize the official leader stars with a reason",
   );
 });
+
+test("final review config includes a dedicated ordinary employee roster field", () => {
+  const schema = read("prisma/schema.prisma");
+  const route = read("src/app/api/admin/final-review-config/route.ts");
+
+  assert.equal(
+    schema.includes("employeeSubjectUserIds"),
+    true,
+    "final review config needs a dedicated ordinary employee roster field",
+  );
+  assert.equal(
+    route.includes("employeeSubjectUserIds"),
+    true,
+    "admin final review config API should read and write the employee roster field",
+  );
+});
+
+test("workspace builder filters ordinary employees to the configured employee roster and emits visibility flags", () => {
+  const source = read("src/lib/final-review.ts");
+
+  assert.equal(
+    source.includes("employeeSubjectUserIds"),
+    true,
+    "workspace builder should filter ordinary employees by the configured employee roster",
+  );
+  assert.equal(
+    source.includes("canViewOpinionDetails") && source.includes("canViewLeaderEvaluationDetails"),
+    true,
+    "workspace rows should include explicit visibility flags instead of forcing the UI to guess",
+  );
+});

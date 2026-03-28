@@ -443,3 +443,39 @@ test("navigation and dashboard can surface configured final review access beyond
     "dashboard should surface the final review card for configured workspace users",
   );
 });
+
+test("employee cockpit uses a searchable roster rail instead of select controls", () => {
+  const cockpit = read("src/components/final-review/employee-cockpit.tsx");
+  const detail = read("src/components/final-review/employee-detail-panel.tsx");
+
+  assert.equal(
+    cockpit.includes("搜索员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧"),
+    true,
+    "employee cockpit should expose a searchable roster rail and queue-first navigation",
+  );
+  assert.equal(
+    detail.includes("canViewOpinionDetails") && detail.includes("具名意见"),
+    true,
+    "employee detail panel should explicitly gate named process detail by visibility",
+  );
+  assert.equal(
+    detail.includes("<select"),
+    false,
+    "employee detail panel should stop using raw select controls for decisions",
+  );
+});
+
+test("admin final review config uses search-add member cards instead of native multi-select lists", () => {
+  const admin = read("src/app/(main)/admin/page.tsx");
+
+  assert.equal(
+    admin.includes("搜索添加成员") && admin.includes("已选成员") && admin.includes("移除"),
+    true,
+    "admin final review config should read like member management, not a browser multi-select",
+  );
+  assert.equal(
+    admin.includes("multiple"),
+    false,
+    "admin final review config should no longer rely on native multi-select boxes",
+  );
+});
