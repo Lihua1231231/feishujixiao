@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { DistributionDrawer } from "./distribution-drawer";
+import { DepartmentDistributionBoard } from "./department-distribution-board";
 import { QueueTabs } from "./queue-tabs";
 import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
 import { ScoreBandChart } from "./score-band-chart";
@@ -18,7 +18,13 @@ type EmployeeCockpitProps = {
   initialEvalSubmissionRate: number;
   officialCompletionRate: number;
   pendingOfficialCount: number;
+  companyDistribution: DistributionEntry[];
   employeeDistribution: DistributionEntry[];
+  departmentDistributions: Array<{
+    department: string;
+    total: number;
+    distribution: DistributionEntry[];
+  }>;
   scoreBandBuckets: ScoreBandBucket[];
   priorityCards: EmployeePriorityCard[];
   allEmployees: EmployeeRow[];
@@ -33,7 +39,9 @@ export function EmployeeCockpit({
   initialEvalSubmissionRate,
   officialCompletionRate,
   pendingOfficialCount,
+  companyDistribution,
   employeeDistribution,
+  departmentDistributions,
   scoreBandBuckets,
   allEmployees,
   selectedEmployeeId,
@@ -89,14 +97,14 @@ export function EmployeeCockpit({
     id: employee.id,
     name: employee.name,
     meta: `${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-    status: employee.officialStars == null ? "待拍板" : employee.summaryStats.overrideCount > 0 ? "有分歧" : "已确认",
-    tone: employee.officialStars == null ? "outline" : employee.summaryStats.overrideCount > 0 ? "destructive" : "secondary",
+    status: employee.summaryStats.disagreementCount > 0 ? "有分歧" : employee.officialStars == null ? "待拍板" : "已确认",
+    tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary",
   }));
   const queueDescription =
     activeQueueKey === "pending"
-      ? "优先处理还没有正式拍板的人。"
+      ? "优先处理承霖、邱翔还没有达成一致的人。"
       : activeQueueKey === "disagreement"
-        ? "先看存在改星意见的人。"
+        ? "先看两位校准人当前结论不一致的人。"
         : "需要回看时，可以直接从全部员工里搜索定位。";
 
   return (
@@ -111,21 +119,63 @@ export function EmployeeCockpit({
         </div>
       </section>
 
-      <DistributionDrawer
-        title="整体分布"
-        description={`共 ${companyCount} 人 · 初评提交率 ${initialEvalSubmissionRate}% · 已拍板 ${officialCompletionRate}% · 待确认 ${pendingOfficialCount} 人`}
-      >
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+        <div className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border px-4 py-3">
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">公司当前绩效分布全览</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{companyCount} 人</p>
+            </div>
+            <div className="rounded-2xl border px-4 py-3">
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">绩效初评提交率</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{initialEvalSubmissionRate}%</p>
+            </div>
+            <div className="rounded-2xl border px-4 py-3">
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">员工层已形成结果</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{officialCompletionRate}%</p>
+            </div>
+            <div className="rounded-2xl border px-4 py-3">
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">待双人一致</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingOfficialCount} 人</p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <StarDistributionChart
+              title="公司当前绩效分布"
+              description="先看各星级当前人数，再决定是否优先处理偏离建议分布的档位。"
+              distribution={companyDistribution}
+            />
+            <div className="space-y-3 rounded-[24px] border p-4">
+              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">异常超出 / 不足人数</p>
+              {companyDistribution.map((item) => (
+                <div key={`company-risk:${item.stars}`} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
+                  <span className="text-[var(--cockpit-foreground)]">{item.stars}星</span>
+                  <span className={item.exceeded ? "text-[color:#b45309]" : "text-[var(--cockpit-muted-foreground)]"}>
+                    {item.exceeded ? `${item.stars === 3 ? "不足" : "超出"} ${item.delta} 人` : "符合建议分布"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <ScoreBandChart
           title="分数带"
-          description="按普通员工当前初评加权分分桶，帮助回到整体视角。"
+          description="按普通员工当前初评加权分分桶，帮助快速识别需要重点翻看的区间。"
           bands={scoreBandBuckets}
         />
+      </section>
+
+      <DepartmentDistributionBoard departments={departmentDistributions} />
+
+      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <StarDistributionChart
-          title="当前星级分布"
-          description="已确认员工按官方结果统计，未确认员工仍按参考星级进入分布。"
+          title="员工层实时分布"
+          description="员工层已一致的按官方结果统计，尚未一致的继续按参考星级进入临时分布。"
           distribution={employeeDistribution}
         />
-      </DistributionDrawer>
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(340px,0.38fr)_minmax(0,1fr)] xl:items-start">
         <section

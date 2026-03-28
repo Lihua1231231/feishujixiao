@@ -146,9 +146,9 @@ test("final review routes expose config, workspace, opinion, leader review, and 
     "opinion route should support agree and override employee-review decisions",
   );
   assert.equal(
-    confirmRoute.includes("officialStars") && confirmRoute.includes("reason"),
+    confirmRoute.includes("自动生成"),
     true,
-    "employee confirmation route should accept official stars and confirmation reason",
+    "employee confirmation route should explain that ordinary employee official results are auto-generated now",
   );
   assert.equal(
     leaderRoute.includes("weightedScore"),
@@ -156,9 +156,9 @@ test("final review routes expose config, workspace, opinion, leader review, and 
     "leader route should persist the questionnaire weighted score",
   );
   assert.equal(
-    leaderConfirmRoute.includes("officialStars") && leaderConfirmRoute.includes("reason"),
+    leaderConfirmRoute.includes("自动生成"),
     true,
-    "leader confirmation route should finalize the official leader stars with a reason",
+    "leader confirmation route should explain that leader official results are auto-generated now",
   );
 });
 
@@ -209,7 +209,7 @@ test("workspace builder filters ordinary employees to the configured employee ro
     "shared workspace row types should carry the explicit visibility flags",
   );
   assert.equal(
-    workspaceView.includes("summaryStats.overrideCount"),
+    workspaceView.includes("summaryStats.disagreementCount"),
     true,
     "workspace helpers should use summary-first employee stats when building priority queues",
   );
@@ -292,18 +292,18 @@ test("final review write routes enforce configured subject scopes and leader dua
     opinionRoute.includes("config.finalizerUserIds.includes(user.id)") &&
       !opinionRoute.includes("config.accessUserIds.includes(user.id)"),
     true,
-    "ordinary employee opinion writes should be limited to the configured finalizers instead of every workspace viewer",
+    "ordinary employee calibration writes should stay limited to the two configured company calibrators instead of every workspace viewer",
   );
   assert.equal(
-    confirmRoute.includes("isOrdinaryEmployeeFinalReviewSubject"),
+    opinionRoute.includes("tx.calibrationResult.upsert"),
     true,
-    "employee final-confirm writes should reject targets outside the configured ordinary employee roster",
+    "ordinary employee writes should auto-sync the official calibration result instead of waiting for a separate final-confirm endpoint",
   );
   assert.equal(
-    confirmRoute.includes("config.finalizerUserIds.includes(user.id)") &&
-      !confirmRoute.includes('user.role === "ADMIN" || config.finalizerUserIds.includes(user.id)'),
+    opinionRoute.includes("resolveEmployeeConsensus") &&
+      opinionRoute.includes("consensus.officialStars != null"),
     true,
-    "ordinary employee final confirmation should stay limited to the configured finalizers, even when admins can still view the workspace",
+    "ordinary employee official results should only be generated when both company calibrators have matching non-pending conclusions",
   );
   assert.equal(
     helper.includes("export function isLeaderFinalReviewReady"),
@@ -311,20 +311,21 @@ test("final review write routes enforce configured subject scopes and leader dua
     "final review helper should centralize leader dual-review readiness checks",
   );
   assert.equal(
-    leaderConfirmRoute.includes("isLeaderFinalReviewReady"),
+    leaderRoute.includes("resolveLeaderFinalDecision"),
     true,
-    "leader final-confirm route should require a valid configured evaluator roster before confirming",
+    "leader questionnaire writes should reuse the shared dual-review decision helper before generating official leader results",
   );
   assert.equal(
-    leaderConfirmRoute.includes("isLeaderFinalReviewReady"),
+    helper.includes("mapScoreToReferenceStars") &&
+      leaderRoute.includes("finalDecision.officialStars"),
     true,
-    "leader final-confirm route should keep delegating readiness to the shared helper",
+    "leader questionnaire writes should map the combined weighted score into the shared star ranges",
   );
   assert.equal(
-    leaderConfirmRoute.includes("config.finalizerUserIds.includes(user.id)") &&
-      !leaderConfirmRoute.includes('user.role === "ADMIN" || config.finalizerUserIds.includes(user.id)'),
+    leaderRoute.includes("tx.calibrationResult.upsert") &&
+      leaderRoute.includes("finalDecision.combinedWeightedScore"),
     true,
-    "leader final confirmation should also stay limited to the configured finalizers, leaving non-finalizer admins in view-only mode",
+    "leader official results should be auto-generated from the two submitted questionnaires instead of relying on a third-person final confirmation route",
   );
   assert.equal(
     leaderRoute.includes("config.leaderEvaluatorUserIds.includes(user.id)") &&
@@ -337,5 +338,10 @@ test("final review write routes enforce configured subject scopes and leader dua
       helper.includes("configuredEvaluatorIds.length !== 2"),
     true,
     "leader dual-review readiness should fail closed for both over-configured rosters and duplicate evaluator ids",
+  );
+  assert.equal(
+    confirmRoute.includes("自动生成") && leaderConfirmRoute.includes("自动生成"),
+    true,
+    "legacy confirmation endpoints should be explicitly deprecated once auto-generation owns the official result flow",
   );
 });

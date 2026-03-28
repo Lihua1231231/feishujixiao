@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCycle, getSessionUser } from "@/lib/session";
-import { getFinalReviewConfigValue, isOrdinaryEmployeeFinalReviewSubject } from "@/lib/final-review";
+import {
+  buildEmployeeConsensusReason,
+  getFinalReviewConfigValue,
+  isOrdinaryEmployeeFinalReviewSubject,
+  resolveEmployeeConsensus,
+} from "@/lib/final-review";
 import { sanitizeText, validateStars } from "@/lib/validate";
 
 export async function POST(req: NextRequest) {
@@ -64,27 +69,114 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const result = await prisma.finalReviewOpinion.upsert({
-      where: {
-        cycleId_employeeId_reviewerId: {
+    const [result] = await prisma.$transaction(async (tx) => {
+      const savedOpinion = await tx.finalReviewOpinion.upsert({
+        where: {
+          cycleId_employeeId_reviewerId: {
+            cycleId: cycle.id,
+            employeeId: body.employeeId,
+            reviewerId: user.id,
+          },
+        },
+        update: {
+          decision,
+          suggestedStars,
+          reason,
+        },
+        create: {
           cycleId: cycle.id,
           employeeId: body.employeeId,
           reviewerId: user.id,
+          decision,
+          suggestedStars,
+          reason,
         },
-      },
-      update: {
-        decision,
-        suggestedStars,
-        reason,
-      },
-      create: {
-        cycleId: cycle.id,
-        employeeId: body.employeeId,
-        reviewerId: user.id,
-        decision,
-        suggestedStars,
-        reason,
-      },
+      });
+
+      const calibratorIds = [...new Set(config.finalizerUserIds)].slice(0, 2);
+      const allOpinions = await tx.finalReviewOpinion.findMany({
+        where: {
+          cycleId: cycle.id,
+          employeeId: body.employeeId,
+          reviewerId: { in: calibratorIds },
+        },
+      });
+      const consensus = resolveEmployeeConsensus(calibratorIds, allOpinions);
+
+      if (consensus.officialStars != null) {
+        const calibrators = await tx.user.findMany({
+          where: { id: { in: calibratorIds } },
+          select: { id: true, name: true },
+        });
+        const usersById = new Map(calibrators.map((item) => [item.id, item]));
+        const autoReason = buildEmployeeConsensusReason(calibratorIds, allOpinions, usersById, consensus.officialStars);
+
+        const previousConfirmation = await tx.finalReviewConfirmation.findFirst({
+          where: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            scope: "EMPLOYEE",
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        await tx.calibrationResult.upsert({
+          where: {
+            cycleId_userId: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+            },
+          },
+          update: {
+            finalStars: consensus.officialStars,
+            adjustedBy: "系统自动生成",
+            adjustReason: autoReason,
+          },
+          create: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            finalStars: consensus.officialStars,
+            adjustedBy: "系统自动生成",
+            adjustReason: autoReason,
+          },
+        });
+
+        if (!previousConfirmation || previousConfirmation.officialStars !== consensus.officialStars || previousConfirmation.reason !== autoReason) {
+          await tx.finalReviewConfirmation.create({
+            data: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+              confirmerId: user.id,
+              scope: "EMPLOYEE",
+              officialStars: consensus.officialStars,
+              reason: autoReason,
+            },
+          });
+        }
+      } else {
+        await tx.calibrationResult.upsert({
+          where: {
+            cycleId_userId: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+            },
+          },
+          update: {
+            finalStars: null,
+            adjustedBy: null,
+            adjustReason: null,
+          },
+          create: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            finalStars: null,
+            adjustedBy: null,
+            adjustReason: null,
+          },
+        });
+      }
+
+      return [savedOpinion] as const;
     });
 
     return NextResponse.json(result);

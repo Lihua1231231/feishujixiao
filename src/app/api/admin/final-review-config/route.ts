@@ -8,7 +8,10 @@ import {
   serializeReferenceStarRanges,
   type ReferenceStarRange,
 } from "@/lib/final-review";
-import { resolveDefaultEmployeeSubjectIds } from "@/lib/final-review-defaults";
+import {
+  resolveDefaultCompanyFinalReviewerIds,
+  resolveDefaultEmployeeSubjectIds,
+} from "@/lib/final-review-defaults";
 
 type AdminFinalReviewConfigValue = FinalReviewConfigValue & {
   employeeSubjectUserIds: string[];
@@ -120,6 +123,20 @@ export async function POST(req: NextRequest) {
       where: { cycleId: body.cycleId },
       select: { employeeSubjectUserIds: true },
     });
+    const allUsers = await prisma.user.findMany({
+      select: { id: true, name: true, department: true, role: true },
+      orderBy: [{ department: "asc" }, { name: "asc" }],
+    });
+    const companyCalibratorIds = resolveDefaultCompanyFinalReviewerIds(allUsers);
+    const finalizerUserIds = companyCalibratorIds.length === 2
+      ? companyCalibratorIds
+      : normalizeIds(body.finalizerUserIds).slice(0, 2);
+    const leaderEvaluatorUserIds = companyCalibratorIds.length === 2
+      ? companyCalibratorIds
+      : normalizeIds(body.leaderEvaluatorUserIds).slice(0, 2);
+    if (finalizerUserIds.length !== 2 || leaderEvaluatorUserIds.length !== 2) {
+      return NextResponse.json({ error: "公司级绩效终评校准人和主管层双人终评填写人都必须配置为 2 人" }, { status: 400 });
+    }
 
     const explicitEmployeeSubjectUserIds =
       Object.prototype.hasOwnProperty.call(body, "employeeSubjectUserIds") ? normalizeIds(body.employeeSubjectUserIds) : null;
@@ -127,10 +144,7 @@ export async function POST(req: NextRequest) {
     const users =
       explicitEmployeeSubjectUserIds != null || storedEmployeeSubjectUserIds.length > 0
         ? []
-        : await prisma.user.findMany({
-            select: { id: true, name: true, department: true, role: true },
-            orderBy: [{ department: "asc" }, { name: "asc" }],
-          });
+        : allUsers;
     const employeeSubjectUserIds =
       explicitEmployeeSubjectUserIds ??
       (storedEmployeeSubjectUserIds.length > 0
@@ -141,8 +155,8 @@ export async function POST(req: NextRequest) {
       where: { cycleId: body.cycleId },
       update: {
         accessUserIds: JSON.stringify(normalizeIds(body.accessUserIds)),
-        finalizerUserIds: JSON.stringify(normalizeIds(body.finalizerUserIds)),
-        leaderEvaluatorUserIds: JSON.stringify(normalizeIds(body.leaderEvaluatorUserIds)),
+        finalizerUserIds: JSON.stringify(finalizerUserIds),
+        leaderEvaluatorUserIds: JSON.stringify(leaderEvaluatorUserIds),
         leaderSubjectUserIds: JSON.stringify(normalizeIds(body.leaderSubjectUserIds)),
         employeeSubjectUserIds: JSON.stringify(employeeSubjectUserIds),
         referenceStarRanges: serializeReferenceStarRanges(ranges),
@@ -150,8 +164,8 @@ export async function POST(req: NextRequest) {
       create: {
         cycleId: body.cycleId,
         accessUserIds: JSON.stringify(normalizeIds(body.accessUserIds)),
-        finalizerUserIds: JSON.stringify(normalizeIds(body.finalizerUserIds)),
-        leaderEvaluatorUserIds: JSON.stringify(normalizeIds(body.leaderEvaluatorUserIds)),
+        finalizerUserIds: JSON.stringify(finalizerUserIds),
+        leaderEvaluatorUserIds: JSON.stringify(leaderEvaluatorUserIds),
         leaderSubjectUserIds: JSON.stringify(normalizeIds(body.leaderSubjectUserIds)),
         employeeSubjectUserIds: JSON.stringify(employeeSubjectUserIds),
         referenceStarRanges: serializeReferenceStarRanges(ranges),

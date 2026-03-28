@@ -96,19 +96,19 @@ test("calibration page becomes a three-tab final review workspace", () => {
     "calibration page should not keep the principles briefing copy inline",
   );
   assert.equal(
-    page.includes("这一页用于逐个处理普通员工终评：左侧选人，右侧只处理当前这一个人"),
+    page.includes("这一页用于逐个处理普通员工终评：上方先看公司当前绩效分布总览和按团队分布"),
     true,
     "employee tab should explain the queue-first panel workflow in plain language",
   );
   assert.equal(
-    page.includes("这一页用于逐个处理主管层终评：左侧选主管，右侧只处理当前这一个人"),
+    page.includes("这一页用于逐个处理主管层终评：先看主管层正式分布和双人提交进度"),
     true,
     "leader tab should explain the single-person leader workflow in plain language",
   );
   assert.equal(
     principles.includes("具名拍板人已完成的意见数"),
-    true,
-    "top progress cards should explain what the metric actually means",
+    false,
+    "principles tab should stop describing ordinary employee calibration as a generic named-opinion collection process",
   );
   assert.equal(
     principles.includes("主管层问卷填写进度"),
@@ -119,6 +119,13 @@ test("calibration page becomes a three-tab final review workspace", () => {
     principles.includes("吴承霖、邱翔分别已提交多少份主管层问卷"),
     false,
     "principles tab should not hardcode named leader reviewers into summary copy that ordinary viewers can see",
+  );
+  assert.equal(
+    principles.includes("公司级绩效终评校准人") &&
+      principles.includes("初评维度检查") &&
+      principles.includes("分布符合性检查"),
+    true,
+    "principles tab should surface the company calibrators and the two explicit principle-check sections",
   );
 });
 
@@ -200,6 +207,7 @@ test("calibration page source includes employee-tab redesign tokens", () => {
   assertSourceContains(source, "待拍板", "employee tab should include the queue status token \"待拍板\"");
   assertSourceContains(source, "有分歧", "employee tab should include the triage token \"有分歧\"");
   assertSourceContains(source, "最终决策", "employee tab should include the decision panel token \"最终决策\"");
+  assertSourceContains(source, "按团队分布", "employee tab should include the team-distribution section token \"按团队分布\"");
 });
 
 test("calibration page source includes leader-tab redesign tokens", () => {
@@ -343,6 +351,21 @@ test("employee detail panel collapses opinion process rows until the permission 
   );
 });
 
+test("calibration page no longer drives manual employee or leader final-confirm calls", () => {
+  const source = read("src/app/(main)/calibration/page.tsx");
+
+  assert.equal(
+    source.includes("/api/final-review/confirm"),
+    false,
+    "ordinary employee calibration should stop calling the legacy manual final-confirm endpoint",
+  );
+  assert.equal(
+    source.includes("/api/final-review/leader/confirm"),
+    false,
+    "leader calibration should stop calling the legacy manual leader-confirm endpoint",
+  );
+});
+
 test("leader polling refresh uses latest-response-wins plus server-snapshot diffing", () => {
   const page = read("src/app/(main)/calibration/page.tsx");
 
@@ -383,23 +406,23 @@ test("leader polling refresh uses latest-response-wins plus server-snapshot diff
   );
 });
 
-test("leader detail panel gates final confirmation on dual submission readiness", () => {
+test("leader detail panel explains auto-generation after dual submission", () => {
   const detailPanel = read("src/components/final-review/leader-detail-panel.tsx");
 
   assert.equal(
-    detailPanel.includes('disabled={!leader.bothSubmitted || savingConfirmation}'),
+    detailPanel.includes("系统会按 50/50 形成加权后结果"),
     true,
-    "leader confirmation action should stay disabled until both reviews are submitted",
+    "leader detail panel should explain that the official result is auto-generated after both questionnaires are submitted",
   );
   assert.equal(
-    detailPanel.includes('{!leader.bothSubmitted ? ('),
+    detailPanel.includes('leader.bothSubmitted ? "待系统生成" : "待双人齐备"') || detailPanel.includes('leader.bothSubmitted ? "待系统生成" : "待双人齐备"'),
     true,
-    "leader detail panel should show the waiting-state explanation when dual submission is incomplete",
+    "leader detail panel should distinguish dual-review waiting from system-generation waiting",
   );
   assert.equal(
-    detailPanel.includes('leader.bothSubmitted ? "双人已齐备" : "待双人齐备"'),
+    detailPanel.includes("加权后结果") && detailPanel.includes("各自等级"),
     true,
-    "leader detail panel should key its submission status copy off the same dual-submission state",
+    "leader detail panel should surface the per-reviewer grades and the combined weighted result",
   );
 });
 
@@ -515,6 +538,36 @@ test("employee evidence panel shows a concise supervisor comment summary", () =>
   );
 });
 
+test("employee detail panel switches from third-person final confirmation to dual-calibrator alignment", () => {
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+
+  assert.equal(
+    detailPanel.includes("最终确认"),
+    false,
+    "employee detail panel should no longer render a separate final-confirm action block",
+  );
+  assert.equal(
+    detailPanel.includes("校准结论") && detailPanel.includes("两位校准人"),
+    true,
+    "employee detail panel should summarize whether the two company calibrators already agree on the same star result",
+  );
+});
+
+test("leader detail panel switches from third-person confirmation to dual-review weighted output", () => {
+  const detailPanel = read("src/components/final-review/leader-detail-panel.tsx");
+
+  assert.equal(
+    detailPanel.includes("最终确认"),
+    false,
+    "leader detail panel should no longer render a separate third-person confirmation block",
+  );
+  assert.equal(
+    detailPanel.includes("加权后结果") && detailPanel.includes("各自等级"),
+    true,
+    "leader detail panel should show the two questionnaire scores separately plus the combined weighted result",
+  );
+});
+
 test("principles tab packs role and risk guidance into one dense side panel", () => {
   const principles = read("src/components/final-review/principles-tab.tsx");
 
@@ -566,10 +619,10 @@ test("employee selection and status labels follow official stars for primary con
     "default employee selection should not use missing confirmation time anymore",
   );
   assert.equal(
-    cockpit.includes('status: employee.officialStars == null ? "待拍板" : employee.summaryStats.overrideCount > 0 ? "有分歧" : "已确认"') &&
-      cockpit.includes('tone: employee.officialStars == null ? "outline" : employee.summaryStats.overrideCount > 0 ? "destructive" : "secondary"'),
+    cockpit.includes('status: employee.summaryStats.disagreementCount > 0 ? "有分歧" : employee.officialStars == null ? "待拍板" : "已确认"') &&
+      cockpit.includes('tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary"'),
     true,
-    "left-side employee roster items should derive status and tone from official stars first, then disagreement state",
+    "left-side employee roster items should surface direct disagreement ahead of generic pending state",
   );
   assert.equal(
     detailPanel.includes('Badge variant={employee.officialStars == null ? "outline" : "default"}'),
@@ -654,7 +707,7 @@ test("ordinary employee opinion panel only gives named slots and write actions t
   const payload = read("src/lib/final-review.ts");
 
   assert.equal(
-    payload.includes("const employeeOpinionActorIds = [...new Set(config.finalizerUserIds)];"),
+    payload.includes("const employeeOpinionActorIds = [...new Set(config.finalizerUserIds)].slice(0, 2);"),
     true,
     "employee opinion cards should be built from the finalizer roster instead of every workspace viewer",
   );

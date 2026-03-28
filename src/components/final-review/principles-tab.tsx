@@ -86,7 +86,7 @@ export function PrinciplesTab({
   const deadline = describeDeadline(cycle.calibrationEnd);
   const briefingBlocks: CockpitBriefingBlock[] = [
     {
-      title: "这轮先看什么",
+      title: "原则",
       content: (
         <div className="flex flex-wrap gap-2">
           {overview.principles.map((item) => (
@@ -98,7 +98,7 @@ export function PrinciplesTab({
       ),
     },
     {
-      title: "谁在拍板",
+      title: "链路与核心导向",
       content: (
         <ul className="space-y-2">
           {overview.chainGuidance.map((item) => (
@@ -108,7 +108,7 @@ export function PrinciplesTab({
       ),
     },
     {
-      title: "分布提醒",
+      title: "建议分布",
       content: (
         <div className="flex flex-wrap gap-2">
           {overview.distributionHints.map((item) => (
@@ -132,24 +132,24 @@ export function PrinciplesTab({
 
   const metrics: CockpitMetric[] = [
     {
-      title: "普通员工意见收集进度",
-      value: `${overview.progress.employeeOpinionDone}/${overview.progress.employeeOpinionTotal}`,
-      description: "具名拍板人已完成的意见数",
+      title: "公司级绩效终评校准人",
+      value: overview.companyCalibrators.map((user) => user.name).join("、") || "未配置",
+      description: "普通员工终评和主管层终评都围绕这两位收口",
     },
     {
-      title: "普通员工正式拍板进度",
+      title: "普通员工双人一致进度",
       value: `${overview.progress.employeeConfirmedCount}/${overview.progress.employeeTotalCount}`,
-      description: "最终确认人已完成正式确认的人数",
+      description: "承霖、邱翔当前已经达成一致并自动形成结果的人数",
     },
     {
-      title: "主管层正式拍板进度",
+      title: "主管层双人问卷进度",
       value: `${overview.progress.leaderConfirmedCount}/${overview.progress.leaderTotalCount}`,
-      description: "主管层已完成官方确认的人数",
+      description: "两份主管层问卷都提交并已自动形成结果的人数",
     },
     {
       title: "主管层问卷填写进度",
       value: leaderSubmissionText,
-      description: "每位主管层填写人已提交多少份主管层问卷",
+      description: "主管层双人终评填写人各自已提交多少份问卷",
     },
   ];
 
@@ -163,17 +163,79 @@ export function PrinciplesTab({
       briefingBlocks={briefingBlocks}
       metrics={metrics}
       main={
-        <div className="grid gap-4 lg:grid-cols-2">
-          <StarDistributionChart
-            title="全公司星级分布"
-            description="先看公司当前整体星级落点，再决定是否要优先处理偏离建议分布的星级。"
-            distribution={companyDistribution}
-          />
-          <ScoreBandChart
-            title="分数带"
-            description="普通员工当前初评加权分落在哪些分段，能帮助快速识别需要重点翻看的区间。"
-            bands={scoreBandBuckets}
-          />
+        <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <StarDistributionChart
+              title="全公司星级分布"
+              description="先看公司当前整体星级落点，再决定是否要优先处理偏离建议分布的星级。"
+              distribution={companyDistribution}
+            />
+            <ScoreBandChart
+              title="分数带"
+              description="普通员工当前初评加权分落在哪些分段，能帮助快速识别需要重点翻看的区间。"
+              bands={scoreBandBuckets}
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="rounded-[var(--radius-2xl)] border shadow-none" style={panelStyle}>
+              <CardHeader>
+                <CardTitle className="text-base text-[var(--cockpit-foreground)]">初评维度检查</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[var(--radius-xl)] border px-4 py-3">
+                    <p className="text-xs text-[var(--cockpit-muted-foreground)]">已完整覆盖三项维度</p>
+                    <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
+                      {overview.initialDimensionChecks.completeCount}/{overview.initialDimensionChecks.totalCount}
+                    </p>
+                  </div>
+                  <div className="rounded-[var(--radius-xl)] border px-4 py-3 sm:col-span-2">
+                    <p className="text-xs text-[var(--cockpit-muted-foreground)]">待补齐</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">
+                      {overview.initialDimensionChecks.missingCount > 0
+                        ? `${overview.initialDimensionChecks.missingCount} 人的上级初评还没有完整覆盖业绩产出结果、综合能力、价值观。`
+                        : "当前上级初评已完整覆盖三项综合评价。"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {(overview.initialDimensionChecks.items.slice(0, 6)).map((item) => (
+                    <div key={item.employeeId} className="rounded-[var(--radius-xl)] border px-4 py-3 text-sm">
+                      <p className="font-medium text-[var(--cockpit-foreground)]">{item.employeeName} · {item.department}</p>
+                      <p className="mt-1 leading-6 text-[var(--cockpit-muted-foreground)]">
+                        缺少：{item.missingDimensions.join("、")}
+                      </p>
+                    </div>
+                  ))}
+                  {overview.initialDimensionChecks.items.length === 0 ? (
+                    <div className="rounded-[var(--radius-xl)] border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
+                      当前没有初评维度缺口。
+                    </div>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[var(--radius-2xl)] border shadow-none" style={panelStyle}>
+              <CardHeader>
+                <CardTitle className="text-base text-[var(--cockpit-foreground)]">分布符合性检查</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {overview.distributionComplianceChecks.map((item) => (
+                  <div key={item.stars} className="rounded-[var(--radius-xl)] border px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-[var(--cockpit-foreground)]">{item.label}</p>
+                      <Badge variant={item.compliant ? "secondary" : "destructive"}>{item.compliant ? "符合" : "偏离"}</Badge>
+                    </div>
+                    <p className="mt-2 leading-6 text-[var(--cockpit-muted-foreground)]">
+                      建议：{item.target} · 当前：{item.actualCount} 人 / {item.actualPct}% · {item.summary}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       }
       aside={
@@ -184,15 +246,15 @@ export function PrinciplesTab({
           <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <div className="grid gap-3 text-sm">
               <div className="rounded-[var(--radius-xl)] border px-4 py-3">
-                <p className="font-medium text-[var(--cockpit-foreground)]">终评工作台参与人</p>
+                <p className="font-medium text-[var(--cockpit-foreground)]">公司级绩效终评校准人</p>
                 <p className="mt-2 leading-6 text-[var(--cockpit-muted-foreground)]">
-                  {config.accessUsers.map((user) => user.name).join("、") || "未配置"}
+                  {overview.companyCalibrators.map((user) => user.name).join("、") || "未配置"}
                 </p>
               </div>
               <div className="rounded-[var(--radius-xl)] border px-4 py-3">
-                <p className="font-medium text-[var(--cockpit-foreground)]">最终确认人</p>
+                <p className="font-medium text-[var(--cockpit-foreground)]">终评工作台查看人</p>
                 <p className="mt-2 leading-6 text-[var(--cockpit-muted-foreground)]">
-                  {config.finalizers.map((user) => user.name).join("、") || "未配置"}
+                  {config.accessUsers.map((user) => user.name).join("、") || "未配置"}
                 </p>
               </div>
               <div className="rounded-[var(--radius-xl)] border px-4 py-3">

@@ -13,22 +13,13 @@ type EmployeeOpinionFormValue = {
   reason: string;
 };
 
-type EmployeeConfirmFormValue = {
-  officialStars: number | null;
-  reason: string;
-};
-
 export type EmployeeDetailPanelProps = {
   title: string;
   employee: EmployeeRow | null;
   opinionForm: EmployeeOpinionFormValue | null;
-  confirmForm: EmployeeConfirmFormValue | null;
   savingOpinion: boolean;
-  savingConfirmation: boolean;
   onOpinionChange: (patch: Partial<EmployeeOpinionFormValue>) => void;
-  onConfirmChange: (patch: Partial<EmployeeConfirmFormValue>) => void;
   onSaveOpinion: () => void;
-  onConfirm: () => void;
 };
 
 function formatTime(value: string | null) {
@@ -79,13 +70,9 @@ export function EmployeeDetailPanel({
   title,
   employee,
   opinionForm,
-  confirmForm,
   savingOpinion,
-  savingConfirmation,
   onOpinionChange,
-  onConfirmChange,
   onSaveOpinion,
-  onConfirm,
 }: EmployeeDetailPanelProps) {
   const [expandedSupervisorCommentEmployeeId, setExpandedSupervisorCommentEmployeeId] = useState<string | null>(null);
   const panelStyle: CSSProperties = {
@@ -114,6 +101,12 @@ export function EmployeeDetailPanel({
     { value: "AGREE", label: "同意参考星级" },
     { value: "OVERRIDE", label: "改为其他星级" },
   ];
+  const agreementSummary =
+    employee.agreementState === "AGREED"
+      ? `两位校准人已经一致，同意形成 ${renderStars(employee.officialStars, "—")} 的官方结果。`
+      : employee.agreementState === "DISAGREED"
+        ? "两位校准人都已经处理，但当前结论不一致，暂时不会形成官方结果。"
+        : "承霖、邱翔尚未都完成当前员工的校准动作，系统暂时只保留参考星级。";
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -135,7 +128,7 @@ export function EmployeeDetailPanel({
         <div className="mt-4 rounded-2xl border px-4 py-3">
           <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-            参考星级来自初评加权分换算。先核对证据和意见，再决定是否正式确认为官方结果。
+            参考星级来自初评加权分换算。普通员工终评只看承霖、邱翔两位校准人的结论；两人一致时，系统会自动形成官方结果。
           </p>
         </div>
 
@@ -146,15 +139,13 @@ export function EmployeeDetailPanel({
             label="处理进度"
             value={`已处理 ${employee.summaryStats.handledCount}/${employee.summaryStats.totalReviewerCount}`}
           />
-          <SummaryCard label="改星意见" value={`${employee.summaryStats.overrideCount} 人`} />
+          <SummaryCard label="校准状态" value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "有分歧" : "待两位完成"} />
         </div>
 
         <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前判断</p>
+          <p className="text-xs text-[var(--cockpit-muted-foreground)]">校准结论</p>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">
-            {employee.summaryStats.pendingCount > 0
-              ? `还有 ${employee.summaryStats.pendingCount} 位具名拍板人待处理。`
-              : "具名拍板人都已经给出意见。"}
+            {agreementSummary}
             {employee.anomalyTags.length > 0 ? ` 当前风险信号：${employee.anomalyTags.join("、")}。` : " 当前没有额外风险信号。"}
           </p>
         </div>
@@ -230,15 +221,15 @@ export function EmployeeDetailPanel({
 
         <div className="mt-4 rounded-2xl border px-4 py-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">具名意见</p>
+            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">两位校准人</p>
             <Badge variant={employee.canViewOpinionDetails ? "secondary" : "outline"}>
               {employee.canViewOpinionDetails ? "已开放" : "已隐藏"}
             </Badge>
           </div>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
             {employee.canViewOpinionDetails
-              ? "你可以直接查看每位具名拍板人的建议星级和补充说明。"
-              : "当前视图只保留汇总口径，不展开每位具名拍板人的姓名和原文。"}
+              ? "这里直接看承霖、邱翔各自的校准结论；只有具备权限的人才展开改星理由。"
+              : "当前视图只保留汇总口径，不展开承霖、邱翔的补充理由原文。"}
           </p>
         </div>
 
@@ -257,8 +248,8 @@ export function EmployeeDetailPanel({
         {employee.canSubmitOpinion && myOpinion ? (
           <div className="mt-4 space-y-3 rounded-2xl border border-primary/20 bg-primary/[0.03] p-4">
             <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">我的处理动作</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">先选处理结论，再决定是否调整建议星级。</p>
+              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">我的校准动作</p>
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">承霖、邱翔分别独立校准；两位星级一致时，系统会自动形成官方结果。</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -301,54 +292,15 @@ export function EmployeeDetailPanel({
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
-        {employee.finalizable ? (
-          <div className="space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
-            <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终确认</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">先点选官方星级，再补充正式确认理由。</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <Button
-                  key={stars}
-                  type="button"
-                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
-                  onClick={() => onConfirmChange({ officialStars: stars })}
-                >
-                  {stars}星
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              value={confirmForm?.reason || ""}
-              onChange={(event) => onConfirmChange({ reason: event.target.value })}
-              placeholder="若官方星级不同于参考星级，必须填写理由"
-            />
-            <Button className="w-full" onClick={onConfirm} disabled={savingConfirmation}>
-              {savingConfirmation ? "确认中..." : "最终确认"}
-            </Button>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
-            当前你不是最终确认人，这里只持续显示最新官方结果和确认理由。
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-[28px] border p-5" style={panelStyle}>
         <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">过程留痕</p>
         <div className="mt-4 space-y-3 text-sm">
           <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">官方确认理由</p>
-            <p className="mt-2 leading-6 text-[var(--cockpit-foreground)]">{employee.officialReason || "当前还没有填写官方确认理由。"}</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">系统生成说明</p>
+            <p className="mt-2 leading-6 text-[var(--cockpit-foreground)]">{employee.officialReason || "当前还没有形成自动结果说明。"}</p>
           </div>
           <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认时间</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后自动生成时间</p>
             <p className="mt-2 text-[var(--cockpit-foreground)]">{formatTime(employee.officialConfirmedAt)}</p>
-          </div>
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认人</p>
-            <p className="mt-2 text-[var(--cockpit-foreground)]">{employee.officialConfirmerName || "—"}</p>
           </div>
           {employee.canViewOpinionDetails ? (
             <div className="space-y-2">

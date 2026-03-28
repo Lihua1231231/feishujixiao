@@ -55,7 +55,17 @@ export const DEFAULT_EMPLOYEE_FINAL_REVIEW_NAMES = [
   "郝锦",
 ] as const;
 
+export const DEFAULT_COMPANY_FINAL_REVIEWER_NAMES = [
+  "吴承霖",
+  "邱翔",
+] as const;
+
 export function resolveDefaultEmployeeSubjectIds(users: Array<{ id: string; name: string }>) {
   const wanted = new Set<string>(DEFAULT_EMPLOYEE_FINAL_REVIEW_NAMES);
+  return users.filter((user) => wanted.has(user.name)).map((user) => user.id);
+}
+
+export function resolveDefaultCompanyFinalReviewerIds(users: Array<{ id: string; name: string }>) {
+  const wanted = new Set<string>(DEFAULT_COMPANY_FINAL_REVIEWER_NAMES);
   return users.filter((user) => wanted.has(user.name)).map((user) => user.id);
 }

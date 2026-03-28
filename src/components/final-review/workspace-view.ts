@@ -60,7 +60,7 @@ export function buildScoreBandBuckets(rows: EmployeeRow[]): ScoreBandBucket[] {
 export function buildEmployeePriorityGroups(rows: EmployeeRow[]) {
   return {
     pending: rows.filter((row) => row.officialStars == null),
-    disagreement: rows.filter((row) => row.summaryStats.overrideCount > 0),
+    disagreement: rows.filter((row) => row.summaryStats.disagreementCount > 0),
     anomaly: rows.filter((row) => row.anomalyTags.length > 0),
     highBandPending: rows.filter((row) => (row.weightedScore ?? 0) >= 4 && row.officialStars == null),
     lowBandAnomaly: rows.filter((row) => (row.weightedScore ?? 99) < 3 && row.anomalyTags.length > 0),
@@ -107,10 +107,10 @@ export function buildEmployeePriorityCards(rows: EmployeeRow[]): EmployeePriorit
     {
       key: "disagreement",
       title: "意见分歧大",
-      summary: groups.disagreement.length ? `${groups.disagreement.length} 人出现改星意见` : "当前没有明显分歧",
+      summary: groups.disagreement.length ? `${groups.disagreement.length} 人两位校准人尚未达成一致` : "当前没有明显分歧",
       description: groups.disagreement.length
-        ? `重点核对 ${summarizeRows(groups.disagreement, "")} 的理由，避免遗漏需要解释的改星意见。`
-        : "具名拍板人的意见暂时没有出现明显冲突。",
+        ? `重点核对 ${summarizeRows(groups.disagreement, "")} 的证据和理由，尽快让承霖、邱翔达成一致。`
+        : "两位公司级校准人的当前结论暂时没有出现冲突。",
       count: groups.disagreement.length,
       rows: groups.disagreement,
       accent: "amber",

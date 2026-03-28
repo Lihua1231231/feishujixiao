@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCycle, getSessionUser } from "@/lib/session";
-import { computeSupervisorWeightedScore, getFinalReviewConfigValue } from "@/lib/final-review";
+import {
+  computeSupervisorWeightedScore,
+  getFinalReviewConfigValue,
+  resolveLeaderFinalDecision,
+} from "@/lib/final-review";
 import { sanitizeText, validateStars } from "@/lib/validate";
 
 export async function POST(req: NextRequest) {
@@ -48,7 +52,16 @@ export async function POST(req: NextRequest) {
     const weightedScore = computeSupervisorWeightedScore(performanceStars, abilityStars, valuesStars);
 
     if (isSubmit) {
-      if (!performanceStars || !comprehensiveStars || !learningStars || !adaptabilityStars || !candidStars || !progressStars || !altruismStars || !rootStars) {
+      if (
+        performanceStars == null ||
+        comprehensiveStars == null ||
+        learningStars == null ||
+        adaptabilityStars == null ||
+        candidStars == null ||
+        progressStars == null ||
+        altruismStars == null ||
+        rootStars == null
+      ) {
         return NextResponse.json({ error: "请完成所有维度的星级评分" }, { status: 400 });
       }
       const requiredComments = [
@@ -87,21 +100,119 @@ export async function POST(req: NextRequest) {
       submittedAt: isSubmit ? new Date() : null,
     };
 
-    const result = await prisma.leaderFinalReview.upsert({
-      where: {
-        cycleId_employeeId_evaluatorId: {
+    const [result] = await prisma.$transaction(async (tx) => {
+      const savedReview = await tx.leaderFinalReview.upsert({
+        where: {
+          cycleId_employeeId_evaluatorId: {
+            cycleId: cycle.id,
+            employeeId: body.employeeId,
+            evaluatorId: user.id,
+          },
+        },
+        update: payload,
+        create: {
           cycleId: cycle.id,
           employeeId: body.employeeId,
           evaluatorId: user.id,
+          ...payload,
         },
-      },
-      update: payload,
-      create: {
-        cycleId: cycle.id,
-        employeeId: body.employeeId,
-        evaluatorId: user.id,
-        ...payload,
-      },
+      });
+
+      const allReviews = await tx.leaderFinalReview.findMany({
+        where: {
+          cycleId: cycle.id,
+          employeeId: body.employeeId,
+          evaluatorId: { in: config.leaderEvaluatorUserIds },
+        },
+        select: {
+          evaluatorId: true,
+          weightedScore: true,
+          status: true,
+        },
+      });
+      const finalDecision = resolveLeaderFinalDecision(
+        config.leaderEvaluatorUserIds,
+        allReviews,
+        config.referenceStarRanges,
+      );
+
+      if (finalDecision.ready && finalDecision.officialStars != null) {
+        const evaluators = await tx.user.findMany({
+          where: { id: { in: config.leaderEvaluatorUserIds } },
+          select: { id: true, name: true },
+        });
+        const namesById = new Map(evaluators.map((item) => [item.id, item.name]));
+        const scoreBreakdown = allReviews
+          .map((review) => `${namesById.get(review.evaluatorId) || review.evaluatorId} ${review.weightedScore?.toFixed(1) ?? "—"} 分`)
+          .join("；");
+        const autoReason = `${scoreBreakdown}；按 50/50 加权得到 ${finalDecision.combinedWeightedScore?.toFixed(1) ?? "—"} 分，对应 ${finalDecision.officialStars} 星`;
+
+        const previousConfirmation = await tx.finalReviewConfirmation.findFirst({
+          where: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            scope: "LEADER",
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        await tx.calibrationResult.upsert({
+          where: {
+            cycleId_userId: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+            },
+          },
+          update: {
+            finalStars: finalDecision.officialStars,
+            adjustedBy: "系统自动生成",
+            adjustReason: autoReason,
+          },
+          create: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            finalStars: finalDecision.officialStars,
+            adjustedBy: "系统自动生成",
+            adjustReason: autoReason,
+          },
+        });
+
+        if (!previousConfirmation || previousConfirmation.officialStars !== finalDecision.officialStars || previousConfirmation.reason !== autoReason) {
+          await tx.finalReviewConfirmation.create({
+            data: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+              confirmerId: user.id,
+              scope: "LEADER",
+              officialStars: finalDecision.officialStars,
+              reason: autoReason,
+            },
+          });
+        }
+      } else {
+        await tx.calibrationResult.upsert({
+          where: {
+            cycleId_userId: {
+              cycleId: cycle.id,
+              userId: body.employeeId,
+            },
+          },
+          update: {
+            finalStars: null,
+            adjustedBy: null,
+            adjustReason: null,
+          },
+          create: {
+            cycleId: cycle.id,
+            userId: body.employeeId,
+            finalStars: null,
+            adjustedBy: null,
+            adjustReason: null,
+          },
+        });
+      }
+
+      return [savedReview] as const;
     });
 
     return NextResponse.json(result);

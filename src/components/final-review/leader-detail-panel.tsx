@@ -7,11 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "@/components/star-rating";
 import type { LeaderEvaluation, LeaderForm, LeaderRow } from "./types";
 
-type LeaderConfirmFormValue = {
-  officialStars: number | null;
-  reason: string;
-};
-
 export type LeaderDetailPanelProps = {
   title: string;
   comparisonTitle: string;
@@ -19,10 +14,7 @@ export type LeaderDetailPanelProps = {
   auditTrailTitle: string;
   leader: LeaderRow | null;
   leaderForms: Record<string, LeaderForm>;
-  confirmForm: LeaderConfirmFormValue | null;
-  savingConfirmation: boolean;
   savingEvaluationKey: string;
-  onConfirmChange: (patch: Partial<LeaderConfirmFormValue>) => void;
   onEvaluationChange: (
     leaderId: string,
     evaluation: LeaderEvaluation,
@@ -30,7 +22,6 @@ export type LeaderDetailPanelProps = {
     value: number | string | null,
   ) => void;
   onSaveEvaluation: (leader: LeaderRow, evaluation: LeaderEvaluation, action: "save" | "submit") => void;
-  onConfirm: () => void;
 };
 
 function computeAbilityStars(form: LeaderForm): number | null {
@@ -191,13 +182,9 @@ export function LeaderDetailPanel({
   auditTrailTitle,
   leader,
   leaderForms,
-  confirmForm,
-  savingConfirmation,
   savingEvaluationKey,
-  onConfirmChange,
   onEvaluationChange,
   onSaveEvaluation,
-  onConfirm,
 }: LeaderDetailPanelProps) {
   const panelStyle: CSSProperties = {
     background: "var(--cockpit-surface)",
@@ -216,7 +203,7 @@ export function LeaderDetailPanel({
   }
 
   const pendingReviewCount = leader.submissionSummary.pendingCount;
-  const statusLabel = leader.officialStars != null ? "已确认，可切换下一位" : leader.bothSubmitted ? "待拍板" : "待双人齐备";
+  const statusLabel = leader.officialStars != null ? "已生成结果，可切换下一位" : leader.bothSubmitted ? "待系统生成" : "待双人齐备";
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -236,26 +223,23 @@ export function LeaderDetailPanel({
         <div className="mt-4 rounded-2xl border px-4 py-3">
           <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-            先看双人问卷是否齐备，再决定是否正式确认为主管层官方结果。
+            主管层只看承霖、邱翔两份终评问卷。两份都提交后，系统会按 50/50 形成加权后结果，并映射为最终星级。
           </p>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <SummaryCard
-            label="当前官方星级"
-            value={renderStars(leader.officialStars, leader.bothSubmitted ? "待最终确认" : "待双人齐备")}
-          />
+          <SummaryCard label="当前官方星级" value={renderStars(leader.officialStars, leader.bothSubmitted ? "待自动生成" : "待双人齐备")} />
           <SummaryCard
             label="双人提交状态"
             value={pendingReviewCount > 0 ? `还有 ${pendingReviewCount} 份问卷待提交` : "两位填写人都已提交"}
           />
-          <SummaryCard label="最后确认人" value={leader.officialConfirmerName || "—"} />
+          <SummaryCard label="加权后结果" value={leader.combinedWeightedScore?.toFixed(1) ?? "待双人齐备"} />
           <SummaryCard label="当前状态" value={statusLabel} />
         </div>
 
         {leader.officialStars != null ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
-            已确认，可切换下一位。
+            系统已根据双人问卷生成结果，可切换下一位。
           </div>
         ) : null}
       </section>
@@ -288,7 +272,7 @@ export function LeaderDetailPanel({
                     <div>
                       <p className="text-sm font-medium text-[var(--cockpit-foreground)]">{evaluation.evaluatorName}</p>
                       <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-                        加权分 {computeWeightedScore(form)?.toFixed(1) ?? evaluation.weightedScore?.toFixed(1) ?? "—"}
+                        加权分 {computeWeightedScore(form)?.toFixed(1) ?? evaluation.weightedScore?.toFixed(1) ?? "—"} · 各自等级 {renderStars(evaluation.referenceStars, "—")}
                       </p>
                     </div>
                     <Badge variant={evaluation.status === "SUBMITTED" ? "default" : "outline"}>
@@ -361,52 +345,14 @@ export function LeaderDetailPanel({
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
-        {leader.finalizable ? (
-          <div className="space-y-3 rounded-2xl border border-[color:var(--cockpit-border)] bg-white/70 p-4">
-            <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">最终确认</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">双人意见齐备后，再选择主管层官方星级并填写确认理由。</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <Button
-                  key={stars}
-                  type="button"
-                  variant={confirmForm?.officialStars === stars ? "default" : "outline"}
-                  onClick={() => onConfirmChange({ officialStars: stars })}
-                >
-                  {stars}星
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              value={confirmForm?.reason || ""}
-              onChange={(event) => onConfirmChange({ reason: event.target.value })}
-              placeholder="主管层最终确认理由始终必填"
-            />
-            <Button className="w-full" onClick={onConfirm} disabled={!leader.bothSubmitted || savingConfirmation}>
-              {savingConfirmation ? "确认中..." : "确认主管层官方结果"}
-            </Button>
-            {!leader.bothSubmitted ? (
-              <p className="text-xs text-red-600">两位主管层终评填写人都提交后，才能最终确认。</p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">
-            当前你不是最终确认人，这里会持续显示最新官方结果和确认理由。
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-[28px] border p-5" style={panelStyle}>
         <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{auditTrailTitle || "过程留痕"}</p>
         <div className="mt-4 space-y-3 text-sm">
           <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">官方确认理由</p>
-            <p className="mt-2 leading-6 text-[var(--cockpit-foreground)]">{leader.officialReason || "当前还没有填写主管层官方确认理由。"}</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">系统生成说明</p>
+            <p className="mt-2 leading-6 text-[var(--cockpit-foreground)]">{leader.officialReason || "当前还没有形成主管层自动结果说明。"}</p>
           </div>
           <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后确认时间</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后自动生成时间</p>
             <p className="mt-2 text-[var(--cockpit-foreground)]">{formatTime(leader.officialConfirmedAt)}</p>
           </div>
           {leader.canViewLeaderEvaluationDetails ? (

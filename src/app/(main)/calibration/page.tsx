@@ -31,11 +31,6 @@ type EmployeeOpinionForm = {
   reason: string;
 };
 
-type EmployeeConfirmForm = {
-  officialStars: number | null;
-  reason: string;
-};
-
 function buildDefaultEmployeeOpinionForm(employee: EmployeeRow): EmployeeOpinionForm {
   const myOpinion = employee.opinions.find((item) => item.isMine);
 
@@ -43,13 +38,6 @@ function buildDefaultEmployeeOpinionForm(employee: EmployeeRow): EmployeeOpinion
     decision: (myOpinion?.decision || "PENDING") as EmployeeOpinionForm["decision"],
     suggestedStars: myOpinion?.suggestedStars ?? employee.referenceStars,
     reason: myOpinion?.reason || "",
-  };
-}
-
-function buildDefaultEmployeeConfirmForm(employee: EmployeeRow): EmployeeConfirmForm {
-  return {
-    officialStars: employee.officialStars ?? employee.referenceStars,
-    reason: employee.officialReason || "",
   };
 }
 
@@ -75,10 +63,8 @@ function CalibrationContent() {
   const [error, setError] = useState("");
   const [activeCompanyScope, setActiveCompanyScope] = useState<"all" | "leaderOnly" | "employeeOnly">("all");
   const [employeeForms, setEmployeeForms] = useState<Record<string, EmployeeOpinionForm>>({});
-  const [employeeConfirmForms, setEmployeeConfirmForms] = useState<Record<string, EmployeeConfirmForm>>({});
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [leaderForms, setLeaderForms] = useState<Record<string, LeaderForm>>({});
-  const [leaderConfirmForms, setLeaderConfirmForms] = useState<Record<string, EmployeeConfirmForm>>({});
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState("");
   const latestWorkspaceRequestIdRef = useRef(0);
@@ -113,16 +99,6 @@ function CalibrationContent() {
         return next;
       });
 
-      setEmployeeConfirmForms((prev) => {
-        const next = { ...prev };
-        data.employeeReview?.employees.forEach((row: EmployeeRow) => {
-          if (!next[row.id]) {
-            next[row.id] = buildDefaultEmployeeConfirmForm(row);
-          }
-        });
-        return next;
-      });
-
       setLeaderForms((prev) => {
         const next = { ...serverLeaderForms };
 
@@ -139,25 +115,16 @@ function CalibrationContent() {
       });
       leaderServerFormsRef.current = serverLeaderForms;
 
-      setLeaderConfirmForms((prev) => {
-        const next = { ...prev };
-        data.leaderReview?.leaders.forEach((leader: LeaderRow) => {
-          if (!next[leader.id]) {
-            next[leader.id] = {
-              officialStars: leader.officialStars,
-              reason: leader.officialReason || "",
-            };
-          }
-        });
-        return next;
-      });
-
       setSelectedEmployeeId((current) => {
         const employees = data.employeeReview?.employees || [];
         if (current && employees.some((employee: EmployeeRow) => employee.id === current)) return current;
         return employees.find((employee: EmployeeRow) => employee.officialStars == null)?.id || employees[0]?.id || null;
       });
-      setSelectedLeaderId((current) => current || data.leaderReview?.leaders?.[0]?.id || null);
+      setSelectedLeaderId((current) => {
+        const leaders = data.leaderReview?.leaders || [];
+        if (current && leaders.some((leader: LeaderRow) => leader.id === current)) return current;
+        return leaders.find((leader: LeaderRow) => leader.officialStars == null)?.id || leaders[0]?.id || null;
+      });
     } catch (e) {
       if (requestId !== latestWorkspaceRequestIdRef.current) {
         return;
@@ -203,35 +170,6 @@ function CalibrationContent() {
     }
   };
 
-  const confirmEmployee = async (employee: EmployeeRow) => {
-    const form = employeeConfirmForms[employee.id];
-    if (!form?.officialStars) {
-      toast.error("请选择官方星级");
-      return;
-    }
-    setSavingKey(`confirm:${employee.id}`);
-    try {
-      const res = await fetch("/api/final-review/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: employee.id,
-          officialStars: form.officialStars,
-          referenceStars: employee.referenceStars,
-          reason: form.reason,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "确认失败");
-      toast.success("官方结果已确认");
-      await loadWorkspace();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "确认失败");
-    } finally {
-      setSavingKey("");
-    }
-  };
-
   const saveLeaderEvaluation = async (leader: LeaderRow, evaluation: LeaderEvaluation, action: "save" | "submit") => {
     const key = `${leader.id}:${evaluation.evaluatorId}`;
     const form = leaderForms[key];
@@ -253,34 +191,6 @@ function CalibrationContent() {
       await loadWorkspace();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "保存失败");
-    } finally {
-      setSavingKey("");
-    }
-  };
-
-  const confirmLeader = async (leader: LeaderRow) => {
-    const form = leaderConfirmForms[leader.id];
-    if (!form?.officialStars) {
-      toast.error("请选择主管层官方星级");
-      return;
-    }
-    setSavingKey(`leader-confirm:${leader.id}`);
-    try {
-      const res = await fetch("/api/final-review/leader/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: leader.id,
-          officialStars: form.officialStars,
-          reason: form.reason,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "确认失败");
-      toast.success("主管层官方结果已确认");
-      await loadWorkspace();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "确认失败");
     } finally {
       setSavingKey("");
     }
@@ -319,12 +229,6 @@ function CalibrationContent() {
   const selectedEmployeeOpinionForm = selectedEmployee
     ? employeeForms[selectedEmployee.id] || buildDefaultEmployeeOpinionForm(selectedEmployee)
     : null;
-  const selectedEmployeeConfirmForm = selectedEmployee
-    ? employeeConfirmForms[selectedEmployee.id] || buildDefaultEmployeeConfirmForm(selectedEmployee)
-    : null;
-  const selectedLeaderConfirmForm = selectedLeader
-    ? leaderConfirmForms[selectedLeader.id] || { officialStars: selectedLeader.officialStars, reason: selectedLeader.officialReason || "" }
-    : null;
   const pendingPriorityCount = employeePriorityCards.find((card) => card.key === "pending")?.count ?? 0;
 
   const updateSelectedEmployeeOpinion = (patch: Partial<EmployeeOpinionForm>) => {
@@ -334,30 +238,6 @@ function CalibrationContent() {
       ...prev,
       [selectedEmployee.id]: {
         ...(prev[selectedEmployee.id] || buildDefaultEmployeeOpinionForm(selectedEmployee)),
-        ...patch,
-      },
-    }));
-  };
-
-  const updateSelectedEmployeeConfirm = (patch: Partial<EmployeeConfirmForm>) => {
-    if (!selectedEmployee) return;
-
-    setEmployeeConfirmForms((prev) => ({
-      ...prev,
-      [selectedEmployee.id]: {
-        ...(prev[selectedEmployee.id] || buildDefaultEmployeeConfirmForm(selectedEmployee)),
-        ...patch,
-      },
-    }));
-  };
-
-  const updateSelectedLeaderConfirm = (patch: Partial<EmployeeConfirmForm>) => {
-    if (!selectedLeader) return;
-
-    setLeaderConfirmForms((prev) => ({
-      ...prev,
-      [selectedLeader.id]: {
-        ...(prev[selectedLeader.id] || { officialStars: selectedLeader.officialStars, reason: selectedLeader.officialReason || "" }),
         ...patch,
       },
     }));
@@ -406,14 +286,16 @@ function CalibrationContent() {
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
-            guideDescription="这一页用于逐个处理普通员工终评：左侧选人，右侧只处理当前这一个人。参考星级由初评加权分换算，可以结合待拍板、有分歧和全部员工来回切换。"
+            guideDescription="这一页用于逐个处理普通员工终评：上方先看公司当前绩效分布总览和按团队分布，中部看员工层实时分布，底部左侧选人、右侧只处理当前这一个人。参考星级由初评加权分换算。"
             priorityBoardTitle="处理队列"
             priorityBoardDescription="左侧处理队列会把待拍板、有分歧和全部员工分开，方便先处理最需要拍板的人。"
             companyCount={workspace.employeeReview.overview.companyCount}
             initialEvalSubmissionRate={workspace.employeeReview.overview.initialEvalSubmissionRate}
             officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
             pendingOfficialCount={workspace.employeeReview.overview.pendingOfficialCount}
+            companyDistribution={workspace.employeeReview.companyDistribution}
             employeeDistribution={workspace.employeeReview.employeeDistribution}
+            departmentDistributions={workspace.employeeReview.departmentDistributions}
             scoreBandBuckets={scoreBandBuckets}
             priorityCards={employeePriorityCards}
             allEmployees={workspace.employeeReview.employees}
@@ -424,19 +306,11 @@ function CalibrationContent() {
                 title="最终决策"
                 employee={selectedEmployee}
                 opinionForm={selectedEmployeeOpinionForm}
-                confirmForm={selectedEmployeeConfirmForm}
                 savingOpinion={selectedEmployee ? savingKey === `opinion:${selectedEmployee.id}` : false}
-                savingConfirmation={selectedEmployee ? savingKey === `confirm:${selectedEmployee.id}` : false}
                 onOpinionChange={updateSelectedEmployeeOpinion}
-                onConfirmChange={updateSelectedEmployeeConfirm}
                 onSaveOpinion={() => {
                   if (selectedEmployee) {
                     void saveOpinion(selectedEmployee);
-                  }
-                }}
-                onConfirm={() => {
-                  if (selectedEmployee) {
-                    void confirmEmployee(selectedEmployee);
                   }
                 }}
               />
@@ -451,7 +325,7 @@ function CalibrationContent() {
           data-leader-submitted-total={leaderSubmissionSummary.reduce((total, item) => total + item.submittedCount, 0)}
         >
           <LeaderCockpit
-            guideDescription="这一页用于逐个处理主管层终评：左侧选主管，右侧只处理当前这一个人。先看待拍板、待双人齐备和全部主管，再决定下一位。"
+            guideDescription="这一页用于逐个处理主管层终评：先看主管层正式分布和双人提交进度，再从左侧选主管，右侧只处理当前这一个人。"
             progressTitle="双人提交进度"
             progressDescription="先看两位填写人的整体提交进度，再决定哪些主管已经可以进入最终决策。"
             rosterTitle="处理队列"
@@ -476,17 +350,9 @@ function CalibrationContent() {
                 auditTrailTitle="过程留痕"
                 leader={selectedLeader}
                 leaderForms={leaderForms}
-                confirmForm={selectedLeaderConfirmForm}
-                savingConfirmation={selectedLeader ? savingKey === `leader-confirm:${selectedLeader.id}` : false}
                 savingEvaluationKey={savingKey}
-                onConfirmChange={updateSelectedLeaderConfirm}
                 onEvaluationChange={updateLeaderEvaluationForm}
                 onSaveEvaluation={saveLeaderEvaluation}
-                onConfirm={() => {
-                  if (selectedLeader) {
-                    void confirmLeader(selectedLeader);
-                  }
-                }}
               />
             )}
           />

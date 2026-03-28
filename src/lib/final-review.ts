@@ -1,7 +1,25 @@
 import { prisma } from "@/lib/db";
-import { resolveDefaultEmployeeSubjectIds } from "@/lib/final-review-defaults";
+import {
+  resolveDefaultCompanyFinalReviewerIds,
+  resolveDefaultEmployeeSubjectIds,
+} from "@/lib/final-review-defaults";
+import {
+  buildDistributionComplianceChecks,
+  buildEmployeeConsensusReason,
+  buildInitialDimensionChecks,
+  resolveEmployeeConsensus,
+  resolveLeaderFinalDecision,
+} from "@/lib/final-review-logic";
 import { getActiveCycle, type SessionUser } from "@/lib/session";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
+
+export {
+  buildDistributionComplianceChecks,
+  buildEmployeeConsensusReason,
+  buildInitialDimensionChecks,
+  resolveEmployeeConsensus,
+  resolveLeaderFinalDecision,
+};
 
 export type ReferenceStarRange = {
   stars: number;
@@ -81,6 +99,19 @@ function parseJsonRanges(raw: string | null | undefined): ReferenceStarRange[] {
   }
 }
 
+function dedupeIds(ids: string[]) {
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function resolveCompanyCalibratorIds(
+  users: WorkspaceConfigUsers[],
+  configuredIds: string[],
+) {
+  const defaultIds = resolveDefaultCompanyFinalReviewerIds(users);
+  if (defaultIds.length === 2) return defaultIds;
+  return dedupeIds(configuredIds).slice(0, 2);
+}
+
 export function serializeReferenceStarRanges(ranges: ReferenceStarRange[]): string {
   return JSON.stringify(
     ranges
@@ -122,12 +153,16 @@ export function getFinalReviewConfigValue(
 ): FinalReviewConfigValue {
   const fallbackLeaderIds = users.filter((user) => user.role === "SUPERVISOR").map((user) => user.id);
   const parsedEmployeeSubjectUserIds = parseJsonArray(record?.employeeSubjectUserIds);
+  const calibratorIds = resolveCompanyCalibratorIds(users, parseJsonArray(record?.finalizerUserIds));
+  const configuredLeaderEvaluatorIds = parseJsonArray(record?.leaderEvaluatorUserIds);
 
   return {
     cycleId,
     accessUserIds: parseJsonArray(record?.accessUserIds),
-    finalizerUserIds: parseJsonArray(record?.finalizerUserIds),
-    leaderEvaluatorUserIds: parseJsonArray(record?.leaderEvaluatorUserIds),
+    finalizerUserIds: calibratorIds,
+    leaderEvaluatorUserIds: calibratorIds.length === 2
+      ? calibratorIds
+      : dedupeIds(configuredLeaderEvaluatorIds).slice(0, 2),
     leaderSubjectUserIds: parseJsonArray(record?.leaderSubjectUserIds).length > 0
       ? parseJsonArray(record?.leaderSubjectUserIds)
       : fallbackLeaderIds,
@@ -160,6 +195,7 @@ export function isLeaderFinalReviewReady(
 
   return configuredEvaluatorIds.every((evaluatorId) => submittedEvaluatorIds.has(evaluatorId));
 }
+
 
 export async function canAccessFinalReviewWorkspace(
   user: Pick<SessionUser, "id" | "role">,
@@ -379,26 +415,26 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     };
   }
 
-  const [allSupervisorEvals, calibrations, selfEvals, peerReviews, opinions, leaderReviews, confirmations] = await Promise.all([
+  const [allSupervisorEvals, selfEvals, peerReviews, opinions, leaderReviews, confirmations] = await Promise.all([
     prisma.supervisorEval.findMany({
       where: { cycleId: cycle.id },
       select: {
         employeeId: true,
         evaluatorId: true,
+        performanceStars: true,
         weightedScore: true,
         status: true,
+        abilityStars: true,
+        valuesStars: true,
         performanceComment: true,
         abilityComment: true,
+        valuesComment: true,
         candidComment: true,
         progressComment: true,
         altruismComment: true,
         rootComment: true,
         evaluator: { select: { id: true, name: true } },
       },
-    }),
-    prisma.calibrationResult.findMany({
-      where: { cycleId: cycle.id },
-      select: { userId: true, finalStars: true },
     }),
     prisma.selfEvaluation.findMany({
       where: { cycleId: cycle.id },
@@ -449,7 +485,6 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     })),
   );
 
-  const calibrationMap = new Map(calibrations.map((item) => [item.userId, item.finalStars]));
   const selfEvalMap = new Map(selfEvals.map((item) => [item.userId, item]));
   const latestConfirmationMap = getLatestConfirmationMap(confirmations);
 
@@ -485,24 +520,12 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     employeeSubjectIds.has(item.id) && !leaderSubjectIds.has(item.id),
   );
   const leaderUsers = reviewUsers.filter((item) => leaderSubjectIds.has(item.id));
-  const companyPeople = [...employeeUsers, ...leaderUsers].map((item) => {
-    const latestEmployeeConfirmation = latestConfirmationMap.get(`EMPLOYEE:${item.id}`);
-    const latestLeaderConfirmation = latestConfirmationMap.get(`LEADER:${item.id}`);
-    const officialStars = latestLeaderConfirmation?.officialStars
-      ?? latestEmployeeConfirmation?.officialStars
-      ?? calibrationMap.get(item.id)
-      ?? null;
-    return {
-      user: item,
-      officialStars,
-    };
-  });
-  const employeeOpinionActorIds = [...new Set(config.finalizerUserIds)];
-  const canFinalize = config.finalizerUserIds.includes(user.id);
-  const canSubmitOpinion = employeeOpinionActorIds.includes(user.id);
-  const canViewOpinionDetails = user.role === "ADMIN" || canFinalize;
+  const employeeOpinionActorIds = [...new Set(config.finalizerUserIds)].slice(0, 2);
+  const isCompanyCalibrator = employeeOpinionActorIds.includes(user.id);
+  const canSubmitOpinion = isCompanyCalibrator;
+  const canViewOpinionDetails = user.role === "ADMIN" || isCompanyCalibrator;
   const canViewLeaderEvaluationDetails =
-    user.role === "ADMIN" || canFinalize || config.leaderEvaluatorUserIds.includes(user.id);
+    user.role === "ADMIN" || isCompanyCalibrator || config.leaderEvaluatorUserIds.includes(user.id);
 
   const employeeRows = employeeUsers.map((employee) => {
     const assignment = assignments.get(employee.id);
@@ -518,12 +541,13 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     const employeeOpinions = (opinionsByEmployee.get(employee.id) || []).filter((item) =>
       employeeOpinionActorIds.includes(item.reviewerId),
     );
+    const consensus = resolveEmployeeConsensus(employeeOpinionActorIds, employeeOpinions);
     const latestConfirmation = latestConfirmationMap.get(`EMPLOYEE:${employee.id}`);
-    const handledCount = employeeOpinions.filter((item) => item.decision !== "PENDING").length;
-    const officialStars = latestConfirmation?.officialStars ?? calibrationMap.get(employee.id) ?? null;
+    const handledCount = consensus.handledCount;
+    const officialStars = consensus.officialStars;
     const currentStars = officialStars ?? referenceStars;
     const overrideOpinionCount = employeeOpinions.filter((item) => item.decision === "OVERRIDE").length;
-    const pendingOpinionCount = Math.max(0, employeeOpinionActorIds.length - handledCount);
+    const pendingOpinionCount = consensus.pendingCount;
     const scoreSpread = getWeightedScoreSpread(currentEvals.map((item) => item.weightedScore != null ? Number(item.weightedScore) : null));
     const supervisorCommentSummary = buildSupervisorCommentSummary(currentEvals);
     const opinionCards = employeeOpinionActorIds.map((reviewerId) => {
@@ -532,10 +556,10 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       const meta = pickOpinionStatusMeta(opinion?.decision || "PENDING", opinion?.suggestedStars ?? referenceStars);
       return {
         reviewerId,
-        reviewerName: canViewOpinionDetails ? reviewer?.name || "未配置" : "终评相关人",
+        reviewerName: reviewer?.name || "未配置",
         decision: opinion?.decision || "PENDING",
         decisionLabel: meta.label,
-        suggestedStars: canViewOpinionDetails ? opinion?.suggestedStars ?? meta.suggestedStars : null,
+        suggestedStars: opinion?.suggestedStars ?? meta.suggestedStars,
         reason: canViewOpinionDetails ? opinion?.reason || "" : "",
         isMine: reviewerId === user.id,
         updatedAt: opinion?.updatedAt?.toISOString() || null,
@@ -543,11 +567,15 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     });
 
     const anomalyTags: string[] = [];
+    if (consensus.disagreed) anomalyTags.push("两位校准人结论不一致");
     if (overrideOpinionCount > 0) anomalyTags.push("存在改星意见");
     if (scoreSpread != null && scoreSpread >= 1) anomalyTags.push("初评分差较大");
-    if (officialStars != null && referenceStars != null && officialStars !== referenceStars) {
-      anomalyTags.push("已拍板改星");
-    }
+    if (officialStars != null && referenceStars != null && officialStars !== referenceStars) anomalyTags.push("已拍板改星");
+    const officialReason = officialStars != null
+      ? latestConfirmation?.officialStars === officialStars
+        ? latestConfirmation.reason
+        : buildEmployeeConsensusReason(employeeOpinionActorIds, employeeOpinions, usersById, officialStars)
+      : "";
 
     return {
       id: employee.id,
@@ -558,10 +586,11 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       referenceStars,
       referenceSourceLabel: "参考星级由初评加权分换算",
       officialStars,
-      officialReason: latestConfirmation?.reason || "",
-      officialConfirmedAt: latestConfirmation?.createdAt.toISOString() || null,
-      officialConfirmerName: latestConfirmation ? usersById.get(latestConfirmation.confirmerId)?.name || latestConfirmation.confirmerId : null,
-      finalizable: canFinalize,
+      officialReason,
+      officialConfirmedAt: officialStars != null && latestConfirmation?.officialStars === officialStars
+        ? latestConfirmation.createdAt.toISOString()
+        : null,
+      agreementState: consensus.agreed ? "AGREED" : consensus.disagreed ? "DISAGREED" : "PENDING",
       canSubmitOpinion,
       canViewOpinionDetails,
       currentEvaluatorNames: assignment?.currentEvaluatorNames || [],
@@ -581,6 +610,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         totalReviewerCount: employeeOpinionActorIds.length,
         pendingCount: pendingOpinionCount,
         overrideCount: overrideOpinionCount,
+        disagreementCount: consensus.disagreed ? 1 : 0,
       },
       opinionSummary: buildOpinionSummary(opinionCards.map((opinion) => ({ decision: opinion.decision }))),
       anomalyTags,
@@ -612,6 +642,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         weightedScore: existing?.weightedScore != null ? Number(existing.weightedScore) : null,
         editable: evaluatorId === user.id,
         submittedAt: existing?.submittedAt?.toISOString() || null,
+        referenceStars: mapScoreToReferenceStars(existing?.weightedScore != null ? Number(existing.weightedScore) : null, config.referenceStarRanges),
         form: {
           performanceStars: existing?.performanceStars ?? null,
           performanceComment: existing?.performanceComment ?? "",
@@ -634,18 +665,34 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       };
     });
     const submittedCount = evaluations.filter((item) => item.status === "SUBMITTED").length;
+    const finalDecision = resolveLeaderFinalDecision(
+      config.leaderEvaluatorUserIds,
+      evaluations.map((item) => ({
+        evaluatorId: item.evaluatorId,
+        weightedScore: item.weightedScore,
+        status: item.status,
+      })),
+      config.referenceStarRanges,
+    );
     const latestConfirmation = latestConfirmationMap.get(`LEADER:${leader.id}`);
+    const officialReason = finalDecision.officialStars != null
+      ? latestConfirmation?.officialStars === finalDecision.officialStars
+        ? latestConfirmation.reason
+        : evaluations
+          .map((item) => `${item.evaluatorName} ${item.weightedScore?.toFixed(1) ?? "—"} 分 / ${item.referenceStars ?? "—"} 星`)
+          .join("；")
+      : "";
 
     return {
       id: leader.id,
       name: leader.name,
       department: leader.department,
       jobTitle: leader.jobTitle,
-      officialStars: latestConfirmation?.officialStars ?? calibrationMap.get(leader.id) ?? null,
-      officialReason: latestConfirmation?.reason || "",
-      officialConfirmedAt: latestConfirmation?.createdAt.toISOString() || null,
-      officialConfirmerName: latestConfirmation ? usersById.get(latestConfirmation.confirmerId)?.name || latestConfirmation.confirmerId : null,
-      finalizable: canFinalize,
+      officialStars: finalDecision.officialStars,
+      officialReason,
+      officialConfirmedAt: finalDecision.officialStars != null && latestConfirmation?.officialStars === finalDecision.officialStars
+        ? latestConfirmation.createdAt.toISOString()
+        : null,
       canViewLeaderEvaluationDetails,
       submissionSummary: {
         configuredEvaluatorCount: config.leaderEvaluatorUserIds.length,
@@ -656,10 +703,17 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         ...evaluation,
         form: evaluation.form,
       })) : [],
-      bothSubmitted: isLeaderFinalReviewReady(config, evaluations),
+      combinedWeightedScore: finalDecision.combinedWeightedScore,
+      combinedReferenceStars: finalDecision.officialStars,
+      bothSubmitted: finalDecision.ready,
     };
   });
 
+  const companyPeople = [...employeeRows, ...leaderRows].map((item) => ({
+    name: item.name,
+    officialStars: item.officialStars,
+    referenceStars: "referenceStars" in item ? item.referenceStars : null,
+  }));
   const leaderDistribution = buildDistribution(
     leaderRows.map((item) => ({ name: item.name, stars: item.officialStars })),
   );
@@ -686,6 +740,29 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       });
   }).length;
 
+  const initialDimensionChecks = buildInitialDimensionChecks(
+    [...employeeUsers, ...leaderUsers].map((employee) => {
+      const assignment = assignments.get(employee.id);
+      const currentEval = allSupervisorEvals.find((item) =>
+        item.employeeId === employee.id
+        && Boolean(assignment?.currentEvaluatorIds.includes(item.evaluatorId)),
+      ) || null;
+
+      return {
+        id: employee.id,
+        name: employee.name,
+        department: employee.department,
+        performanceStars: currentEval?.performanceStars ?? null,
+        abilityStars: currentEval?.abilityStars ?? null,
+        valuesStars: currentEval?.valuesStars ?? null,
+        performanceComment: currentEval?.performanceComment || "",
+        abilityComment: currentEval?.abilityComment || "",
+        valuesComment: currentEval?.valuesComment || "",
+      };
+    }),
+  );
+  const distributionComplianceChecks = buildDistributionComplianceChecks(mergedDistribution);
+
   return {
     cycle: {
       id: cycle.id,
@@ -710,7 +787,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       ],
       chainGuidance: [
         "上级初评需综合考量业绩产出结果、综合能力、价值观",
-        "当前链路较短，终评阶段更需要统一口径和分布校准",
+        "当前链路较短，上级初评后直接进入承霖、邱翔的公司级终评校准",
       ],
       distributionHints: [
         "五星≤10%",
@@ -719,10 +796,13 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         "二星≤15%",
         "一星≤5%",
       ],
+      companyCalibrators: configUsers.finalizers,
+      initialDimensionChecks,
+      distributionComplianceChecks,
       riskSummary: [
-        ...mergedDistribution.filter((item) => item.exceeded && item.delta > 0).map((item) => `${item.stars}星${item.stars === 3 ? "不足" : "超出"}${item.delta}人`),
-        `普通员工待最终确认 ${employeeRows.filter((item) => item.officialStars == null).length} 人`,
-        `主管层待最终确认 ${leaderRows.filter((item) => item.officialStars == null).length} 人`,
+        ...distributionComplianceChecks.filter((item) => !item.compliant && item.deltaCount > 0).map((item) => item.summary),
+        `普通员工待双人一致 ${employeeRows.filter((item) => item.officialStars == null).length} 人`,
+        `主管层待双人提交完成 ${leaderRows.filter((item) => item.officialStars == null).length} 人`,
       ],
       progress: {
         employeeOpinionDone: employeeRows.reduce((sum, item) => sum + item.handledCount, 0),

@@ -29,8 +29,7 @@ export type EmployeeRow = {
   officialStars: number | null;
   officialReason: string;
   officialConfirmedAt: string | null;
-  officialConfirmerName: string | null;
-  finalizable: boolean;
+  agreementState: "PENDING" | "AGREED" | "DISAGREED";
   canSubmitOpinion: boolean;
   canViewOpinionDetails: boolean;
   currentEvaluatorNames: string[];
@@ -50,6 +49,7 @@ export type EmployeeRow = {
     totalReviewerCount: number;
     pendingCount: number;
     overrideCount: number;
+    disagreementCount: number;
   };
   opinionSummary: Array<{
     label: string;
@@ -84,6 +84,7 @@ export type LeaderEvaluation = {
   evaluatorName: string;
   status: string;
   weightedScore: number | null;
+  referenceStars: number | null;
   editable: boolean;
   submittedAt: string | null;
   form: LeaderForm;
@@ -97,8 +98,6 @@ export type LeaderRow = {
   officialStars: number | null;
   officialReason: string;
   officialConfirmedAt: string | null;
-  officialConfirmerName: string | null;
-  finalizable: boolean;
   canViewLeaderEvaluationDetails: boolean;
   submissionSummary: {
     configuredEvaluatorCount: number;
@@ -106,6 +105,8 @@ export type LeaderRow = {
     pendingCount: number;
   };
   evaluations: LeaderEvaluation[];
+  combinedWeightedScore: number | null;
+  combinedReferenceStars: number | null;
   bothSubmitted: boolean;
 };
 
@@ -129,6 +130,29 @@ export type WorkspacePayload = {
     principles: string[];
     chainGuidance: string[];
     distributionHints: string[];
+    companyCalibrators: Array<{ id: string; name: string; department: string; role: string }>;
+    initialDimensionChecks: {
+      totalCount: number;
+      completeCount: number;
+      missingCount: number;
+      items: Array<{
+        employeeId: string;
+        employeeName: string;
+        department: string;
+        missingDimensions: string[];
+        complete: boolean;
+      }>;
+    };
+    distributionComplianceChecks: Array<{
+      stars: number;
+      label: string;
+      target: string;
+      actualCount: number;
+      actualPct: number;
+      compliant: boolean;
+      deltaCount: number;
+      summary: string;
+    }>;
     riskSummary: string[];
     progress: {
       employeeOpinionDone: number;

@@ -505,7 +505,7 @@ function AdminContent() {
 
   const finalReviewRosterGroups: FinalReviewRosterGroup[] = finalReviewConfig ? [
     { field: "accessUserIds", label: "终评工作台权限名单", ids: finalReviewConfig.accessUserIds },
-    { field: "finalizerUserIds", label: "最终确认名单", ids: finalReviewConfig.finalizerUserIds },
+    { field: "finalizerUserIds", label: "公司级绩效终评校准人", ids: finalReviewConfig.finalizerUserIds },
     { field: "leaderEvaluatorUserIds", label: "主管层双人终评填写人", ids: finalReviewConfig.leaderEvaluatorUserIds },
     { field: "leaderSubjectUserIds", label: "主管层终评名单", ids: finalReviewConfig.leaderSubjectUserIds },
     { field: "employeeSubjectUserIds", label: "普通员工终评名单", ids: finalReviewConfig.employeeSubjectUserIds },
@@ -873,7 +873,7 @@ function AdminContent() {
                 <CardHeader>
                   <CardTitle className="text-base">终评工作台名单</CardTitle>
                   <CardDescription>
-                    工作台访问名单、最终确认人、主管层双人终评填写人、主管层终评名单、普通员工终评名单都按周期配置
+                    工作台访问名单、公司级绩效终评校准人、主管层双人终评填写人、主管层终评名单、普通员工终评名单都按周期配置
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 xl:grid-cols-2">
@@ -881,11 +881,15 @@ function AdminContent() {
                     <MemberRosterCard
                       key={group.field}
                       title={group.label}
-                      description="只能通过搜索添加成员，选中的成员会直接显示在卡片顶部。"
+                      description={
+                        group.field === "finalizerUserIds" || group.field === "leaderEvaluatorUserIds"
+                          ? "当前周期固定为吴承霖、邱翔，页面只展示这两位公司级校准人与主管层填写人。"
+                          : "只能通过搜索添加成员，选中的成员会直接显示在卡片顶部。"
+                      }
                       members={users}
                       selectedIds={group.ids}
                       onChange={(selectedIds) => updateFinalReviewIds(group.field, selectedIds)}
-                      disabled={preview}
+                      disabled={preview || group.field === "finalizerUserIds" || group.field === "leaderEvaluatorUserIds"}
                       overlapLabelsByUserId={getOverlapLabelsByUserId(finalReviewRosterGroups, group.field)}
                     />
                   ))}
