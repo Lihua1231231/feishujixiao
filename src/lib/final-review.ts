@@ -149,10 +149,10 @@ export function isLeaderFinalReviewReady(
   config: Pick<FinalReviewConfigValue, "leaderEvaluatorUserIds">,
   reviews: Array<{ evaluatorId: string; status: string }>,
 ) {
-  if (config.leaderEvaluatorUserIds.length < 2) return false;
+  if (config.leaderEvaluatorUserIds.length !== 2) return false;
 
   const configuredEvaluatorIds = [...new Set(config.leaderEvaluatorUserIds)];
-  if (configuredEvaluatorIds.length < 2) return false;
+  if (configuredEvaluatorIds.length !== 2) return false;
 
   const submittedEvaluatorIds = new Set(
     reviews.filter((item) => item.status === "SUBMITTED").map((item) => item.evaluatorId),

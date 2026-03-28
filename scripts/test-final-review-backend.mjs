@@ -270,9 +270,14 @@ test("final review write routes enforce configured subject scopes and leader dua
     "leader final-confirm route should require a valid configured evaluator roster before confirming",
   );
   assert.equal(
-    leaderConfirmRoute.includes("config.leaderEvaluatorUserIds.length < 2") ||
-      helper.includes("config.leaderEvaluatorUserIds.length < 2"),
+    leaderConfirmRoute.includes("isLeaderFinalReviewReady"),
     true,
-    "leader dual-review readiness should fail closed when fewer than two configured evaluators exist",
+    "leader final-confirm route should keep delegating readiness to the shared helper",
+  );
+  assert.equal(
+    helper.includes("config.leaderEvaluatorUserIds.length !== 2") &&
+      helper.includes("configuredEvaluatorIds.length !== 2"),
+    true,
+    "leader dual-review readiness should fail closed for both over-configured rosters and duplicate evaluator ids",
   );
 });
