@@ -96,14 +96,14 @@ test("calibration page becomes a three-tab final review workspace", () => {
     "calibration page should not keep the principles briefing copy inline",
   );
   assert.equal(
-    page.includes("这一页处理普通员工终评：先看分布，再逐个员工留下意见，最后由最终确认人拍板"),
+    page.includes("这一页用于逐个处理普通员工终评：左侧选人，右侧只处理当前这一个人"),
     true,
-    "employee tab should explain the workflow in plain language",
+    "employee tab should explain the queue-first panel workflow in plain language",
   );
   assert.equal(
-    page.includes("这一页只处理主管层终评：先由两位填写人分别打分，再由最终确认人统一拍板"),
+    page.includes("这一页用于逐个处理主管层终评：左侧选主管，右侧只处理当前这一个人"),
     true,
-    "leader tab should explain the workflow in plain language",
+    "leader tab should explain the single-person leader workflow in plain language",
   );
   assert.equal(
     principles.includes("具名拍板人已完成的意见数"),
@@ -196,18 +196,18 @@ test("principles-tab handles overdue wording and globals keep cockpit styling to
 test("calibration page source includes employee-tab redesign tokens", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
 
-  assertSourceContains(source, "重点名单", "employee tab should include the navigation token \"重点名单\"");
+  assertSourceContains(source, "处理队列", "employee tab should include the navigation token \"处理队列\"");
   assertSourceContains(source, "待拍板", "employee tab should include the queue status token \"待拍板\"");
-  assertSourceContains(source, "意见分歧大", "employee tab should include the triage token \"意见分歧大\"");
+  assertSourceContains(source, "有分歧", "employee tab should include the triage token \"有分歧\"");
   assertSourceContains(source, "最终决策", "employee tab should include the decision panel token \"最终决策\"");
 });
 
 test("calibration page source includes leader-tab redesign tokens", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
 
-  assertSourceContains(source, "双人意见对照", "leader tab should include the comparison token \"双人意见对照\"");
-  assertSourceContains(source, "双人提交进度", "leader tab should include the progress token \"双人提交进度\"");
-  assertSourceContains(source, "主管名单", "leader tab should include the roster token \"主管名单\"");
+  assertSourceContains(source, "双人意见摘要", "leader tab should include the comparison token \"双人意见摘要\"");
+  assertSourceContains(source, "处理队列", "leader tab should include the progress token \"处理队列\"");
+  assertSourceContains(source, "全部主管", "leader tab should include the roster token \"全部主管\"");
 });
 
 test("calibration page delegates cockpit shaping to shared final-review helpers", () => {
@@ -403,13 +403,13 @@ test("leader detail panel gates final confirmation on dual submission readiness"
   );
 });
 
-test("employee cockpit keeps a reachable all-employee roster alongside priority queues", () => {
+test("employee cockpit keeps a reachable all-employee roster alongside queue tabs", () => {
   const cockpit = read("src/components/final-review/employee-cockpit.tsx");
 
   assert.equal(
-    cockpit.includes("全部员工"),
+    cockpit.includes("全部员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧"),
     true,
-    "the employee cockpit should include a dedicated all-employee roster so confirmed employees stay reachable",
+    "the employee cockpit should include queue tabs plus a dedicated all-employee roster so confirmed employees stay reachable",
   );
 });
 
@@ -565,19 +565,36 @@ test("navigation and dashboard can surface configured final review access beyond
   );
 });
 
-test("employee cockpit uses a searchable roster rail instead of select controls", () => {
+test("employee cockpit uses a searchable roster rail and a collapsible distribution drawer", () => {
   const cockpit = read("src/components/final-review/employee-cockpit.tsx");
   const detail = read("src/components/final-review/employee-detail-panel.tsx");
+  const drawer = read("src/components/final-review/distribution-drawer.tsx");
+  const queueTabs = read("src/components/final-review/queue-tabs.tsx");
 
   assert.equal(
-    cockpit.includes("搜索员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧"),
+    cockpit.includes("搜索员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧") && cockpit.includes("全部员工"),
     true,
     "employee cockpit should expose a searchable roster rail and queue-first navigation",
+  );
+  assert.equal(
+    drawer.includes("查看整体分布") && drawer.includes("收起整体分布"),
+    true,
+    "employee cockpit should move company-wide context behind a collapsible distribution drawer",
+  );
+  assert.equal(
+    queueTabs.includes("items") && queueTabs.includes("activeKey") && queueTabs.includes("onChange"),
+    true,
+    "queue tabs should be extracted into a shared component instead of being hand-built inside each cockpit",
   );
   assert.equal(
     detail.includes("canViewOpinionDetails") && detail.includes("具名意见"),
     true,
     "employee detail panel should explicitly gate named process detail by visibility",
+  );
+  assert.equal(
+    detail.includes("已确认，可切换下一位"),
+    true,
+    "employee detail panel should keep the confirmed employee in place and show the explicit next-step hint",
   );
   assert.equal(
     detail.includes("<select"),
@@ -608,19 +625,19 @@ test("ordinary employee opinion panel only gives named slots and write actions t
   );
 });
 
-test("leader cockpit uses a searchable roster rail and gates detailed dual-review content", () => {
+test("leader cockpit uses a searchable roster rail, queue tabs, and a single-person detail flow", () => {
   const cockpit = read("src/components/final-review/leader-cockpit.tsx");
   const detail = read("src/components/final-review/leader-detail-panel.tsx");
 
   assert.equal(
-    cockpit.includes("搜索主管") && cockpit.includes("待拍板") && cockpit.includes("待双人齐备"),
+    cockpit.includes("搜索主管") && cockpit.includes("待拍板") && cockpit.includes("待双人齐备") && cockpit.includes("全部主管"),
     true,
     "leader cockpit should expose a searchable roster rail and queue-first navigation",
   );
   assert.equal(
-    detail.includes("canViewLeaderEvaluationDetails") && detail.includes("详细双人问卷"),
+    detail.includes("canViewLeaderEvaluationDetails") && detail.includes("详细双人问卷") && detail.includes("双人意见摘要"),
     true,
-    "leader detail panel should explicitly gate detailed dual-review content by visibility",
+    "leader detail panel should explicitly gate detailed dual-review content while keeping the new single-person summary flow",
   );
   assert.equal(
     detail.includes("<select"),
