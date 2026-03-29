@@ -8,12 +8,10 @@ import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
 import { ScoreBandChart } from "./score-band-chart";
 import { StarDistributionChart } from "./star-distribution-chart";
 import type { DistributionEntry, EmployeeRow } from "./types";
-import { buildEmployeeQueueGroups, type EmployeePriorityCard, type ScoreBandBucket } from "./workspace-view";
+import { buildEmployeeQueueGroups, type ScoreBandBucket } from "./workspace-view";
 
 type EmployeeCockpitProps = {
   guideDescription: string;
-  priorityBoardTitle: string;
-  priorityBoardDescription: string;
   companyCount: number;
   initialEvalSubmissionRate: number;
   officialCompletionRate: number;
@@ -26,7 +24,6 @@ type EmployeeCockpitProps = {
     distribution: DistributionEntry[];
   }>;
   scoreBandBuckets: ScoreBandBucket[];
-  priorityCards: EmployeePriorityCard[];
   allEmployees: EmployeeRow[];
   selectedEmployeeId: string | null;
   onSelectEmployee: (employeeId: string) => void;
@@ -89,38 +86,38 @@ export function EmployeeCockpit({
     ? [selectedEmployee, ...baseQueueRows]
     : baseQueueRows;
   const queueItems = [
-    { key: "pending", label: "待拍板", count: queueGroups.pending.length },
-    { key: "disagreement", label: "有分歧", count: queueGroups.disagreement.length },
+    { key: "pending", label: "待双人校准", count: queueGroups.pending.length },
+    { key: "disagreement", label: "两人不一致", count: queueGroups.disagreement.length },
     { key: "all", label: "全部员工", count: queueGroups.all.length },
   ];
   const rosterItems: RosterSearchItem[] = visibleRows.map((employee) => ({
     id: employee.id,
     name: employee.name,
     meta: `${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-    status: employee.summaryStats.disagreementCount > 0 ? "有分歧" : employee.officialStars == null ? "待拍板" : "已确认",
+    status: employee.summaryStats.disagreementCount > 0 ? "两人不一致" : employee.officialStars == null ? "待双人校准" : "已形成结果",
     tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary",
   }));
   const queueDescription =
     activeQueueKey === "pending"
-      ? "优先处理承霖、邱翔还没有达成一致的人。"
+      ? "优先处理承霖、邱翔还没有都完成校准的人。"
       : activeQueueKey === "disagreement"
         ? "先看两位校准人当前结论不一致的人。"
         : "需要回看时，可以直接从全部员工里搜索定位。";
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cockpit-muted-foreground)]">Employee Cockpit</p>
-        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <p className="text-sm leading-7 text-[var(--cockpit-foreground)]">{guideDescription}</p>
-          <Badge variant="outline" className="w-fit">
-            左侧选人，右侧只处理当前这一个人
-          </Badge>
-        </div>
-      </section>
-
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
         <div className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">第一步：公司分布总览</h2>
+              <p className="mt-2 text-sm leading-7 text-[var(--cockpit-muted-foreground)]">{guideDescription}</p>
+            </div>
+            <Badge variant="outline" className="w-fit">
+              普通员工终评只围绕承霖、邱翔收口
+            </Badge>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border px-4 py-3">
               <p className="text-xs text-[var(--cockpit-muted-foreground)]">公司当前绩效分布全览</p>
@@ -169,14 +166,6 @@ export function EmployeeCockpit({
 
       <DepartmentDistributionBoard departments={departmentDistributions} />
 
-      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
-        <StarDistributionChart
-          title="员工层实时分布"
-          description="员工层已一致的按官方结果统计，尚未一致的继续按参考星级进入临时分布。"
-          distribution={employeeDistribution}
-        />
-      </section>
-
       <div className="grid gap-5 xl:grid-cols-[minmax(340px,0.38fr)_minmax(0,1fr)] xl:items-start">
         <section
           className="space-y-4 rounded-[28px] border p-5 md:p-6 xl:flex xl:h-[var(--queue-panel-height)] xl:flex-col xl:overflow-hidden"
@@ -184,7 +173,7 @@ export function EmployeeCockpit({
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">处理队列</h2>
+              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">第三步：逐一校准</h2>
               <p className="mt-1 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">{queueDescription}</p>
             </div>
             <Badge variant="outline" className="w-fit">
@@ -211,6 +200,14 @@ export function EmployeeCockpit({
 
         <div ref={detailPanelRef}>{detailPanel}</div>
       </div>
+
+      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+        <StarDistributionChart
+          title="员工层实时分布"
+          description="员工层已一致的按官方结果统计，尚未一致的继续按参考星级进入临时分布。"
+          distribution={employeeDistribution}
+        />
+      </section>
     </div>
   );
 }

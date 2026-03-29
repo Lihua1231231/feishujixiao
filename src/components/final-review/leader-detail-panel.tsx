@@ -203,7 +203,7 @@ export function LeaderDetailPanel({
   }
 
   const pendingReviewCount = leader.submissionSummary.pendingCount;
-  const statusLabel = leader.officialStars != null ? "已生成结果，可切换下一位" : leader.bothSubmitted ? "待系统生成" : "待双人齐备";
+  const statusLabel = leader.officialStars != null ? "已形成结果，可切换下一位" : leader.bothSubmitted ? "待生成结果" : "待双人提交";
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -228,12 +228,12 @@ export function LeaderDetailPanel({
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <SummaryCard label="当前官方星级" value={renderStars(leader.officialStars, leader.bothSubmitted ? "待自动生成" : "待双人齐备")} />
+          <SummaryCard label="当前官方星级" value={renderStars(leader.officialStars, leader.bothSubmitted ? "待自动生成" : "待双人提交")} />
           <SummaryCard
             label="双人提交状态"
             value={pendingReviewCount > 0 ? `还有 ${pendingReviewCount} 份问卷待提交` : "两位填写人都已提交"}
           />
-          <SummaryCard label="加权后结果" value={leader.combinedWeightedScore?.toFixed(1) ?? "待双人齐备"} />
+          <SummaryCard label="加权后结果" value={leader.combinedWeightedScore?.toFixed(1) ?? "待双人提交"} />
           <SummaryCard label="当前状态" value={statusLabel} />
         </div>
 
@@ -247,7 +247,7 @@ export function LeaderDetailPanel({
       <section className="rounded-[28px] border p-5" style={panelStyle}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{comparisonTitle || "双人意见摘要"}</p>
+            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{comparisonTitle || "双人结果对照"}</p>
             <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
               {leader.canViewLeaderEvaluationDetails
                 ? pendingReviewCount > 0
@@ -257,7 +257,7 @@ export function LeaderDetailPanel({
             </p>
           </div>
           <Badge variant={leader.bothSubmitted ? "default" : "outline"}>
-            {leader.bothSubmitted ? "双人已齐备" : "待双人齐备"}
+            {leader.bothSubmitted ? "双人已齐备" : "待双人提交"}
           </Badge>
         </div>
 
@@ -339,7 +339,7 @@ export function LeaderDetailPanel({
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-            详细双人问卷只对具备查看权限的终评角色开放，当前页面继续保留双人意见摘要和官方结论摘要。
+            详细双人问卷只对具备查看权限的终评角色开放，当前页面继续保留双人结果对照和官方结论摘要。
           </div>
         )}
       </section>

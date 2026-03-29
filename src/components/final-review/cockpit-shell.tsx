@@ -60,7 +60,7 @@ export function CockpitShell({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.8fr)]">
         <div className="rounded-[var(--radius-2xl)] border p-5 md:p-6" style={panelStyle}>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--cockpit-muted-foreground)]">
-            Principles Cockpit
+            原则
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-[var(--cockpit-foreground)]">{title}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">{description}</p>

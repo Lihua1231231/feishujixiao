@@ -2,8 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
-  buildEmployeePriorityCards,
-  buildLeaderPriorityCards,
   buildLeaderSubmissionSummary,
   buildScoreBandBuckets,
 } from "@/components/final-review/workspace-view";
@@ -219,8 +217,6 @@ function CalibrationContent() {
   const selectedLeader = workspace.leaderReview.leaders.find((leader) => leader.id === selectedLeaderId) || workspace.leaderReview.leaders[0] || null;
   const activeCompanyDistribution = workspace.leaderReview.companyDistributions[activeCompanyScope];
   const scoreBandBuckets = buildScoreBandBuckets(workspace.employeeReview.employees);
-  const employeePriorityCards = buildEmployeePriorityCards(workspace.employeeReview.employees);
-  const leaderPriorityCards = buildLeaderPriorityCards(workspace.leaderReview.leaders);
   const leaderSubmissionSummary = buildLeaderSubmissionSummary(workspace.leaderReview.leaders);
   const selectedEmployee =
     workspace.employeeReview.employees.find((employee) => employee.id === selectedEmployeeId) ||
@@ -229,7 +225,7 @@ function CalibrationContent() {
   const selectedEmployeeOpinionForm = selectedEmployee
     ? employeeForms[selectedEmployee.id] || buildDefaultEmployeeOpinionForm(selectedEmployee)
     : null;
-  const pendingPriorityCount = employeePriorityCards.find((card) => card.key === "pending")?.count ?? 0;
+  const pendingPriorityCount = workspace.employeeReview.overview.pendingOfficialCount;
 
   const updateSelectedEmployeeOpinion = (patch: Partial<EmployeeOpinionForm>) => {
     if (!selectedEmployee) return;
@@ -286,9 +282,7 @@ function CalibrationContent() {
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
-            guideDescription="这一页用于逐个处理普通员工终评：上方先看公司当前绩效分布总览和按团队分布，中部看员工层实时分布，底部左侧选人、右侧只处理当前这一个人。参考星级由初评加权分换算。"
-            priorityBoardTitle="处理队列"
-            priorityBoardDescription="左侧处理队列会把待拍板、有分歧和全部员工分开，方便先处理最需要拍板的人。"
+            guideDescription="第一步看公司分布，第二步看团队分布，第三步再让承霖、邱翔逐一校准普通员工。参考星级由初评加权分换算。"
             companyCount={workspace.employeeReview.overview.companyCount}
             initialEvalSubmissionRate={workspace.employeeReview.overview.initialEvalSubmissionRate}
             officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
@@ -297,7 +291,6 @@ function CalibrationContent() {
             employeeDistribution={workspace.employeeReview.employeeDistribution}
             departmentDistributions={workspace.employeeReview.departmentDistributions}
             scoreBandBuckets={scoreBandBuckets}
-            priorityCards={employeePriorityCards}
             allEmployees={workspace.employeeReview.employees}
             selectedEmployeeId={selectedEmployee?.id ?? null}
             onSelectEmployee={setSelectedEmployeeId}
@@ -325,11 +318,9 @@ function CalibrationContent() {
           data-leader-submitted-total={leaderSubmissionSummary.reduce((total, item) => total + item.submittedCount, 0)}
         >
           <LeaderCockpit
-            guideDescription="这一页用于逐个处理主管层终评：先看主管层正式分布和双人提交进度，再从左侧选主管，右侧只处理当前这一个人。"
+            guideDescription="这一页先看主管层双人终评总览，再逐个查看主管的双人结果和问卷。"
             progressTitle="双人提交进度"
-            progressDescription="先看两位填写人的整体提交进度，再决定哪些主管已经可以进入最终决策。"
-            rosterTitle="处理队列"
-            rosterDescription="左侧会优先摆出待拍板、待双人齐备和全部主管，右侧搜索名册可以随时跳回任意一位主管。"
+            progressDescription="先看承霖、邱翔两位填写人的整体提交进度，再决定哪些主管已经可以形成结果。"
             leaderCount={workspace.leaderReview.overview.leaderCount}
             confirmedCount={workspace.leaderReview.overview.confirmedCount}
             leaderDistribution={workspace.leaderReview.leaderDistribution}
@@ -337,15 +328,13 @@ function CalibrationContent() {
             activeCompanyScope={activeCompanyScope}
             onCompanyScopeChange={setActiveCompanyScope}
             evaluatorProgress={workspace.leaderReview.overview.evaluatorProgress}
-            priorityCards={leaderPriorityCards}
-            submissionSummary={leaderSubmissionSummary}
             allLeaders={workspace.leaderReview.leaders}
             selectedLeaderId={selectedLeader?.id ?? null}
             onSelectLeader={setSelectedLeaderId}
             detailPanel={(
               <LeaderDetailPanel
                 title="最终决策"
-                comparisonTitle="双人意见摘要"
+                comparisonTitle="双人结果对照"
                 questionnaireTitle="详细双人问卷"
                 auditTrailTitle="过程留痕"
                 leader={selectedLeader}

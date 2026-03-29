@@ -15,7 +15,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
   return (
     <Card className="rounded-[28px] border shadow-none">
       <CardHeader>
-        <CardTitle className="text-lg text-[var(--cockpit-foreground)]">按团队分布</CardTitle>
+        <CardTitle className="text-lg text-[var(--cockpit-foreground)]">第二步：按团队分布</CardTitle>
         <p className="text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
           先看哪个团队的星级分布偏离建议区间；把鼠标停在人数上，可以看到这个星级下具体是谁。
         </p>

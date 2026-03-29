@@ -95,10 +95,10 @@ export function buildEmployeePriorityCards(rows: EmployeeRow[]): EmployeePriorit
   return [
     {
       key: "pending",
-      title: "待拍板",
-      summary: groups.pending.length ? `${groups.pending.length} 人还没有最终确认` : "当前没有待拍板员工",
+      title: "待双人校准",
+      summary: groups.pending.length ? `${groups.pending.length} 人还没有形成正式结果` : "当前没有待双人校准员工",
       description: groups.pending.length
-        ? `优先处理 ${summarizeRows(groups.pending, "")}，先完成最终确认再看其余队列。`
+        ? `优先处理 ${summarizeRows(groups.pending, "")}，先让承霖、邱翔完成双人校准再看其余队列。`
         : "当前每位普通员工都已经有官方结果。",
       count: groups.pending.length,
       rows: groups.pending,
@@ -129,9 +129,9 @@ export function buildEmployeePriorityCards(rows: EmployeeRow[]): EmployeePriorit
     {
       key: "highBandPending",
       title: "高分带未定",
-      summary: groups.highBandPending.length ? `${groups.highBandPending.length} 位高分员工未拍板` : "高分带都已完成确认",
+      summary: groups.highBandPending.length ? `${groups.highBandPending.length} 位高分员工未形成结果` : "高分带都已完成确认",
       description: groups.highBandPending.length
-        ? `高分带里的 ${summarizeRows(groups.highBandPending, "")} 仍在等待最终拍板。`
+        ? `高分带里的 ${summarizeRows(groups.highBandPending, "")} 仍在等待双人校准收口。`
         : "当前高分带员工都已经确认完毕。",
       count: groups.highBandPending.length,
       rows: groups.highBandPending,
@@ -170,21 +170,21 @@ export function buildLeaderPriorityCards(rows: LeaderRow[]): LeaderPriorityCard[
   return [
     {
       key: "pending",
-      title: "待拍板",
-      summary: pending.length ? `${pending.length} 位主管还没有官方结果` : "当前没有待拍板主管",
+      title: "待生成结果",
+      summary: pending.length ? `${pending.length} 位主管还没有官方结果` : "当前没有待生成结果主管",
       description: pending.length
-        ? `优先关注 ${summarizeLeaders(pending, "")}，先补齐最终决策再回看其他主管。`
-        : "当前所有主管都已经有正式拍板结果。",
+        ? `优先关注 ${summarizeLeaders(pending, "")}，先确认两份问卷是否齐备，再生成结果。`
+        : "当前所有主管都已经形成正式结果。",
       count: pending.length,
       rows: pending,
       accent: "slate",
     },
     {
       key: "awaitingDualSubmission",
-      title: "待双人齐备",
+      title: "待双人提交",
       summary: awaitingDualSubmission.length ? `${awaitingDualSubmission.length} 位主管还在等双人提交` : "双人问卷都已齐备",
       description: awaitingDualSubmission.length
-        ? `先提醒 ${summarizeLeaders(awaitingDualSubmission, "")} 的填写人完成提交，避免最终确认卡住。`
+        ? `先提醒 ${summarizeLeaders(awaitingDualSubmission, "")} 的填写人完成提交，避免主管层结果卡住。`
         : "当前每位主管的两份终评问卷都已经提交。",
       count: awaitingDualSubmission.length,
       rows: awaitingDualSubmission,
@@ -192,11 +192,11 @@ export function buildLeaderPriorityCards(rows: LeaderRow[]): LeaderPriorityCard[
     },
     {
       key: "ready",
-      title: "可拍板",
-      summary: ready.length ? `${ready.length} 位主管已经双人齐备` : "暂时还没有可直接拍板的主管",
+      title: "双人已齐备",
+      summary: ready.length ? `${ready.length} 位主管已经双人齐备` : "暂时还没有双人已齐备的主管",
       description: ready.length
-        ? `双人意见已经齐备的 ${summarizeLeaders(ready, "")} 可以直接进入最终决策。`
-        : "等两位填写人都提交后，这里会自动出现可拍板主管。",
+        ? `双人问卷已经齐备的 ${summarizeLeaders(ready, "")} 会自动进入待生成结果名单。`
+        : "等两位填写人都提交后，这里会自动出现双人已齐备的主管。",
       count: ready.length,
       rows: ready,
       accent: "emerald",
@@ -205,7 +205,7 @@ export function buildLeaderPriorityCards(rows: LeaderRow[]): LeaderPriorityCard[
 }
 
 export function buildLeaderQueueGroups(rows: LeaderRow[]) {
-  const pending = rows.filter((row) => row.officialStars == null);
+  const pending = rows.filter((row) => row.bothSubmitted && row.officialStars == null);
   const awaitingDual = rows.filter((row) => !row.bothSubmitted);
 
   return {

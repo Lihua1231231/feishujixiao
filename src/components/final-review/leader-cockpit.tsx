@@ -7,7 +7,7 @@ import { QueueTabs } from "./queue-tabs";
 import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
 import { StarDistributionChart } from "./star-distribution-chart";
 import type { DistributionEntry, LeaderRow } from "./types";
-import { buildLeaderQueueGroups, type LeaderPriorityCard, type LeaderSubmissionSummary } from "./workspace-view";
+import { buildLeaderQueueGroups } from "./workspace-view";
 
 type CompanyScope = "all" | "leaderOnly" | "employeeOnly";
 
@@ -15,8 +15,6 @@ type LeaderCockpitProps = {
   guideDescription: string;
   progressTitle: string;
   progressDescription: string;
-  rosterTitle: string;
-  rosterDescription: string;
   leaderCount: number;
   confirmedCount: number;
   leaderDistribution: DistributionEntry[];
@@ -28,8 +26,6 @@ type LeaderCockpitProps = {
     evaluatorName: string;
     submittedCount: number;
   }>;
-  priorityCards: LeaderPriorityCard[];
-  submissionSummary: LeaderSubmissionSummary[];
   allLeaders: LeaderRow[];
   selectedLeaderId: string | null;
   onSelectLeader: (leaderId: string) => void;
@@ -52,7 +48,7 @@ export function LeaderCockpit({
   onSelectLeader,
   detailPanel,
 }: LeaderCockpitProps) {
-  const [activeQueueKey, setActiveQueueKey] = useState<"pending" | "awaitingDual" | "all">("pending");
+  const [activeQueueKey, setActiveQueueKey] = useState<"pending" | "awaitingDual" | "all">("awaitingDual");
   const [queuePanelHeight, setQueuePanelHeight] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const panelStyle: CSSProperties = {
@@ -93,21 +89,21 @@ export function LeaderCockpit({
     ? [selectedLeader, ...baseQueueRows]
     : baseQueueRows;
   const queueItems = [
-    { key: "pending", label: "待拍板", count: queueGroups.pending.length },
-    { key: "awaitingDual", label: "待双人齐备", count: queueGroups.awaitingDual.length },
+    { key: "pending", label: "待生成结果", count: queueGroups.pending.length },
+    { key: "awaitingDual", label: "待双人提交", count: queueGroups.awaitingDual.length },
     { key: "all", label: "全部主管", count: queueGroups.all.length },
   ];
   const queueDescription =
     activeQueueKey === "pending"
-      ? "优先处理已具备条件、还没正式拍板的主管。"
+      ? "优先查看两份问卷都已齐备、系统即将生成结果的主管。"
       : activeQueueKey === "awaitingDual"
-        ? "先看仍在等待双人问卷齐备的主管。"
+        ? "先看仍在等待承霖、邱翔双人提交的主管。"
         : "需要回看时，可以直接从全部主管里搜索定位。";
   const rosterItems: RosterSearchItem[] = visibleRows.map((leader) => ({
     id: leader.id,
     name: leader.name,
     meta: `${leader.department}${leader.jobTitle ? ` · ${leader.jobTitle}` : ""}`,
-    status: leader.officialStars != null ? "已生成结果" : leader.bothSubmitted ? "待系统生成" : "待双人齐备",
+    status: leader.officialStars != null ? "已形成结果" : leader.bothSubmitted ? "待生成结果" : "待双人提交",
     tone: leader.officialStars != null ? "secondary" : leader.bothSubmitted ? "outline" : "destructive",
   }));
   const pendingCount = queueGroups.pending.length;
@@ -117,98 +113,80 @@ export function LeaderCockpit({
   return (
     <div className="space-y-5">
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--cockpit-muted-foreground)]">Leader Cockpit</p>
-        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <p className="text-sm leading-7 text-[var(--cockpit-foreground)]">{guideDescription}</p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">第一步：主管层双人终评总览</h2>
+            <p className="mt-2 text-sm leading-7 text-[var(--cockpit-muted-foreground)]">{guideDescription}</p>
+          </div>
           <Badge variant="outline" className="w-fit">
-            左侧选主管，右侧只处理当前这一个人
+            主管层终评只围绕承霖、邱翔两份问卷
           </Badge>
         </div>
-      </section>
 
-      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px] xl:items-start">
           <StarDistributionChart
-            title="主管层正式分布"
+            title="主管层等级全览"
             description="先看主管层当前正式分布，再决定哪些对象需要优先回看。"
             distribution={leaderDistribution}
           />
 
-          <div className="space-y-4">
-            <section className="rounded-[24px] border p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{progressTitle}</p>
-                  <p className="mt-1 text-xs leading-6 text-[var(--cockpit-muted-foreground)]">{progressDescription}</p>
-                </div>
-                <Badge variant="outline" className="w-fit">
-                  双人已齐备 {readyCount} 人
-                </Badge>
-              </div>
+          <StarDistributionChart
+            title="全公司最终分布"
+            description="把主管层结果并回全公司后，再看整体星级分布是否还需要回收口径。"
+            distribution={companyDistribution}
+          />
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border px-4 py-3">
-                  <p className="text-xs text-[var(--cockpit-muted-foreground)]">主管层总人数</p>
-                  <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{leaderCount} 人</p>
-                </div>
-                <div className="rounded-2xl border px-4 py-3">
-                  <p className="text-xs text-[var(--cockpit-muted-foreground)]">已确认</p>
-                  <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{confirmedCount} 人</p>
-                </div>
-                <div className="rounded-2xl border px-4 py-3">
-                  <p className="text-xs text-[var(--cockpit-muted-foreground)]">待系统生成</p>
-                  <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingCount} 人</p>
-                </div>
-                <div className="rounded-2xl border px-4 py-3">
-                  <p className="text-xs text-[var(--cockpit-muted-foreground)]">待双人齐备</p>
-                  <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingDualCount} 人</p>
-                </div>
+          <section className="space-y-4 rounded-[24px] border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{progressTitle}</p>
+                <p className="mt-1 text-xs leading-6 text-[var(--cockpit-muted-foreground)]">{progressDescription}</p>
               </div>
+              <Badge variant="outline" className="w-fit">
+                双人已齐备 {readyCount} 人
+              </Badge>
+            </div>
 
-              <div className="mt-4 space-y-2">
-                {evaluatorProgress.map((item) => (
-                  <div key={item.evaluatorId} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
-                    <span className="text-[var(--cockpit-foreground)]">{item.evaluatorName}</span>
-                    <span className="text-[var(--cockpit-muted-foreground)]">已提交 {item.submittedCount} 份</span>
-                  </div>
-                ))}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-2xl border px-4 py-3">
+                <p className="text-xs text-[var(--cockpit-muted-foreground)]">主管层总人数</p>
+                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{leaderCount} 人</p>
               </div>
-            </section>
+              <div className="rounded-2xl border px-4 py-3">
+                <p className="text-xs text-[var(--cockpit-muted-foreground)]">已形成结果</p>
+                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{confirmedCount} 人</p>
+              </div>
+              <div className="rounded-2xl border px-4 py-3">
+                <p className="text-xs text-[var(--cockpit-muted-foreground)]">待生成结果</p>
+                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingCount} 人</p>
+              </div>
+              <div className="rounded-2xl border px-4 py-3">
+                <p className="text-xs text-[var(--cockpit-muted-foreground)]">待双人提交</p>
+                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingDualCount} 人</p>
+              </div>
+            </div>
 
-            <section className="rounded-[24px] border p-4">
-              <div className="flex flex-col gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">全公司分布对照</p>
-                  <p className="mt-1 text-xs leading-6 text-[var(--cockpit-muted-foreground)]">支持切换整体范围，作为主管层结果的参考背景。</p>
+            <div className="space-y-2">
+              {evaluatorProgress.map((item) => (
+                <div key={item.evaluatorId} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
+                  <span className="text-[var(--cockpit-foreground)]">{item.evaluatorName}</span>
+                  <span className="text-[var(--cockpit-muted-foreground)]">已提交 {item.submittedCount} 份</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={activeCompanyScope === "all" ? "default" : "outline"} onClick={() => onCompanyScopeChange("all")}>
-                    全公司
-                  </Button>
-                  <Button variant={activeCompanyScope === "leaderOnly" ? "default" : "outline"} onClick={() => onCompanyScopeChange("leaderOnly")}>
-                    仅主管层
-                  </Button>
-                  <Button variant={activeCompanyScope === "employeeOnly" ? "default" : "outline"} onClick={() => onCompanyScopeChange("employeeOnly")}>
-                    仅非主管层
-                  </Button>
-                </div>
-              </div>
+              ))}
+            </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-5">
-                {companyDistribution.map((item) => (
-                  <div key={`${activeCompanyScope}:${item.stars}`} className="rounded-2xl border px-3 py-3">
-                    <div className="flex items-center justify-between gap-3 text-xs text-[var(--cockpit-muted-foreground)]">
-                      <span>{item.stars}星</span>
-                      <span>{item.pct.toFixed(0)}%</span>
-                    </div>
-                    <p className="mt-3 text-xl font-semibold text-[var(--cockpit-foreground)]" title={item.names.join("、")}>
-                      {item.count}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant={activeCompanyScope === "all" ? "default" : "outline"} onClick={() => onCompanyScopeChange("all")}>
+                全公司
+              </Button>
+              <Button variant={activeCompanyScope === "leaderOnly" ? "default" : "outline"} onClick={() => onCompanyScopeChange("leaderOnly")}>
+                仅主管层
+              </Button>
+              <Button variant={activeCompanyScope === "employeeOnly" ? "default" : "outline"} onClick={() => onCompanyScopeChange("employeeOnly")}>
+                仅非主管层
+              </Button>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -219,7 +197,7 @@ export function LeaderCockpit({
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">处理队列</h2>
+              <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">第二步：逐个查看主管</h2>
               <p className="mt-1 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">{queueDescription}</p>
             </div>
             <Badge variant="outline" className="w-fit">

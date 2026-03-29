@@ -47,7 +47,7 @@ function buildSummary(cycle: NonNullable<WorkspacePayload["cycle"]>, overview: N
   const firstRisk = overview.riskSummary[0];
 
   if (firstRisk) {
-    return `${deadline.summaryLabel}，${firstRisk} 目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待正式拍板。`;
+    return `${deadline.summaryLabel}，${firstRisk}。目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待形成正式结果。`;
   }
 
   if (pendingEmployees === 0 && pendingLeaders === 0) {
@@ -57,8 +57,8 @@ function buildSummary(cycle: NonNullable<WorkspacePayload["cycle"]>, overview: N
   }
 
   return deadline.overdue
-    ? `已过校准截止时间，目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待正式拍板，建议先处理高风险卡点，再尽快补齐最后确认。`
-    : `${deadline.summaryLabel}，目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待正式拍板，建议先处理意见分歧和高风险名单，再收口最后确认。`;
+    ? `已过校准截止时间，目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待形成正式结果，建议先处理高风险卡点，再尽快收口。`
+    : `${deadline.summaryLabel}，目前还剩 ${pendingEmployees} 位普通员工和 ${pendingLeaders} 位主管待形成正式结果，建议先处理意见分歧和高风险名单，再收口结果。`;
 }
 
 export function PrinciplesTab({
@@ -157,7 +157,7 @@ export function PrinciplesTab({
     <CockpitShell
       title="原则简报"
       description="先在这里统一口径，再去员工和主管名单里处理具体对象。"
-      guideDescription="这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪。默认先看公司整体分布、当前风险和优先处理对象。"
+      guideDescription="这一页先统一原则、链路和校准提醒，再判断分布是否偏离建议区间。"
       summaryLabel="一句话解读"
       summary={buildSummary(cycle, overview)}
       briefingBlocks={briefingBlocks}
@@ -252,12 +252,6 @@ export function PrinciplesTab({
                 </p>
               </div>
               <div className="rounded-[var(--radius-xl)] border px-4 py-3">
-                <p className="font-medium text-[var(--cockpit-foreground)]">终评工作台查看人</p>
-                <p className="mt-2 leading-6 text-[var(--cockpit-muted-foreground)]">
-                  {config.accessUsers.map((user) => user.name).join("、") || "未配置"}
-                </p>
-              </div>
-              <div className="rounded-[var(--radius-xl)] border px-4 py-3">
                 <p className="font-medium text-[var(--cockpit-foreground)]">主管层双人终评填写人</p>
                 <p className="mt-2 leading-6 text-[var(--cockpit-muted-foreground)]">{leaderEvaluatorLabel}</p>
               </div>
@@ -269,7 +263,7 @@ export function PrinciplesTab({
                 <div className="mt-3 space-y-2">
                   <p className="text-lg font-semibold text-[var(--cockpit-foreground)]">{deadline.shortLabel}</p>
                   <p className="text-xs leading-5 text-[var(--cockpit-muted-foreground)]">
-                    {deadline.overdue ? "当前已过截止时间，请优先补齐未完成拍板。" : `双人提交进度：${leaderSubmissionText}`}
+                    {deadline.overdue ? "当前已过截止时间，请优先补齐未完成结果。" : `双人提交进度：${leaderSubmissionText}`}
                   </p>
                 </div>
               </div>

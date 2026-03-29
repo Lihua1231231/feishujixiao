@@ -38,6 +38,10 @@ function renderStars(value: number | null, fallback: string) {
   return `${value} 星`;
 }
 
+function findOpinionByReviewerName(opinions: EmployeeOpinion[], keyword: string) {
+  return opinions.find((opinion) => opinion.reviewerName.includes(keyword)) || null;
+}
+
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border px-4 py-3">
@@ -101,6 +105,8 @@ export function EmployeeDetailPanel({
     { value: "AGREE", label: "同意参考星级" },
     { value: "OVERRIDE", label: "改为其他星级" },
   ];
+  const chenglinOpinion = findOpinionByReviewerName(employee.opinions, "承霖");
+  const qiuxiangOpinion = findOpinionByReviewerName(employee.opinions, "邱翔");
   const agreementSummary =
     employee.agreementState === "AGREED"
       ? `两位校准人已经一致，同意形成 ${renderStars(employee.officialStars, "—")} 的官方结果。`
@@ -121,7 +127,7 @@ export function EmployeeDetailPanel({
             </p>
           </div>
           <Badge variant={employee.officialStars == null ? "outline" : "default"}>
-            {employee.officialStars == null ? "待拍板" : "已确认，可切换下一位"}
+            {employee.officialStars == null ? "待双人校准" : "已形成结果，可切换下一位"}
           </Badge>
         </div>
 
@@ -140,6 +146,21 @@ export function EmployeeDetailPanel({
             value={`已处理 ${employee.summaryStats.handledCount}/${employee.summaryStats.totalReviewerCount}`}
           />
           <SummaryCard label="校准状态" value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "有分歧" : "待两位完成"} />
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border px-4 py-3">
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">承霖校准</p>
+            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
+              {chenglinOpinion ? `${chenglinOpinion.decisionLabel} · ${renderStars(chenglinOpinion.suggestedStars, "—")}` : "待处理"}
+            </p>
+          </div>
+          <div className="rounded-2xl border px-4 py-3">
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">邱翔校准</p>
+            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
+              {qiuxiangOpinion ? `${qiuxiangOpinion.decisionLabel} · ${renderStars(qiuxiangOpinion.suggestedStars, "—")}` : "待处理"}
+            </p>
+          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border px-4 py-3">
@@ -207,7 +228,7 @@ export function EmployeeDetailPanel({
       <section className="rounded-[28px] border p-5" style={panelStyle}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">意见汇总</p>
+            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">双人校准状态</p>
             <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{opinionSummaryText}</p>
           </div>
           {employee.anomalyTags.length > 0 ? <Badge variant="destructive">{employee.anomalyTags.join(" / ")}</Badge> : null}
@@ -313,7 +334,7 @@ export function EmployeeDetailPanel({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-              当前视图只显示处理汇总，不逐人展开每位具名拍板人的留痕。
+              当前视图只显示处理汇总，不逐人展开每位校准人的留痕。
             </div>
           )}
         </div>

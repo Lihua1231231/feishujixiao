@@ -86,24 +86,24 @@ test("calibration page becomes a three-tab final review workspace", () => {
     "final review workspace should auto-refresh every 30 seconds",
   );
   assert.equal(
-    principles.includes("这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪"),
+    principles.includes("这一页先统一原则、链路和校准提醒，再判断分布是否偏离建议区间。"),
     true,
-    "principles tab should explain its purpose in plain operator language",
+    "principles tab should explain its purpose as a principle-check page instead of a generic operator console",
   );
   assert.equal(
-    page.includes("这一页告诉你本轮终评按什么原则看人、谁参与拍板、现在卡在哪"),
+    page.includes("这一页先统一原则、链路和校准提醒，再判断分布是否偏离建议区间。"),
     false,
     "calibration page should not keep the principles briefing copy inline",
   );
   assert.equal(
-    page.includes("这一页用于逐个处理普通员工终评：上方先看公司当前绩效分布总览和按团队分布"),
+    page.includes("第一步看公司分布，第二步看团队分布，第三步再让承霖、邱翔逐一校准普通员工。"),
     true,
-    "employee tab should explain the queue-first panel workflow in plain language",
+    "employee tab should explain the author-intended company/team/individual calibration flow in plain language",
   );
   assert.equal(
-    page.includes("这一页用于逐个处理主管层终评：先看主管层正式分布和双人提交进度"),
+    page.includes("这一页先看主管层双人终评总览，再逐个查看主管的双人结果和问卷。"),
     true,
-    "leader tab should explain the single-person leader workflow in plain language",
+    "leader tab should explain the summary-first leader workflow in plain language",
   );
   assert.equal(
     principles.includes("具名拍板人已完成的意见数"),
@@ -126,6 +126,11 @@ test("calibration page becomes a three-tab final review workspace", () => {
       principles.includes("分布符合性检查"),
     true,
     "principles tab should surface the company calibrators and the two explicit principle-check sections",
+  );
+  assert.equal(
+    principles.includes("终评工作台查看人"),
+    false,
+    "principles tab should stop exposing generic workspace viewer roles in the author-facing briefing",
   );
 });
 
@@ -202,20 +207,30 @@ test("principles-tab handles overdue wording and globals keep cockpit styling to
 
 test("calibration page source includes employee-tab redesign tokens", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
+  const cockpit = read("src/components/final-review/employee-cockpit.tsx");
+  const departmentBoard = read("src/components/final-review/department-distribution-board.tsx");
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
 
-  assertSourceContains(source, "处理队列", "employee tab should include the navigation token \"处理队列\"");
-  assertSourceContains(source, "待拍板", "employee tab should include the queue status token \"待拍板\"");
-  assertSourceContains(source, "有分歧", "employee tab should include the triage token \"有分歧\"");
+  assertSourceContains(cockpit, "第一步：公司分布总览", "employee tab should explicitly mark the company-overview step");
+  assertSourceContains(departmentBoard, "第二步：按团队分布", "employee tab should explicitly mark the team-distribution step");
+  assertSourceContains(cockpit, "第三步：逐一校准", "employee tab should explicitly mark the one-by-one calibration step");
+  assertSourceContains(cockpit, "待双人校准", "employee tab should use the new dual-calibration pending label");
+  assertSourceContains(cockpit, "两人不一致", "employee tab should call out disagreement as a first-class queue");
   assertSourceContains(source, "最终决策", "employee tab should include the decision panel token \"最终决策\"");
-  assertSourceContains(source, "按团队分布", "employee tab should include the team-distribution section token \"按团队分布\"");
+  assertSourceContains(detailPanel, "承霖校准", "employee detail panel should surface Chenglin's current calibration state");
+  assertSourceContains(detailPanel, "邱翔校准", "employee detail panel should surface Qiuxiang's current calibration state");
 });
 
 test("calibration page source includes leader-tab redesign tokens", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
+  const cockpit = read("src/components/final-review/leader-cockpit.tsx");
 
-  assertSourceContains(source, "双人意见摘要", "leader tab should include the comparison token \"双人意见摘要\"");
-  assertSourceContains(source, "处理队列", "leader tab should include the progress token \"处理队列\"");
-  assertSourceContains(source, "全部主管", "leader tab should include the roster token \"全部主管\"");
+  assertSourceContains(source, "双人结果对照", "leader tab should include the comparison token \"双人结果对照\"");
+  assertSourceContains(cockpit, "第一步：主管层双人终评总览", "leader tab should explicitly mark the leader-summary step");
+  assertSourceContains(cockpit, "第二步：逐个查看主管", "leader tab should explicitly mark the per-leader step");
+  assertSourceContains(cockpit, "待双人提交", "leader tab should include the dual-submission waiting label");
+  assertSourceContains(cockpit, "待生成结果", "leader tab should include the automatic-result waiting label");
+  assertSourceContains(cockpit, "全公司最终分布", "leader tab should keep the company-final-distribution chart visible");
 });
 
 test("calibration page delegates cockpit shaping to shared final-review helpers", () => {
@@ -415,7 +430,7 @@ test("leader detail panel explains auto-generation after dual submission", () =>
     "leader detail panel should explain that the official result is auto-generated after both questionnaires are submitted",
   );
   assert.equal(
-    detailPanel.includes('leader.bothSubmitted ? "待系统生成" : "待双人齐备"') || detailPanel.includes('leader.bothSubmitted ? "待系统生成" : "待双人齐备"'),
+    detailPanel.includes('leader.bothSubmitted ? "待生成结果" : "待双人提交"'),
     true,
     "leader detail panel should distinguish dual-review waiting from system-generation waiting",
   );
@@ -431,7 +446,7 @@ test("employee cockpit keeps a reachable all-employee roster alongside queue tab
   const roster = read("src/components/final-review/roster-search-list.tsx");
 
   assert.equal(
-    cockpit.includes("全部员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧"),
+    cockpit.includes("全部员工") && cockpit.includes("待双人校准") && cockpit.includes("两人不一致"),
     true,
     "the employee cockpit should include queue tabs plus a dedicated all-employee roster so confirmed employees stay reachable",
   );
@@ -619,7 +634,7 @@ test("employee selection and status labels follow official stars for primary con
     "default employee selection should not use missing confirmation time anymore",
   );
   assert.equal(
-    cockpit.includes('status: employee.summaryStats.disagreementCount > 0 ? "有分歧" : employee.officialStars == null ? "待拍板" : "已确认"') &&
+    cockpit.includes('status: employee.summaryStats.disagreementCount > 0 ? "两人不一致" : employee.officialStars == null ? "待双人校准" : "已形成结果"') &&
       cockpit.includes('tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary"'),
     true,
     "left-side employee roster items should surface direct disagreement ahead of generic pending state",
@@ -628,6 +643,11 @@ test("employee selection and status labels follow official stars for primary con
     detailPanel.includes('Badge variant={employee.officialStars == null ? "outline" : "default"}'),
     true,
     "detail panel status badge should use official stars for the primary confirmed state",
+  );
+  assert.equal(
+    detailPanel.includes("待双人校准"),
+    true,
+    "detail panel should use the dual-calibration pending label in its primary status copy",
   );
   assert.equal(
     detailPanel.includes('employee.officialConfirmedAt ? "已拍板" : "待拍板"'),
@@ -678,17 +698,11 @@ test("employee cockpit uses a searchable roster rail and a collapsible distribut
   const cockpit = read("src/components/final-review/employee-cockpit.tsx");
   const detail = read("src/components/final-review/employee-detail-panel.tsx");
   const queueTabs = read("src/components/final-review/queue-tabs.tsx");
-  const distributionDrawer = read("src/components/final-review/distribution-drawer.tsx");
 
   assert.equal(
-    cockpit.includes("搜索员工") && cockpit.includes("待拍板") && cockpit.includes("有分歧") && cockpit.includes("全部员工"),
+    cockpit.includes("搜索员工") && cockpit.includes("待双人校准") && cockpit.includes("两人不一致") && cockpit.includes("全部员工"),
     true,
-    "employee cockpit should expose a searchable roster rail and queue-first navigation",
-  );
-  assert.equal(
-    distributionDrawer.includes("查看整体分布") && distributionDrawer.includes("收起整体分布"),
-    true,
-    "employee cockpit should move company-wide context behind a shared collapsible distribution drawer",
+    "employee cockpit should expose a searchable roster rail and the new dual-calibration queue navigation",
   );
   assert.equal(
     queueTabs.includes("items") && queueTabs.includes("activeKey") && queueTabs.includes("onChange"),
@@ -729,12 +743,12 @@ test("leader cockpit uses a searchable roster rail, queue tabs, and a single-per
   const detail = read("src/components/final-review/leader-detail-panel.tsx");
 
   assert.equal(
-    cockpit.includes("搜索主管") && cockpit.includes("待拍板") && cockpit.includes("待双人齐备") && cockpit.includes("全部主管"),
+    cockpit.includes("搜索主管") && cockpit.includes("待双人提交") && cockpit.includes("待生成结果") && cockpit.includes("全部主管"),
     true,
     "leader cockpit should expose a searchable roster rail and queue-first navigation",
   );
   assert.equal(
-    detail.includes("当前结论") && detail.includes("双人意见摘要") && detail.includes("过程留痕"),
+    detail.includes("当前结论") && detail.includes("双人结果对照") && detail.includes("过程留痕"),
     true,
     "leader detail panel should follow the single-person decision flow",
   );
