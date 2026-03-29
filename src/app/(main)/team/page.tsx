@@ -86,6 +86,19 @@ type FormData = {
   rootComment: string;
 };
 
+type TeamMeta = {
+  cycleStatus: string | null;
+  canEdit: boolean;
+  lockedReason: string | null;
+};
+
+type TeamResponse = {
+  cycleStatus: string | null;
+  canEdit: boolean;
+  lockedReason: string | null;
+  items: TeamEval[];
+};
+
 function computeAbilityStars(fd: FormData): number | null {
   if (fd.comprehensiveStars == null || fd.learningStars == null || fd.adaptabilityStars == null) return null;
   return Math.round((fd.comprehensiveStars + fd.learningStars + fd.adaptabilityStars) / 3);
@@ -101,6 +114,34 @@ function computeWeightedScore(fd: FormData): number | null {
   const valuesStars = computeValuesStars(fd);
   if (fd.performanceStars == null || abilityStars == null || valuesStars == null) return null;
   return fd.performanceStars * 0.5 + abilityStars * 0.3 + valuesStars * 0.2;
+}
+
+function normalizeTeamResponse(data: unknown): TeamResponse {
+  if (Array.isArray(data)) {
+    return {
+      cycleStatus: null,
+      canEdit: true,
+      lockedReason: null,
+      items: data as TeamEval[],
+    };
+  }
+
+  if (data && typeof data === "object") {
+    const payload = data as Partial<TeamResponse>;
+    return {
+      cycleStatus: payload.cycleStatus ?? null,
+      canEdit: payload.canEdit ?? true,
+      lockedReason: payload.lockedReason ?? null,
+      items: Array.isArray(payload.items) ? payload.items : [],
+    };
+  }
+
+  return {
+    cycleStatus: null,
+    canEdit: true,
+    lockedReason: null,
+    items: [],
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,6 +169,7 @@ function initFormData(ev: any): FormData {
 function TeamContent() {
   const { preview, previewRole, getData } = usePreview();
   const [evals, setEvals] = useState<TeamEval[]>([]);
+  const [teamMeta, setTeamMeta] = useState<TeamMeta>({ cycleStatus: null, canEdit: true, lockedReason: null });
   const [selected, setSelected] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, FormData>>({});
   const [saving, setSaving] = useState(false);
@@ -139,6 +181,7 @@ function TeamContent() {
       const previewData = getData("team") as Record<string, unknown>;
       const previewEvals = (previewData.evals as TeamEval[]) || [];
       setEvals(previewEvals);
+      setTeamMeta({ cycleStatus: null, canEdit: true, lockedReason: null });
       const initial: Record<string, FormData> = {};
       for (const e of previewEvals) {
         initial[e.employee.id] = initFormData(e.evaluation);
@@ -148,18 +191,23 @@ function TeamContent() {
     }
 
     const loadData = () => {
-      fetch("/api/supervisor-eval").then((r) => r.json()).then((data) => {
-        if (!Array.isArray(data)) return;
+      fetch("/api/supervisor-eval").then((r) => r.json()).then((raw) => {
+        const data = normalizeTeamResponse(raw);
+        setTeamMeta({
+          cycleStatus: data.cycleStatus,
+          canEdit: data.canEdit,
+          lockedReason: data.lockedReason,
+        });
         setEvals((prev) => {
           // First load: initialize form data
           if (prev.length === 0) {
             const initial: Record<string, FormData> = {};
-            for (const e of data) {
+            for (const e of data.items) {
               initial[e.employee.id] = initFormData(e.evaluation);
             }
             setFormData(initial);
           }
-          return data;
+          return data.items;
         });
       });
     };
@@ -173,6 +221,10 @@ function TeamContent() {
 
   const saveEval = async (employeeId: string, action: "save" | "submit") => {
     if (preview) return;
+    if (!teamMeta.canEdit) {
+      toast.error(teamMeta.lockedReason || "当前不是上级初评阶段，无法保存或提交");
+      return;
+    }
     const fd = formData[employeeId];
     if (action === "submit" && (!fd.performanceStars || !fd.comprehensiveStars || !fd.learningStars || !fd.adaptabilityStars || !fd.candidStars || !fd.progressStars || !fd.altruismStars || !fd.rootStars)) {
       toast.error("请完成所有维度的星级评分");
@@ -186,16 +238,24 @@ function TeamContent() {
 
     setSaving(true);
     try {
-      await fetch("/api/supervisor-eval", {
+      const res = await fetch("/api/supervisor-eval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId, ...fd, action }),
       });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "操作失败");
       toast.success(action === "submit" ? "评估已提交" : "已保存");
-      const data = await fetch("/api/supervisor-eval").then((r) => r.json());
-      setEvals(data);
-    } catch {
-      toast.error("操作失败");
+      const refreshed = await fetch("/api/supervisor-eval").then((r) => r.json());
+      const data = normalizeTeamResponse(refreshed);
+      setTeamMeta({
+        cycleStatus: data.cycleStatus,
+        canEdit: data.canEdit,
+        lockedReason: data.lockedReason,
+      });
+      setEvals(data.items);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "操作失败");
     } finally {
       setSaving(false);
     }
@@ -203,6 +263,7 @@ function TeamContent() {
 
   const selectedEval = evals.find((e) => e.employee.id === selected);
   const isSubmitted = selectedEval?.evaluation?.status === "SUBMITTED";
+  const isReadOnly = !!isSubmitted || (!teamMeta.canEdit && !preview);
   const currentForm = selected ? formData[selected] : null;
   const liveWeightedScore = currentForm ? computeWeightedScore(currentForm) : null;
 
@@ -317,6 +378,15 @@ function TeamContent() {
                       )}
                     </CardContent>
                   </Card>
+
+                  {!preview && teamMeta.lockedReason ? (
+                    <Card className="border-amber-200 bg-amber-50/70">
+                      <CardContent className="py-4 text-sm text-amber-900">
+                        {teamMeta.lockedReason}
+                        {teamMeta.cycleStatus ? `（当前周期阶段：${teamMeta.cycleStatus}）` : ""}
+                      </CardContent>
+                    </Card>
+                  ) : null}
 
                   {/* Self evaluation */}
                   {selectedEval.selfEval && (
@@ -461,7 +531,7 @@ function TeamContent() {
                         <StarRating
                           value={formData[selected!]?.performanceStars}
                           onChange={(v) => updateField("performanceStars", v)}
-                          disabled={!!isSubmitted}
+                          disabled={isReadOnly}
                         />
                         <p className="text-[11px] text-muted-foreground/70 leading-relaxed">请结合员工工作总结自评 + 周期内实际产出结果 + OKR完成度 + 团队内贡献度综合评定，需提供数据/案例作证和描述</p>
                         <Textarea
@@ -469,7 +539,7 @@ function TeamContent() {
                           onChange={(e) => updateField("performanceComment", e.target.value)}
                           placeholder="请输入评语..."
                           rows={3}
-                          disabled={!!isSubmitted}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -491,7 +561,7 @@ function TeamContent() {
                             <StarRating
                               value={formData[selected!]?.comprehensiveStars}
                               onChange={(v) => updateField("comprehensiveStars", v)}
-                              disabled={!!isSubmitted}
+                              disabled={isReadOnly}
                               size="sm"
                             />
                           </div>
@@ -501,7 +571,7 @@ function TeamContent() {
                             <StarRating
                               value={formData[selected!]?.learningStars}
                               onChange={(v) => updateField("learningStars", v)}
-                              disabled={!!isSubmitted}
+                              disabled={isReadOnly}
                               size="sm"
                             />
                           </div>
@@ -511,7 +581,7 @@ function TeamContent() {
                             <StarRating
                               value={formData[selected!]?.adaptabilityStars}
                               onChange={(v) => updateField("adaptabilityStars", v)}
-                              disabled={!!isSubmitted}
+                              disabled={isReadOnly}
                               size="sm"
                             />
                           </div>
@@ -523,7 +593,7 @@ function TeamContent() {
                           onChange={(e) => updateField("abilityComment", e.target.value)}
                           placeholder="请输入评语..."
                           rows={3}
-                          disabled={!!isSubmitted}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -543,35 +613,35 @@ function TeamContent() {
                           <div className="space-y-1.5">
                             <p className="text-sm font-medium">坦诚真实 <span className="text-xs font-normal text-muted-foreground">Be candid and honest — 行为基础</span></p>
                             <p className="text-[11px] text-muted-foreground">简单直接，对事不对人 · 敢于承认错误，不装不爱面子 · 暴露问题，不向上管理 · 不找借口，只找解法</p>
-                            <StarRating value={formData[selected!]?.candidStars} onChange={(v) => updateField("candidStars", v)} disabled={!!isSubmitted} />
-                            <Textarea value={formData[selected!]?.candidComment || ""} onChange={(e) => updateField("candidComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
+                            <StarRating value={formData[selected!]?.candidStars} onChange={(v) => updateField("candidStars", v)} disabled={isReadOnly} />
+                            <Textarea value={formData[selected!]?.candidComment || ""} onChange={(e) => updateField("candidComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isReadOnly} />
                           </div>
 
                           <div className="space-y-1.5 border-t pt-4">
                             <p className="text-sm font-medium">极致进取 <span className="text-xs font-normal text-muted-foreground">Move fast, aim higher — 动机驱动</span></p>
                             <p className="text-[11px] text-muted-foreground">目标明确，积极主动 · 用 demo 代替文档，用行动代替沟通 · 敢于挑战更优解，用实验代替争论 · 深入体验，消灭锯齿</p>
-                            <StarRating value={formData[selected!]?.progressStars} onChange={(v) => updateField("progressStars", v)} disabled={!!isSubmitted} />
-                            <Textarea value={formData[selected!]?.progressComment || ""} onChange={(e) => updateField("progressComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
+                            <StarRating value={formData[selected!]?.progressStars} onChange={(v) => updateField("progressStars", v)} disabled={isReadOnly} />
+                            <Textarea value={formData[selected!]?.progressComment || ""} onChange={(e) => updateField("progressComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isReadOnly} />
                           </div>
 
                           <div className="space-y-1.5 border-t pt-4">
                             <p className="text-sm font-medium">成就利他 <span className="text-xs font-normal text-muted-foreground">Build together, win together — 协作胸怀</span></p>
                             <p className="text-[11px] text-muted-foreground">用户第一，以用户成功为价值 · 内心阳光，信任伙伴，真诚合作 · 敏锐谦逊，ego 小，乐于贡献</p>
-                            <StarRating value={formData[selected!]?.altruismStars} onChange={(v) => updateField("altruismStars", v)} disabled={!!isSubmitted} />
-                            <Textarea value={formData[selected!]?.altruismComment || ""} onChange={(e) => updateField("altruismComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
+                            <StarRating value={formData[selected!]?.altruismStars} onChange={(v) => updateField("altruismStars", v)} disabled={isReadOnly} />
+                            <Textarea value={formData[selected!]?.altruismComment || ""} onChange={(e) => updateField("altruismComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isReadOnly} />
                           </div>
 
                           <div className="space-y-1.5 border-t pt-4">
                             <p className="text-sm font-medium">ROOT <span className="text-xs font-normal text-muted-foreground">组织导向</span></p>
                             <p className="text-[11px] text-muted-foreground">有 ownership，不踢皮球，不设边界 · 独立思考，快速学习，与 AI 共同进化 · 关注结果而非过程 · 始终像公司创业第一天那样思考</p>
-                            <StarRating value={formData[selected!]?.rootStars} onChange={(v) => updateField("rootStars", v)} disabled={!!isSubmitted} />
-                            <Textarea value={formData[selected!]?.rootComment || ""} onChange={(e) => updateField("rootComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={!!isSubmitted} />
+                            <StarRating value={formData[selected!]?.rootStars} onChange={(v) => updateField("rootStars", v)} disabled={isReadOnly} />
+                            <Textarea value={formData[selected!]?.rootComment || ""} onChange={(e) => updateField("rootComment", e.target.value)} placeholder="请输入评语..." rows={2} disabled={isReadOnly} />
                           </div>
                         </div>
                       </div>
 
                       {/* Actions */}
-                      {!isSubmitted && (
+                      {!isReadOnly && (
                         <div className="flex justify-end gap-2 border-t pt-4">
                           <Button variant="outline" onClick={() => saveEval(selected!, "save")} disabled={preview || saving}>{saving ? "保存中..." : "保存"}</Button>
                           <Button onClick={() => saveEval(selected!, "submit")} disabled={preview || saving}>提交评估</Button>

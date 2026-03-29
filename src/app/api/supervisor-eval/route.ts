@@ -20,6 +20,8 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     if (!cycle) return NextResponse.json([]);
+    const canEdit = user.role === "ADMIN" || cycle.status === "SUPERVISOR_EVAL";
+    const lockedReason = canEdit ? null : "当前不是上级初评阶段，页面只保留查看";
 
     const allUsers = await prisma.user.findMany({
       select: {
@@ -67,7 +69,12 @@ export async function GET() {
       .map((assignment) => assignment.employeeId);
 
     if (relevantEmployeeIds.length === 0) {
-      return NextResponse.json([]);
+      return NextResponse.json({
+        cycleStatus: cycle.status,
+        canEdit,
+        lockedReason,
+        items: [],
+      });
     }
 
     const [selfEvals, peerReviews, acceptedNominations] = await Promise.all([
@@ -157,7 +164,12 @@ export async function GET() {
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .sort((a, b) => a.employee.department.localeCompare(b.employee.department) || a.employee.name.localeCompare(b.employee.name));
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      cycleStatus: cycle.status,
+      canEdit,
+      lockedReason,
+      items: result,
+    });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
