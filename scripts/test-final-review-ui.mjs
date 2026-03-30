@@ -669,6 +669,24 @@ test("department distribution board renders the chosen light narrow-bar style", 
   );
 });
 
+test("department distribution board keeps names out of bars and moves them into a focused detail rail", () => {
+  const board = read("src/components/final-review/department-distribution-board.tsx");
+
+  assert.equal(
+    board.includes("activeStar") &&
+      board.includes("setActiveStar") &&
+      board.includes("当前查看") &&
+      board.includes("点击柱子切换名单") &&
+      board.includes("selectedBucket") &&
+      board.includes("selectedBucket.names") &&
+      board.includes("onClick={() => setActiveStar(item.stars)}") &&
+      !board.includes("compactNames(item.names)") &&
+      !board.includes("line-clamp-3"),
+    true,
+    "the team distribution chart should keep bars clean and show the selected star's names in a separate detail area below",
+  );
+});
+
 test("leader cockpit mirrors the taller left rail layout used in the employee cockpit", () => {
   const cockpit = read("src/components/final-review/leader-cockpit.tsx");
 

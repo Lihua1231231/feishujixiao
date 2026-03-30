@@ -31,15 +31,25 @@ function buildEmptyDistribution(): DistributionEntry[] {
   }));
 }
 
-function compactNames(names: string[]) {
-  if (names.length === 0) return "当前没有员工";
-  if (names.length <= 4) return names.join("、");
-  return `${names.slice(0, 4).join("、")} 等 ${names.length} 人`;
+function pickDefaultStar(
+  summaries: Array<
+    DistributionEntry & {
+      suggestedCount: number;
+      summary: string;
+      deltaCount: number;
+    }
+  >,
+) {
+  return summaries.reduce((best, current) => {
+    const bestWeight = Math.abs(best.deltaCount) * 100 + best.count;
+    const currentWeight = Math.abs(current.deltaCount) * 100 + current.count;
+    return currentWeight > bestWeight ? current : best;
+  }).stars;
 }
 
 export function DepartmentDistributionBoard({ departments }: DepartmentDistributionBoardProps) {
   const [activeDepartmentKey, setActiveDepartmentKey] = useState<"all" | string>("all");
-
+  const [activeStarOverride, setActiveStarOverride] = useState<number | null>(null);
   const allDepartmentDistribution = useMemo(() => {
     const merged = buildEmptyDistribution();
 
@@ -102,6 +112,10 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
     1,
     ...selectedSummaries.map((item) => Math.max(item.count, item.suggestedCount)),
   );
+  const defaultStar = pickDefaultStar(selectedSummaries);
+  const activeStar = activeStarOverride ?? defaultStar;
+  const selectedBucket =
+    selectedSummaries.find((item) => item.stars === activeStar) ?? selectedSummaries[0];
   const chartHeight = 196;
   const polylinePoints = selectedSummaries
     .map((item, index) => {
@@ -123,7 +137,10 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
           <button
             type="button"
-            onClick={() => setActiveDepartmentKey("all")}
+            onClick={() => {
+              setActiveDepartmentKey("all");
+              setActiveStarOverride(null);
+            }}
             className={
               activeDepartmentKey === "all"
                 ? "min-w-[148px] rounded-[22px] border border-[color:#231f1a] bg-[color:#231f1a] px-4 py-3 text-left text-white shadow-sm"
@@ -154,7 +171,10 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
               <button
                 key={department.department}
                 type="button"
-                onClick={() => setActiveDepartmentKey(department.department)}
+                onClick={() => {
+                  setActiveDepartmentKey(department.department);
+                  setActiveStarOverride(null);
+                }}
                 className={
                   active
                     ? "min-w-[148px] rounded-[22px] border border-[color:#a56a2d] bg-[color:#f8ecdf] px-4 py-3 text-left shadow-sm"
@@ -216,6 +236,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                     const barHeight = Math.max((item.count / tallestValue) * chartHeight, item.count > 0 ? 24 : 0);
                     const barTone =
                       item.deltaCount > 0 ? "bg-[color:#e97a73]" : item.deltaCount < 0 ? "bg-[color:#c89153]" : "bg-[color:#d8c0a3]";
+                    const isActive = item.stars === activeStar;
 
                     return (
                       <div key={`bar:${item.stars}`} className="flex flex-col">
@@ -248,13 +269,16 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                                 当前没有员工
                               </div>
                             ) : (
-                              <div
-                                className={`mx-auto w-[46%] rounded-[10px] rounded-b-[6px] ${barTone} px-2 py-2 text-left text-white`}
+                              <button
+                                type="button"
+                                onClick={() => setActiveStarOverride(item.stars)}
+                                className={`mx-auto w-[46%] rounded-[10px] rounded-b-[6px] ${barTone} transition-[transform,box-shadow,outline-color] hover:-translate-y-0.5 ${
+                                  isActive ? "outline outline-2 outline-offset-4 outline-[color:#b7791f]" : "outline outline-1 outline-offset-2 outline-transparent"
+                                }`}
                                 style={{ height: `${barHeight}px` }}
                                 title={`${item.stars}星 · ${item.count}人：${item.names.join("、")}`}
-                              >
-                                <div className="line-clamp-3 text-[11px] font-medium leading-4">{compactNames(item.names)}</div>
-                              </div>
+                                aria-label={`${item.stars}星 ${item.count}人`}
+                              />
                             )}
                           </div>
                         </div>
@@ -267,6 +291,37 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                     );
                   })}
                 </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[22px] border bg-[color:rgba(191,127,65,0.04)] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前查看</p>
+                  <h4 className="mt-1 text-lg font-semibold text-[var(--cockpit-foreground)]">
+                    {selectedBucket.stars}星 · {selectedBucket.count}人
+                  </h4>
+                </div>
+                <div className="rounded-full border px-3 py-1 text-xs text-[var(--cockpit-muted-foreground)]">
+                  点击柱子切换名单
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {selectedBucket.names.length === 0 ? (
+                  <span className="rounded-full bg-white px-3 py-2 text-sm text-[var(--cockpit-muted-foreground)]">
+                    当前没有员工落在这个星级
+                  </span>
+                ) : (
+                  selectedBucket.names.map((name) => (
+                    <span
+                      key={`${selectedBucket.stars}:${name}`}
+                      className="rounded-full border bg-white px-3 py-2 text-sm text-[var(--cockpit-foreground)]"
+                    >
+                      {name}
+                    </span>
+                  ))
+                )}
               </div>
             </div>
           </section>
@@ -286,7 +341,11 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                   <span className="text-sm text-[var(--cockpit-muted-foreground)]">{item.count} 人</span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-[var(--cockpit-muted-foreground)]">
-                  {item.count === 0 ? "当前没有员工落在这个星级。" : compactNames(item.names)}
+                  {item.deltaCount === 0
+                    ? `当前人数与建议人数基本一致，建议约 ${item.suggestedCount} 人。`
+                    : item.deltaCount > 0
+                      ? `当前比建议人数多 ${item.deltaCount} 人，建议约 ${item.suggestedCount} 人。`
+                      : `当前比建议人数少 ${Math.abs(item.deltaCount)} 人，建议约 ${item.suggestedCount} 人。`}
                 </p>
               </div>
             ))}
