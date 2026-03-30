@@ -1,11 +1,11 @@
 import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client";
-import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments";
+import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments.ts";
 import {
   computeRoundedAbilityStars,
   computeRoundedValuesStars,
   computeWeightedScoreFromDimensions,
-} from "../src/lib/weighted-score";
+} from "../src/lib/weighted-score.ts";
 
 export const LIZELONG_NAME = "李泽龙";
 export const QIUXIANG_NAME = "邱翔";

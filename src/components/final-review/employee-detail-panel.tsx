@@ -136,6 +136,12 @@ function CalibratorCard({
 
       {editable && form ? (
         <div className="mt-4 space-y-3">
+          {opinion?.prefillDecision && !opinion?.hasSavedOpinion ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
+              已根据你之前的{opinion.prefillSourceLabel}预填草稿，确认保存后才会成为终评意见。
+            </div>
+          ) : null}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               type="button"

@@ -150,6 +150,21 @@ test("calibration page source includes employee-tab redesign tokens", () => {
     false,
     "employee detail panel should drop the extra explanatory paragraph under the agreement summary block",
   );
+  assert.equal(
+    source.includes("myOpinion?.hasSavedOpinion") &&
+      source.includes("myOpinion.prefillDecision") &&
+      source.includes("myOpinion.prefillSuggestedStars") &&
+      source.includes("myOpinion.prefillReason"),
+    true,
+    "employee opinion form should initialize from the local prefill draft only when there is no completed saved opinion yet",
+  );
+  assert.equal(
+    detailPanel.includes("已根据你之前的") &&
+      detailPanel.includes("预填草稿") &&
+      detailPanel.includes("确认保存后才会成为终评意见"),
+    true,
+    "employee detail panel should warn that imported same-person review content is only a local draft until the reviewer saves it",
+  );
 });
 
 test("calibration page source includes leader-tab redesign tokens", () => {

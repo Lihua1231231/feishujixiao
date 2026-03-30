@@ -30,10 +30,26 @@ type EmployeeOpinionForm = {
 function buildDefaultEmployeeOpinionForm(employee: EmployeeRow): EmployeeOpinionForm {
   const myOpinion = employee.opinions.find((item) => item.isMine);
 
+  if (myOpinion?.hasSavedOpinion) {
+    return {
+      decision: myOpinion.decision as EmployeeOpinionForm["decision"],
+      suggestedStars: myOpinion.suggestedStars ?? employee.referenceStars,
+      reason: myOpinion.reason || "",
+    };
+  }
+
+  if (myOpinion?.prefillDecision) {
+    return {
+      decision: myOpinion.prefillDecision,
+      suggestedStars: myOpinion.prefillSuggestedStars ?? employee.referenceStars,
+      reason: myOpinion.prefillReason,
+    };
+  }
+
   return {
-    decision: (myOpinion?.decision || "PENDING") as EmployeeOpinionForm["decision"],
-    suggestedStars: myOpinion?.suggestedStars ?? employee.referenceStars,
-    reason: myOpinion?.reason || "",
+    decision: "PENDING",
+    suggestedStars: employee.referenceStars,
+    reason: "",
   };
 }
 

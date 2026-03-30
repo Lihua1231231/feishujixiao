@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client";
-import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments";
+import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments.ts";
 
 export const EVALUATOR_NAME = "张东杰";
 

@@ -19,7 +19,7 @@ import {
 } from "@/lib/peer-review-summary";
 import { getActiveCycle, type SessionUser } from "@/lib/session";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
-import { computeWeightedScore } from "@/lib/weighted-score";
+import { computeWeightedScore, computeWeightedScoreFromDimensions } from "@/lib/weighted-score";
 
 export {
   buildDistributionComplianceChecks,
@@ -263,6 +263,182 @@ function buildValuesReviewComment(evaluation: {
   return parts.join("；");
 }
 
+function combinePrefillComments(items: Array<{ label: string; comment: string | null | undefined }>) {
+  return items
+    .flatMap(({ label, comment }) => {
+      const text = normalizeSummaryText(comment);
+      return text ? [`${label}：${text}`] : [];
+    })
+    .join("\n");
+}
+
+type OpinionPrefillDraft = {
+  decision: "AGREE" | "OVERRIDE";
+  suggestedStars: number | null;
+  reason: string;
+  sourceLabel: string;
+};
+
+function buildOpinionPrefillFromSupervisorEval(
+  evaluation: {
+    performanceComment: string;
+    abilityComment: string;
+    valuesComment: string;
+    candidComment: string;
+    progressComment: string;
+    altruismComment: string;
+    rootComment: string;
+    weightedScore: number | null;
+  },
+  referenceStars: number | null,
+  ranges: ReferenceStarRange[],
+): OpinionPrefillDraft | null {
+  const suggestedStars = mapScoreToReferenceStars(
+    evaluation.weightedScore != null ? Number(evaluation.weightedScore) : null,
+    ranges,
+  );
+  if (suggestedStars == null) return null;
+
+  const summary =
+    combinePrefillComments([
+      { label: "业绩产出", comment: evaluation.performanceComment },
+      { label: "综合能力", comment: evaluation.abilityComment },
+      { label: "价值观", comment: buildValuesReviewComment(evaluation) },
+    ]) || "这份直属上级绩效初评未填写可复用评语，请按实际情况补充。";
+
+  return {
+    decision: referenceStars != null && suggestedStars === referenceStars ? "AGREE" : "OVERRIDE",
+    suggestedStars,
+    reason: `自动预填自你已提交的直属上级绩效初评。\n${summary}`,
+    sourceLabel: "已提交的直属上级绩效初评",
+  };
+}
+
+function buildOpinionPrefillFromPeerReview(
+  review: {
+    performanceStars: number | null;
+    comprehensiveStars: number | null;
+    learningStars: number | null;
+    adaptabilityStars: number | null;
+    candidStars: number | null;
+    progressStars: number | null;
+    altruismStars: number | null;
+    rootStars: number | null;
+    performanceComment: string;
+    comprehensiveComment: string;
+    learningComment: string;
+    adaptabilityComment: string;
+    candidComment: string;
+    progressComment: string;
+    altruismComment: string;
+    rootComment: string;
+    innovationComment: string | null;
+  },
+  referenceStars: number | null,
+  ranges: ReferenceStarRange[],
+): OpinionPrefillDraft | null {
+  const weightedScore = computeWeightedScoreFromDimensions({
+    performanceStars: review.performanceStars,
+    comprehensiveStars: review.comprehensiveStars,
+    learningStars: review.learningStars,
+    adaptabilityStars: review.adaptabilityStars,
+    candidStars: review.candidStars,
+    progressStars: review.progressStars,
+    altruismStars: review.altruismStars,
+    rootStars: review.rootStars,
+  });
+  const suggestedStars = mapScoreToReferenceStars(weightedScore, ranges);
+  if (suggestedStars == null) return null;
+
+  const summary =
+    combinePrefillComments([
+      { label: "业绩产出", comment: review.performanceComment },
+      { label: "综合能力", comment: review.comprehensiveComment },
+      { label: "学习能力", comment: review.learningComment },
+      { label: "适应能力", comment: review.adaptabilityComment },
+      { label: "坦诚真实", comment: review.candidComment },
+      { label: "极致进取", comment: review.progressComment },
+      { label: "成就利他", comment: review.altruismComment },
+      { label: "ROOT", comment: review.rootComment },
+      { label: "其他补充", comment: review.innovationComment },
+    ]) || "这份360环评未填写可复用评语，请按实际情况补充。";
+
+  return {
+    decision: referenceStars != null && suggestedStars === referenceStars ? "AGREE" : "OVERRIDE",
+    suggestedStars,
+    reason: `自动预填自你已提交的360环评。\n${summary}`,
+    sourceLabel: "已提交的360环评",
+  };
+}
+
+function resolveEmployeeOpinionPrefill(args: {
+  reviewerId: string;
+  employeeId: string;
+  referenceStars: number | null;
+  ranges: ReferenceStarRange[];
+  supervisorEvals: Array<{
+    employeeId: string;
+    evaluatorId: string;
+    status: string;
+    performanceComment: string;
+    abilityComment: string;
+    valuesComment: string;
+    candidComment: string;
+    progressComment: string;
+    altruismComment: string;
+    rootComment: string;
+    weightedScore: number | null;
+  }>;
+  peerReviews: Array<{
+    revieweeId: string;
+    reviewerId: string;
+    performanceStars: number | null;
+    comprehensiveStars: number | null;
+    learningStars: number | null;
+    adaptabilityStars: number | null;
+    candidStars: number | null;
+    progressStars: number | null;
+    altruismStars: number | null;
+    rootStars: number | null;
+    performanceComment: string;
+    comprehensiveComment: string;
+    learningComment: string;
+    adaptabilityComment: string;
+    candidComment: string;
+    progressComment: string;
+    altruismComment: string;
+    rootComment: string;
+    innovationComment: string | null;
+  }>;
+}): OpinionPrefillDraft | null {
+  const submittedSupervisorEval = args.supervisorEvals.find((item) =>
+    item.employeeId === args.employeeId
+    && item.evaluatorId === args.reviewerId
+    && item.status === "SUBMITTED",
+  );
+  if (submittedSupervisorEval) {
+    return buildOpinionPrefillFromSupervisorEval(
+      submittedSupervisorEval,
+      args.referenceStars,
+      args.ranges,
+    );
+  }
+
+  const submittedPeerReview = args.peerReviews.find((item) =>
+    item.revieweeId === args.employeeId
+    && item.reviewerId === args.reviewerId,
+  );
+  if (submittedPeerReview) {
+    return buildOpinionPrefillFromPeerReview(
+      submittedPeerReview,
+      args.referenceStars,
+      args.ranges,
+    );
+  }
+
+  return null;
+}
+
 function getWeightedScoreSpread(scores: Array<number | null | undefined>): number | null {
   const validScores = scores.filter((score): score is number => score != null);
   if (validScores.length < 2) return null;
@@ -452,6 +628,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       where: { cycleId: cycle.id, status: "SUBMITTED" },
       select: {
         revieweeId: true,
+        reviewerId: true,
         reviewer: { select: { name: true } },
         outputScore: true,
         outputComment: true,
@@ -647,17 +824,32 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     const scoreSpread = getWeightedScoreSpread(currentEvals.map((item) => item.weightedScore != null ? Number(item.weightedScore) : null));
     const opinionCards = employeeOpinionActorIds.map((reviewerId) => {
       const reviewer = usersById.get(reviewerId);
-      const opinion = employeeOpinions.find((item) => item.reviewerId === reviewerId);
-      const meta = pickOpinionStatusMeta(opinion?.decision || "PENDING", opinion?.suggestedStars ?? referenceStars);
+      const savedOpinion = employeeOpinions.find((item) => item.reviewerId === reviewerId);
+      const prefill = reviewerId === user.id && (!savedOpinion || savedOpinion.decision === "PENDING")
+        ? resolveEmployeeOpinionPrefill({
+          reviewerId,
+          employeeId: employee.id,
+          referenceStars,
+          ranges: config.referenceStarRanges,
+          supervisorEvals: allSupervisorEvals,
+          peerReviews,
+        })
+        : null;
+      const meta = pickOpinionStatusMeta(savedOpinion?.decision || "PENDING", savedOpinion?.suggestedStars ?? referenceStars);
       return {
         reviewerId,
         reviewerName: reviewer?.name || "未配置",
-        decision: opinion?.decision || "PENDING",
+        decision: savedOpinion?.decision || "PENDING",
         decisionLabel: meta.label,
-        suggestedStars: opinion?.suggestedStars ?? meta.suggestedStars,
-        reason: canViewOpinionDetails ? opinion?.reason || "" : "",
+        suggestedStars: savedOpinion?.suggestedStars ?? meta.suggestedStars,
+        reason: canViewOpinionDetails ? savedOpinion?.reason || "" : "",
         isMine: reviewerId === user.id,
-        updatedAt: opinion?.updatedAt?.toISOString() || null,
+        hasSavedOpinion: Boolean(savedOpinion && savedOpinion.decision !== "PENDING"),
+        prefillDecision: prefill?.decision || null,
+        prefillSuggestedStars: prefill?.suggestedStars ?? null,
+        prefillReason: reviewerId === user.id ? prefill?.reason || "" : "",
+        prefillSourceLabel: reviewerId === user.id ? prefill?.sourceLabel || null : null,
+        updatedAt: savedOpinion?.updatedAt?.toISOString() || null,
       };
     });
 

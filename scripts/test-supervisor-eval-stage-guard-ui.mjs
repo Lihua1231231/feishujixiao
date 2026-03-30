@@ -57,7 +57,7 @@ test("team page becomes read-only outside supervisor-eval stage", () => {
   const source = read("src/app/(main)/team/page.tsx");
 
   assert.equal(
-    source.includes("const isReadOnly = !!isSubmitted || (!teamMeta.canEdit && !preview);"),
+    source.includes("const isReadOnly = (Boolean(isSubmitted) && !canEditSubmitted) || (!teamMeta.canEdit && !preview);"),
     true,
     "team page should combine submit lock and cycle-stage lock into one read-only flag",
   );

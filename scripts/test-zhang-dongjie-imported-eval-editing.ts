@@ -8,7 +8,7 @@ import {
   SCREENSHOT_IMPORT_PREFIX,
   hasPendingImportedSupervisorEvalComments,
   isScreenshotImportedComment,
-} from "../src/lib/supervisor-eval-import";
+} from "../src/lib/supervisor-eval-import.ts";
 
 const WORKTREE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -5,7 +5,7 @@ import {
   buildCopyPlan,
   createPeerReviewPayloadFromSupervisorEval,
   createSupervisorEvalPayloadFromPeerReview,
-} from "./copy-lizelong-qiuxiang-evals";
+} from "./copy-lizelong-qiuxiang-evals.ts";
 
 test("copies supervisor eval into peer review payload", () => {
   const payload = createPeerReviewPayloadFromSupervisorEval(

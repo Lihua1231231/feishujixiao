@@ -15,6 +15,11 @@ export type EmployeeOpinion = {
   suggestedStars: number | null;
   reason: string;
   isMine: boolean;
+  hasSavedOpinion: boolean;
+  prefillDecision: "AGREE" | "OVERRIDE" | null;
+  prefillSuggestedStars: number | null;
+  prefillReason: string;
+  prefillSourceLabel: string | null;
   updatedAt: string | null;
 };
 

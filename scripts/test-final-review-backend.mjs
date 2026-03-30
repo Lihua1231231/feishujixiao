@@ -78,9 +78,9 @@ test("final review helper centralizes config parsing, access checks, and referen
     "workspace payload should select the real supervisor comment fields so the evidence panel can summarize them",
   );
   assert.equal(
-    source.includes("supervisorCommentSummary:"),
+    source.includes("initialReviewDetails: currentEvals.map((item) => ({"),
     true,
-    "workspace payload should include a concise supervisor comment summary for each employee",
+    "workspace payload should expose direct initial-review detail blocks for each current evaluator",
   );
   assert.equal(
     source.includes("if (officialStars != null && referenceStars != null && officialStars !== referenceStars)"),
@@ -145,14 +145,44 @@ test("final review helper keeps full supervisor summaries and normalizes self-ev
     "employee row types should carry the self-evaluation source URL for the evidence panel",
   );
   assert.equal(
-    source.includes('return truncateSummary(summaries.slice(0, 2).join(" / "));'),
-    false,
-    "supervisor comment summaries should keep the full text so the evidence panel can actually expand it",
+    detailPanel.includes("直属上级绩效初评明细") &&
+      detailPanel.includes("DimensionDetailCard") &&
+      detailPanel.includes("当前还没有可供查看的直属上级绩效初评明细。"),
+    true,
+    "employee evidence panel should show direct initial-review detail cards instead of the old truncated summary block",
+  );
+});
+
+test("final review workspace exposes same-person prior reviews as local prefills without overwriting saved opinions", () => {
+  const source = read("src/lib/final-review.ts");
+  const types = read("src/components/final-review/types.ts");
+
+  assert.equal(
+    source.includes("reviewerId: true"),
+    true,
+    "peer-review workspace query should include reviewer ids so same-person prior 360 reviews can prefill calibration drafts",
   );
   assert.equal(
-    detailPanel.includes("展开全文") && detailPanel.includes("收起全文"),
+    source.includes("function buildOpinionPrefillFromSupervisorEval(") &&
+      source.includes("function buildOpinionPrefillFromPeerReview(") &&
+      source.includes("function resolveEmployeeOpinionPrefill("),
     true,
-    "employee evidence panel should still expose inline expand and collapse controls for long supervisor summaries",
+    "final review helper should derive opinion prefills from prior supervisor or peer reviews",
+  );
+  assert.equal(
+    source.includes("reviewerId === user.id") &&
+      source.includes("(!savedOpinion || savedOpinion.decision === \"PENDING\")"),
+    true,
+    "prefills should only be generated for the current reviewer when no completed final-review opinion exists yet",
+  );
+  assert.equal(
+    types.includes("hasSavedOpinion: boolean;") &&
+      types.includes("prefillDecision: \"AGREE\" | \"OVERRIDE\" | null;") &&
+      types.includes("prefillSuggestedStars: number | null;") &&
+      types.includes("prefillReason: string;") &&
+      types.includes("prefillSourceLabel: string | null;"),
+    true,
+    "employee opinion rows should carry explicit prefill metadata so the UI can initialize a local draft without persisting it",
   );
 });
 
