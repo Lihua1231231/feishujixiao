@@ -69,7 +69,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
   const selectedDepartment = departments.find((item) => item.department === activeDepartmentKey) ?? null;
   const selectedDistribution = selectedDepartment?.distribution ?? allDepartmentDistribution;
   const selectedTotal = selectedDepartment?.total ?? totalEmployees;
-  const selectedScopeLabel = selectedDepartment?.department ?? "全公司";
+  const selectedScopeLabel = selectedDepartment?.department ?? "员工层名单";
 
   const selectedSummaries = useMemo(
     () =>
@@ -131,6 +131,10 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
         <CardTitle className="text-lg text-[var(--cockpit-foreground)]">按团队分布</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-[var(--cockpit-muted-foreground)]">点击卡片切换视角；可左右滑动查看全部部门</p>
+        </div>
+
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
           <button
             type="button"
@@ -144,7 +148,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                 : "min-w-[148px] rounded-[22px] border bg-white px-4 py-3 text-left text-[var(--cockpit-foreground)] shadow-none transition-colors hover:bg-[color:rgba(191,127,65,0.06)]"
             }
           >
-            <p className="text-sm font-semibold">全公司</p>
+            <p className="text-sm font-semibold">员工层名单</p>
             <p className={activeDepartmentKey === "all" ? "mt-1 text-xs text-white/80" : "mt-1 text-xs text-[var(--cockpit-muted-foreground)]"}>
               {totalEmployees} 人
             </p>

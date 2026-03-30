@@ -41,35 +41,6 @@ function areLeaderFormsEqual(left: LeaderForm, right: LeaderForm) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function describeDeadline(end: string) {
-  const diff = new Date(end).getTime() - Date.now();
-  if (diff <= 0) {
-    return "已过截止时间";
-  }
-
-  const totalMinutes = Math.floor(diff / (1000 * 60));
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-
-  return days > 0 ? `${days}天 ${hours}小时` : `${hours}小时 ${minutes}分钟`;
-}
-
-function buildDistributionSummary(overview: NonNullable<WorkspacePayload["overview"]>) {
-  const mismatches = overview.distributionComplianceChecks.filter((item) => !item.compliant);
-  if (mismatches.length === 0) return "当前分布基本符合建议区间";
-  if (mismatches.length <= 2) return mismatches.map((item) => item.summary).join(" · ");
-  return `${mismatches.slice(0, 2).map((item) => item.summary).join(" · ")} · 另有 ${mismatches.length - 2} 项偏离`;
-}
-
-function buildDimensionGapSummary(overview: NonNullable<WorkspacePayload["overview"]>) {
-  if (overview.initialDimensionChecks.missingCount === 0) {
-    return "初评维度已完整覆盖";
-  }
-
-  return `${overview.initialDimensionChecks.missingCount} 人初评维度待补齐`;
-}
-
 function buildLeaderFormSnapshot(leaders: LeaderRow[]): Record<string, LeaderForm> {
   const snapshot: Record<string, LeaderForm> = {};
 
@@ -297,11 +268,6 @@ function CalibrationContent() {
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
-            summaryStrip={{
-              deadline: describeDeadline(workspace.cycle.calibrationEnd),
-              distribution: buildDistributionSummary(workspace.overview),
-              dimensionGap: buildDimensionGapSummary(workspace.overview),
-            }}
             companyCount={workspace.employeeReview.overview.companyCount}
             initialEvalSubmissionRate={workspace.employeeReview.overview.initialEvalSubmissionRate}
             officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
@@ -314,7 +280,7 @@ function CalibrationContent() {
             onSelectEmployee={setSelectedEmployeeId}
             detailPanel={(
               <EmployeeDetailPanel
-                title="最终决策"
+                title="公司级绩效终评校准"
                 employee={selectedEmployee}
                 opinionForm={selectedEmployeeOpinionForm}
                 savingOpinion={selectedEmployee ? savingKey === `opinion:${selectedEmployee.id}` : false}

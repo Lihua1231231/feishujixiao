@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client";
-import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments.ts";
+import { buildSupervisorAssignmentMap } from "../src/lib/supervisor-assignments";
 
 export const EVALUATOR_NAME = "张东杰";
 
@@ -184,7 +184,7 @@ async function loadContext() {
     LIMIT 1
   `);
 
-  const cycle = cycleResult.rows[0] as
+  const cycle = cycleResult.rows[0] as unknown as
     | { id: string; name: string; status: string }
     | undefined;
 

@@ -49,6 +49,7 @@ export type EmployeeRow = {
     values: number | null;
     count: number;
     reviews: Array<{
+      reviewerName: string;
       performanceStars: number | null;
       performanceComment: string;
       abilityAverage: number | null;
@@ -71,7 +72,27 @@ export type EmployeeRow = {
       innovationComment: string;
     }>;
   } | null;
-  supervisorCommentSummary: string | null;
+  initialReviewDetails: Array<{
+    evaluatorId: string;
+    evaluatorName: string;
+    status: string;
+    weightedScore: number | null;
+    performanceStars: number | null;
+    performanceComment: string;
+    abilityStars: number | null;
+    abilityComment: string;
+    abilityBreakdown: Array<{
+      label: string;
+      stars: number | null;
+    }>;
+    valuesStars: number | null;
+    valuesComment: string;
+    valuesBreakdown: Array<{
+      label: string;
+      stars: number | null;
+      comment: string;
+    }>;
+  }>;
   handledCount: number;
   totalReviewerCount: number;
   summaryStats: {

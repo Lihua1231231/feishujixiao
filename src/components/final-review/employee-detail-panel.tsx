@@ -4,7 +4,6 @@ import { useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import type { EmployeeOpinion, EmployeeRow } from "./types";
 
 type EmployeeOpinionFormValue = {
@@ -22,25 +21,9 @@ export type EmployeeDetailPanelProps = {
   onSaveOpinion: () => void;
 };
 
-function formatTime(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
-
-function getDecisionTone(decision: string) {
-  if (decision === "AGREE") return "default";
-  if (decision === "OVERRIDE") return "destructive";
-  return "outline";
-}
-
 function renderStars(value: number | null, fallback: string) {
   if (value == null) return fallback;
   return `${value} 星`;
-}
-
-function renderOpinionSummary(opinion: EmployeeOpinion | null, pendingLabel: string) {
-  if (!opinion || opinion.decision === "PENDING") return pendingLabel;
-  return `${opinion.decisionLabel} · ${renderStars(opinion.suggestedStars, "—")}`;
 }
 
 function renderPeerDimension(label: string, score: number | null, comment: string) {
@@ -71,21 +54,141 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function OpinionCard({ opinion }: { opinion: EmployeeOpinion }) {
+function DimensionDetailCard({
+  label,
+  stars,
+  comment,
+  helper,
+}: {
+  label: string;
+  stars: number | null;
+  comment: string;
+  helper?: string;
+}) {
   return (
     <div className="rounded-2xl border px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-[var(--cockpit-foreground)]">{opinion.reviewerName}</p>
+          <p className="text-sm font-medium text-[var(--cockpit-foreground)]">{label}</p>
           <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-            建议星级：{renderStars(opinion.suggestedStars, "—")}
+            星级：{renderStars(stars, "—")}
           </p>
         </div>
-        <Badge variant={getDecisionTone(opinion.decision) as "default" | "destructive" | "outline"}>
-          {opinion.decisionLabel}
-        </Badge>
       </div>
-      <p className="mt-3 text-sm leading-6 text-[var(--cockpit-foreground)]">{opinion.reason || "当前还没有填写补充说明。"}</p>
+      {helper ? (
+        <p className="mt-2 text-xs leading-5 text-[var(--cockpit-muted-foreground)]">{helper}</p>
+      ) : null}
+      <p className="mt-3 text-sm leading-6 text-[var(--cockpit-foreground)]">{comment || "当前没有填写对应评语。"}</p>
+    </div>
+  );
+}
+
+function renderDecisionYesNo(opinion: EmployeeOpinion | null) {
+  if (!opinion || opinion.decision === "PENDING") return "尚未提交";
+  return opinion.decision === "AGREE" ? "是" : "否";
+}
+
+function renderDecisionStars(opinion: EmployeeOpinion | null, referenceStars: number | null) {
+  if (!opinion || opinion.decision === "PENDING") return "—";
+  return renderStars(opinion.decision === "AGREE" ? referenceStars : opinion.suggestedStars, "—");
+}
+
+function buildAbilityHelper(detail: EmployeeRow["initialReviewDetails"][number]) {
+  const items = detail.abilityBreakdown
+    .filter((item) => item.stars != null)
+    .map((item) => `${item.label} ${item.stars}星`);
+  return items.join(" · ");
+}
+
+function buildValuesHelper(detail: EmployeeRow["initialReviewDetails"][number]) {
+  const items = detail.valuesBreakdown
+    .filter((item) => item.stars != null)
+    .map((item) => `${item.label} ${item.stars}星`);
+  return items.join(" · ");
+}
+
+function CalibratorCard({
+  label,
+  opinion,
+  referenceStars,
+  editable,
+  form,
+  saving,
+  onChange,
+  onSave,
+}: {
+  label: string;
+  opinion: EmployeeOpinion | null;
+  referenceStars: number | null;
+  editable: boolean;
+  form: EmployeeOpinionFormValue | null;
+  saving: boolean;
+  onChange: (patch: Partial<EmployeeOpinionFormValue>) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border px-4 py-4">
+      <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{label}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <SummaryCard label="是否同意绩效初评" value={renderDecisionYesNo(opinion)} />
+        <SummaryCard label="校准等级" value={renderDecisionStars(opinion, referenceStars)} />
+      </div>
+
+      {editable && form ? (
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant={form.decision === "AGREE" ? "default" : "outline"}
+              onClick={() => onChange({ decision: "AGREE", suggestedStars: referenceStars })}
+            >
+              同意绩效初评
+            </Button>
+            <Button
+              type="button"
+              variant={form.decision === "OVERRIDE" ? "default" : "outline"}
+              onClick={() => onChange({ decision: "OVERRIDE" })}
+            >
+              改为其他星级
+            </Button>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((stars) => (
+              <Button
+                key={stars}
+                type="button"
+                variant={form.suggestedStars === stars ? "default" : "outline"}
+                disabled={form.decision !== "OVERRIDE"}
+                onClick={() => onChange({ suggestedStars: stars })}
+              >
+                {stars}星
+              </Button>
+            ))}
+          </div>
+
+          <Textarea
+            value={form.reason}
+            onChange={(event) => onChange({ reason: event.target.value })}
+            placeholder={form.decision === "OVERRIDE" ? "如果不同意初评，请填写校准理由" : "如有补充说明，可在此填写"}
+          />
+
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onChange({ decision: "PENDING", suggestedStars: referenceStars, reason: "" })}
+            >
+              重置为待处理
+            </Button>
+            <Button onClick={onSave} disabled={saving}>
+              {saving ? "保存中..." : "保存校准"}
+            </Button>
+          </div>
+        </div>
+      ) : opinion?.reason ? (
+        <p className="mt-3 text-sm leading-6 text-[var(--cockpit-foreground)]">{opinion.reason}</p>
+      ) : null}
     </div>
   );
 }
@@ -98,7 +201,6 @@ export function EmployeeDetailPanel({
   onOpinionChange,
   onSaveOpinion,
 }: EmployeeDetailPanelProps) {
-  const [expandedSupervisorCommentEmployeeId, setExpandedSupervisorCommentEmployeeId] = useState<string | null>(null);
   const [expandedPeerReviewEmployeeId, setExpandedPeerReviewEmployeeId] = useState<string | null>(null);
   const panelStyle: CSSProperties = {
     background: "var(--cockpit-surface)",
@@ -110,24 +212,14 @@ export function EmployeeDetailPanel({
     return (
       <aside className="sticky top-6">
         <section className="rounded-[28px] border border-dashed p-8 text-sm leading-7 text-[var(--cockpit-muted-foreground)]" style={panelStyle}>
-          从左侧重点名单或搜索员工名册里选中一位员工，右侧会先给你看决策摘要，再视权限展开过程信息。
+          从左侧重点名单或搜索结果里选中一位员工，右侧会直接展开公司级校准和直属上级初评明细。
         </section>
       </aside>
     );
   }
 
-  const myOpinion = employee.opinions.find((item) => item.isMine);
-  const expandedSupervisorComment = expandedSupervisorCommentEmployeeId === employee.id;
   const expandedPeerReview = expandedPeerReviewEmployeeId === employee.id;
-  const canExpandSupervisorComment = (employee.supervisorCommentSummary?.length || 0) > 120;
   const hasPeerReviewSummary = Boolean(employee.peerReviewSummary && employee.peerReviewSummary.count > 0);
-  const opinionSummaryText =
-    employee.opinionSummary.map((item) => `${item.label} ${item.count} 人`).join(" · ") || "当前还没有形成意见分布。";
-  const opinionDecisionOptions: Array<{ value: EmployeeOpinionFormValue["decision"]; label: string }> = [
-    { value: "PENDING", label: "待处理" },
-    { value: "AGREE", label: "同意参考星级" },
-    { value: "OVERRIDE", label: "改为其他星级" },
-  ];
   const chenglinOpinion = findOpinionByReviewerName(employee.opinions, "承霖");
   const qiuxiangOpinion = findOpinionByReviewerName(employee.opinions, "邱翔");
   const agreementSummary =
@@ -136,7 +228,8 @@ export function EmployeeDetailPanel({
       : employee.agreementState === "DISAGREED"
         ? "两人不一致"
         : "待两位完成";
-  const canShowNamedOpinions = employee.canSubmitOpinion;
+  const calibratorSummaryText =
+    employee.anomalyTags.length > 0 ? `当前风险信号：${employee.anomalyTags.join("、")}` : "当前没有额外风险信号。";
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -155,41 +248,48 @@ export function EmployeeDetailPanel({
           </Badge>
         </div>
 
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
-          <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{agreementSummary}</p>
-        </div>
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="rounded-2xl border px-4 py-4">
+            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前结论</p>
+            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{agreementSummary}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">{calibratorSummaryText}</p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <SummaryCard label="参考星级" value={renderStars(employee.referenceStars, "—")} />
-          <SummaryCard label="当前官方星级" value={renderStars(employee.officialStars, "待确认")} />
-          <SummaryCard
-            label="处理进度"
-            value={`已处理 ${employee.summaryStats.handledCount}/${employee.summaryStats.totalReviewerCount}`}
-          />
-          <SummaryCard label="校准状态" value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "有分歧" : "待两位完成"} />
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">承霖校准</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
-              {renderOpinionSummary(chenglinOpinion, employee.canSubmitOpinion ? "待处理" : "尚未提交")}
-            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <SummaryCard label="参考星级" value={renderStars(employee.referenceStars, "—")} />
+              <SummaryCard label="当前官方星级" value={renderStars(employee.officialStars, "待确认")} />
+              <SummaryCard
+                label="处理进度"
+                value={`已处理 ${employee.summaryStats.handledCount}/${employee.summaryStats.totalReviewerCount}`}
+              />
+              <SummaryCard
+                label="校准状态"
+                value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "两人不一致" : "待两位完成"}
+              />
+            </div>
           </div>
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">邱翔校准</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
-              {renderOpinionSummary(qiuxiangOpinion, employee.canSubmitOpinion ? "待处理" : "尚未提交")}
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">校准结论</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">
-            {employee.anomalyTags.length > 0 ? `当前风险信号：${employee.anomalyTags.join("、")}` : "当前没有额外风险信号。"}
-          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CalibratorCard
+              label="承霖校准"
+              opinion={chenglinOpinion}
+              referenceStars={employee.referenceStars}
+              editable={Boolean(employee.canSubmitOpinion && chenglinOpinion?.isMine)}
+              form={employee.canSubmitOpinion && chenglinOpinion?.isMine ? opinionForm : null}
+              saving={Boolean(employee.canSubmitOpinion && chenglinOpinion?.isMine && savingOpinion)}
+              onChange={onOpinionChange}
+              onSave={onSaveOpinion}
+            />
+            <CalibratorCard
+              label="邱翔校准"
+              opinion={qiuxiangOpinion}
+              referenceStars={employee.referenceStars}
+              editable={Boolean(employee.canSubmitOpinion && qiuxiangOpinion?.isMine)}
+              form={employee.canSubmitOpinion && qiuxiangOpinion?.isMine ? opinionForm : null}
+              saving={Boolean(employee.canSubmitOpinion && qiuxiangOpinion?.isMine && savingOpinion)}
+              onChange={onOpinionChange}
+              onSave={onSaveOpinion}
+            />
+          </div>
         </div>
 
         {employee.officialStars != null ? (
@@ -200,7 +300,7 @@ export function EmployeeDetailPanel({
       </section>
 
       <section className="rounded-[28px] border p-5" style={panelStyle}>
-        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">证据摘要</p>
+        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">直属上级绩效初评明细</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <SummaryCard label="初评加权分" value={employee.weightedScore?.toFixed(1) ?? "—"} />
           {hasPeerReviewSummary ? (
@@ -242,9 +342,9 @@ export function EmployeeDetailPanel({
           <div className="mt-4 rounded-2xl border px-4 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">匿名360详情</p>
+                <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">360反馈详情</p>
                 <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-                  已收到 {employee.peerReviewSummary.count} 份匿名反馈。这里只展开聚合均分和匿名评语，不展示评估人身份。
+                  已收到 {employee.peerReviewSummary.count} 份 360 反馈。终评界面按实名展示反馈人与对应评语。
                 </p>
               </div>
               <Button
@@ -289,13 +389,13 @@ export function EmployeeDetailPanel({
                 return (
                   <div key={`${employee.id}:peer:${index}`} className="rounded-2xl border px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cockpit-muted-foreground)]">
-                      匿名反馈 {index + 1}
+                      {review.reviewerName}
                     </p>
                     {dimensions.length > 0 ? (
                       <div className="mt-3 space-y-2">{dimensions}</div>
                     ) : (
                       <p className="mt-3 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-                        当前这份匿名反馈没有展开的评语内容，只保留了评分。
+                        当前这份 360 反馈没有展开的评语内容，只保留了评分。
                       </p>
                     )}
                   </div>
@@ -305,149 +405,46 @@ export function EmployeeDetailPanel({
           </div>
         ) : null}
         <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">参考说明</p>
+          <p className="text-xs text-[var(--cockpit-muted-foreground)]">初评加权方式</p>
           <p className="mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]">{employee.referenceSourceLabel}</p>
         </div>
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <p className="text-xs text-[var(--cockpit-muted-foreground)]">初评评语摘要</p>
-          <p
-            className={cn(
-              "mt-2 text-sm leading-6 text-[var(--cockpit-foreground)]",
-              !expandedSupervisorComment && "line-clamp-4",
-            )}
-          >
-            {employee.supervisorCommentSummary || "当前还没有可供参考的初评评语摘要。"}
-          </p>
-          {canExpandSupervisorComment ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="mt-2 h-auto px-0 text-sm text-[var(--cockpit-accent-strong)] hover:bg-transparent"
-              onClick={() =>
-                setExpandedSupervisorCommentEmployeeId((current) => (current === employee.id ? null : employee.id))
-              }
-            >
-              {expandedSupervisorComment ? "收起全文" : "展开全文"}
-            </Button>
-          ) : null}
-        </div>
-        <div className="mt-4 space-y-2">
-          {employee.currentEvaluatorStatuses.map((status) => (
-            <div key={status.evaluatorId} className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
-              <span className="text-[var(--cockpit-foreground)]">{status.evaluatorName}</span>
-              <span className="text-[var(--cockpit-muted-foreground)]">
-                {status.status} · 加权分 {status.weightedScore?.toFixed(1) ?? "—"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border p-5" style={panelStyle}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">双人校准状态</p>
-            <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{opinionSummaryText}</p>
-          </div>
-          {employee.anomalyTags.length > 0 ? <Badge variant="destructive">{employee.anomalyTags.join(" / ")}</Badge> : null}
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <SummaryCard label="已处理" value={`${employee.summaryStats.handledCount} 人`} />
-          <SummaryCard label="待处理" value={`${employee.summaryStats.pendingCount} 人`} />
-          <SummaryCard label="主张改星" value={`${employee.summaryStats.overrideCount} 人`} />
-        </div>
-
-        <div className="mt-4 rounded-2xl border px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">两位校准人</p>
-            <Badge variant={canShowNamedOpinions ? "secondary" : "outline"}>
-              {canShowNamedOpinions ? "已开放" : "只读摘要"}
-            </Badge>
-          </div>
-        </div>
-
-        {canShowNamedOpinions ? (
-          <div className="mt-4 space-y-3">
-            {employee.opinions.map((opinion) => (
-              <OpinionCard key={opinion.reviewerId} opinion={opinion} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-            已处理 {employee.summaryStats.handledCount}/{employee.summaryStats.totalReviewerCount}，其中改星 {employee.summaryStats.overrideCount} 人。
-          </div>
-        )}
-
-        {employee.canSubmitOpinion && myOpinion ? (
-          <div className="mt-4 space-y-3 rounded-2xl border border-primary/20 bg-primary/[0.03] p-4">
-            <div>
-              <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">我的校准动作</p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">承霖、邱翔分别独立校准；两位星级一致时，系统会自动形成官方结果。</p>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {opinionDecisionOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  variant={opinionForm?.decision === option.value ? "default" : "outline"}
-                  onClick={() => onOpinionChange({ decision: option.value })}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <Button
-                  key={stars}
-                  type="button"
-                  variant={opinionForm?.suggestedStars === stars ? "default" : "outline"}
-                  disabled={opinionForm?.decision === "PENDING"}
-                  onClick={() => onOpinionChange({ suggestedStars: stars })}
-                >
-                  {stars}星
-                </Button>
-              ))}
-            </div>
-
-            <Textarea
-              value={opinionForm?.reason || ""}
-              onChange={(event) => onOpinionChange({ reason: event.target.value })}
-              placeholder={opinionForm?.decision === "OVERRIDE" ? "更改为其他星级时请填写理由" : "如有补充说明，可在此填写"}
-            />
-            <Button onClick={onSaveOpinion} disabled={savingOpinion}>
-              {savingOpinion ? "保存中..." : "保存我的终评意见"}
-            </Button>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="rounded-[28px] border p-5" style={panelStyle}>
-        <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">过程留痕</p>
-        <div className="mt-4 space-y-3 text-sm">
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">系统生成说明</p>
-            <p className="mt-2 leading-6 text-[var(--cockpit-foreground)]">{employee.officialReason || "当前还没有形成自动结果说明。"}</p>
-          </div>
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">最后自动生成时间</p>
-            <p className="mt-2 text-[var(--cockpit-foreground)]">{formatTime(employee.officialConfirmedAt)}</p>
-          </div>
-          {canShowNamedOpinions ? (
-            <div className="space-y-2">
-              {employee.opinions.map((opinion) => (
-                <div key={`${opinion.reviewerId}:audit`} className="flex items-center justify-between rounded-2xl border px-4 py-3">
-                  <span className="text-[var(--cockpit-foreground)]">{opinion.reviewerName}</span>
-                  <span className="text-[var(--cockpit-muted-foreground)]">{formatTime(opinion.updatedAt)}</span>
+        <div className="mt-4 space-y-3">
+          {employee.initialReviewDetails.length > 0 ? (
+            employee.initialReviewDetails.map((detail) => (
+              <div key={detail.evaluatorId} className="rounded-2xl border px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">{detail.evaluatorName}</p>
+                    <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
+                      {detail.status} · 加权分 {detail.weightedScore?.toFixed(1) ?? "—"}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="mt-4 grid gap-3">
+                  <DimensionDetailCard
+                    label="业绩产出"
+                    stars={detail.performanceStars}
+                    comment={detail.performanceComment}
+                  />
+                  <DimensionDetailCard
+                    label="综合能力"
+                    stars={detail.abilityStars}
+                    helper={buildAbilityHelper(detail)}
+                    comment={detail.abilityComment}
+                  />
+                  <DimensionDetailCard
+                    label="价值观"
+                    stars={detail.valuesStars}
+                    helper={buildValuesHelper(detail)}
+                    comment={detail.valuesComment}
+                  />
+                </div>
+              </div>
+            ))
           ) : (
             <div className="rounded-2xl border border-dashed px-4 py-4 text-sm leading-6 text-[var(--cockpit-muted-foreground)]">
-              当前视图只显示处理汇总，不逐人展开每位校准人的留痕。
+              当前还没有可供查看的直属上级绩效初评明细。
             </div>
           )}
         </div>

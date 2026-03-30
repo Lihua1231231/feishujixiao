@@ -118,9 +118,12 @@ test("calibration page source includes employee-tab redesign tokens", () => {
     "employee calibration should stop using step-by-step tutorial titles",
   );
   assert.equal(
-    cockpit.includes("距离截止") && cockpit.includes("分布偏离") && cockpit.includes("初评缺口"),
+    !cockpit.includes("距离截止") &&
+      !cockpit.includes("分布偏离") &&
+      !cockpit.includes("初评缺口") &&
+      cockpit.includes("绩效校准进度"),
     true,
-    "employee tab should surface the former first-page content as a compact summary strip",
+    "employee tab should remove the old first-page cards and collapse the top area into direct working metrics",
   );
   assert.equal(
     roster.includes("绩效初评等级（加权）"),
@@ -273,27 +276,15 @@ test("leader detail panel keeps dual-review comparisons summary-only until the p
   );
 });
 
-test("employee detail panel collapses opinion process rows until the permission gate", () => {
+test("employee detail panel removes the old opinion process and audit-trail blocks", () => {
   const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
-  const processStart = detailPanel.indexOf('过程留痕');
-  const permissionGate = detailPanel.indexOf('canShowNamedOpinions ? (', processStart);
-  const opinionRows = detailPanel.indexOf('employee.opinions.map((opinion) => (', processStart);
-  const summarySlice = detailPanel.slice(processStart, permissionGate === -1 ? detailPanel.length : permissionGate);
 
   assert.equal(
-    permissionGate !== -1 && permissionGate < opinionRows,
+    !detailPanel.includes("双人校准状态") &&
+      !detailPanel.includes("过程留痕") &&
+      !detailPanel.includes("employee.opinions.map((opinion) => ("),
     true,
-    "employee detail panel should gate the opinion process timeline before any per-person rows appear",
-  );
-  assert.equal(
-    summarySlice.includes("opinion.reviewerName"),
-    false,
-    "employee detail panel should keep reviewer names out of the default process summary",
-  );
-  assert.equal(
-    summarySlice.includes("opinion.decisionLabel"),
-    false,
-    "employee detail panel should keep per-person decision labels out of the default process summary",
+    "employee detail panel should remove the old opinion timeline and audit trail sections entirely",
   );
 });
 
@@ -466,30 +457,23 @@ test("employee cockpit risk labels use review signals instead of generic bookkee
   );
 });
 
-test("employee evidence panel shows a concise supervisor comment summary", () => {
+test("employee evidence panel shows direct initial-review details plus named 360 feedback", () => {
   const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
   const types = read("src/components/final-review/types.ts");
   const payload = read("src/lib/final-review.ts");
 
   assert.equal(
-    types.includes("supervisorCommentSummary: string | null;"),
+    types.includes("initialReviewDetails: Array<{") &&
+      types.includes("abilityBreakdown: Array<{") &&
+      types.includes("valuesBreakdown: Array<{"),
     true,
-    "employee payload type should include the concise supervisor comment summary field",
+    "employee payload type should carry structured initial-review dimensions instead of a flattened summary string",
   );
   assert.equal(
-    detailPanel.includes("初评评语摘要"),
+    detailPanel.includes("直属上级绩效初评明细") &&
+      !detailPanel.includes("初评评语摘要"),
     true,
-    "employee evidence panel should display the supervisor comment summary label",
-  );
-  assert.equal(
-    detailPanel.includes("employee.supervisorCommentSummary"),
-    true,
-    "employee evidence panel should render the new supervisor comment summary field",
-  );
-  assert.equal(
-    detailPanel.includes("展开全文") && detailPanel.includes("收起全文") && detailPanel.includes("line-clamp-4"),
-    true,
-    "employee evidence panel should keep the supervisor summary collapsed by default and allow expanding it inline",
+    "employee evidence panel should use the direct initial-review detail section instead of the old summary label",
   );
   assert.equal(
     payload.includes("candidComment") &&
@@ -504,6 +488,7 @@ test("employee evidence panel shows a concise supervisor comment summary", () =>
       types.includes("performance: number | null;") &&
       types.includes("ability: number | null;") &&
       types.includes("values: number | null;") &&
+      types.includes("reviewerName: string;") &&
       types.includes("reviews: Array<{"),
     true,
     "employee payload type should include an expandable 360 summary model instead of just a flat average number",
@@ -511,10 +496,11 @@ test("employee evidence panel shows a concise supervisor comment summary", () =>
   assert.equal(
     detailPanel.includes("点击查看360详情") &&
       detailPanel.includes("收起360详情") &&
-      detailPanel.includes("匿名360详情") &&
+      detailPanel.includes("360反馈详情") &&
+      detailPanel.includes("review.reviewerName") &&
       detailPanel.includes("employee.peerReviewSummary"),
     true,
-    "employee evidence panel should let users click the 360 average card to expand anonymous 360 details inline",
+    "employee evidence panel should let users click the 360 average card to expand named 360 details inline for calibrators",
   );
 });
 
@@ -527,9 +513,51 @@ test("employee detail panel switches from third-person final confirmation to dua
     "employee detail panel should no longer render a separate final-confirm action block",
   );
   assert.equal(
-    detailPanel.includes("校准结论") && detailPanel.includes("两位校准人"),
+    detailPanel.includes("当前结论") &&
+      detailPanel.includes("承霖校准") &&
+      detailPanel.includes("邱翔校准") &&
+      detailPanel.includes("是否同意绩效初评"),
     true,
-    "employee detail panel should summarize whether the two company calibrators already agree on the same star result",
+    "employee detail panel should show the two company calibrators directly with agree-or-change guidance",
+  );
+});
+
+test("employee calibration page follows the latest redline simplification", () => {
+  const page = read("src/app/(main)/calibration/page.tsx");
+  const cockpit = read("src/components/final-review/employee-cockpit.tsx");
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+  const board = read("src/components/final-review/department-distribution-board.tsx");
+
+  assert.equal(
+    page.includes('title="公司级绩效终评校准"') &&
+      !cockpit.includes("距离截止") &&
+      !cockpit.includes("分布偏离") &&
+      !cockpit.includes("初评缺口") &&
+      cockpit.includes("绩效校准进度") &&
+      cockpit.includes("双人已一致") &&
+      cockpit.includes("待双人一致"),
+    true,
+    "employee calibration should remove the extra top summary cards and replace them with one compact dual-calibration progress card",
+  );
+
+  assert.equal(
+    cockpit.includes("绩效初评等级（加权）") &&
+      board.includes("可左右滑动查看全部部门") &&
+      board.includes("员工层名单"),
+    true,
+    "employee roster results should show weighted initial stars and the department rail should clarify the horizontal swipe behavior",
+  );
+
+  assert.equal(
+    detailPanel.includes("直属上级绩效初评明细") &&
+      detailPanel.includes("初评加权方式") &&
+      detailPanel.includes("是否同意绩效初评") &&
+      !detailPanel.includes("双人校准状态") &&
+      !detailPanel.includes("过程留痕") &&
+      !detailPanel.includes("参考说明") &&
+      !detailPanel.includes("初评评语摘要"),
+    true,
+    "employee detail should switch from generic summaries and audit blocks to direct initial-review detail plus two explicit calibrator boxes",
   );
 });
 
@@ -553,7 +581,7 @@ test("department distribution board uses department cards to switch one clean ch
 
   assert.equal(
     board.includes('useState<"all" | string>("all")') &&
-      board.includes("全公司") &&
+      board.includes("员工层名单") &&
       board.includes("setActiveDepartmentKey") &&
       board.includes("selectedDepartment") &&
       board.includes("polyline") &&
@@ -743,7 +771,8 @@ test("ordinary employee opinion panel only gives named slots and write actions t
     "employee opinion totals should track only the named finalizers who are allowed to participate",
   );
   assert.equal(
-    detail.includes("employee.canSubmitOpinion && myOpinion ? ("),
+    detail.includes("editable={Boolean(employee.canSubmitOpinion && chenglinOpinion?.isMine)}") &&
+      detail.includes("editable={Boolean(employee.canSubmitOpinion && qiuxiangOpinion?.isMine)}"),
     true,
     "employee detail panel should only render the write-action card for users who are allowed to participate in named employee opinions",
   );

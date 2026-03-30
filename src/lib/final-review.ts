@@ -241,34 +241,26 @@ function formatSelfEvalStatus(selfEval: { status: string; importedAt: Date | nul
   return selfEval.status;
 }
 
-function buildSupervisorCommentSummary(evaluations: Array<{
-  evaluator: { name: string };
-  performanceComment: string;
-  abilityComment: string;
+function buildValuesReviewComment(evaluation: {
+  valuesComment: string;
   candidComment: string;
   progressComment: string;
   altruismComment: string;
   rootComment: string;
-}>): string | null {
-  const summaries = evaluations.flatMap((evaluation) => {
-    const comment = [
-      ["业绩", normalizeSummaryText(evaluation.performanceComment)],
-      ["能力", normalizeSummaryText(evaluation.abilityComment)],
-      ["坦诚真实", normalizeSummaryText(evaluation.candidComment)],
-      ["极致进取", normalizeSummaryText(evaluation.progressComment)],
-      ["成就利他", normalizeSummaryText(evaluation.altruismComment)],
-      ["ROOT", normalizeSummaryText(evaluation.rootComment)],
-    ]
-      .flatMap(([label, value]) => (value ? [`${label}：${value}`] : []))
-      .filter((value): value is string => Boolean(value))
-      .join("；");
+}) {
+  const direct = normalizeSummaryText(evaluation.valuesComment);
+  if (direct) return direct;
 
-    if (!comment) return [];
-    return [`${evaluation.evaluator.name}：${comment}`];
-  });
+  const parts = [
+    ["坦诚真实", normalizeSummaryText(evaluation.candidComment)],
+    ["极致进取", normalizeSummaryText(evaluation.progressComment)],
+    ["成就利他", normalizeSummaryText(evaluation.altruismComment)],
+    ["ROOT", normalizeSummaryText(evaluation.rootComment)],
+  ]
+    .flatMap(([label, value]) => (value ? [`${label}：${value}`] : []))
+    .filter((value): value is string => Boolean(value));
 
-  if (!summaries.length) return null;
-  return summaries.join(" / ");
+  return parts.join("；");
 }
 
 function getWeightedScoreSpread(scores: Array<number | null | undefined>): number | null {
@@ -432,13 +424,20 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         weightedScore: true,
         status: true,
         abilityStars: true,
+        comprehensiveStars: true,
+        learningStars: true,
+        adaptabilityStars: true,
         valuesStars: true,
         performanceComment: true,
         abilityComment: true,
         valuesComment: true,
+        candidStars: true,
         candidComment: true,
+        progressStars: true,
         progressComment: true,
+        altruismStars: true,
         altruismComment: true,
+        rootStars: true,
         rootComment: true,
         evaluator: { select: { id: true, name: true } },
       },
@@ -451,6 +450,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       where: { cycleId: cycle.id, status: "SUBMITTED" },
       select: {
         revieweeId: true,
+        reviewer: { select: { name: true } },
         outputScore: true,
         outputComment: true,
         collaborationScore: true,
@@ -538,6 +538,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     values: number | null;
     count: number;
     reviews: Array<{
+      reviewerName: string;
       performanceStars: number | null;
       performanceComment: string;
       abilityAverage: number | null;
@@ -579,6 +580,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       values: categorySummary.values,
       count: reviews.length,
       reviews: reviews.map((review) => ({
+        reviewerName: review.reviewer?.name || "未配置",
         performanceStars: getPeerReviewPerformanceAverage(review),
         performanceComment: review.performanceComment || review.outputComment || "",
         abilityAverage: getPeerReviewAbilityAverage(review),
@@ -638,7 +640,6 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     const overrideOpinionCount = employeeOpinions.filter((item) => item.decision === "OVERRIDE").length;
     const pendingOpinionCount = consensus.pendingCount;
     const scoreSpread = getWeightedScoreSpread(currentEvals.map((item) => item.weightedScore != null ? Number(item.weightedScore) : null));
-    const supervisorCommentSummary = buildSupervisorCommentSummary(currentEvals);
     const opinionCards = employeeOpinionActorIds.map((reviewerId) => {
       const reviewer = usersById.get(reviewerId);
       const opinion = employeeOpinions.find((item) => item.reviewerId === reviewerId);
@@ -673,7 +674,8 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       jobTitle: employee.jobTitle,
       weightedScore,
       referenceStars,
-      referenceSourceLabel: "参考星级由初评加权分换算",
+      referenceSourceLabel:
+        "加权总分 = 业绩产出×50% + 个人能力均分（综合能力/学习能力/适应能力）×30% + 价值观均分（坦诚真实/极致进取/成就利他/ROOT）×20%，再按区间换算参考星级。",
       officialStars,
       officialReason,
       officialConfirmedAt: officialStars != null && latestConfirmation?.officialStars === officialStars
@@ -693,7 +695,45 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       selfEvalSourceUrl: selfEvalMap.get(employee.id)?.sourceUrl || null,
       peerAverage: peerReviewAverageByEmployee.get(employee.id) ?? null,
       peerReviewSummary: peerReviewSummaryByEmployee.get(employee.id) ?? null,
-      supervisorCommentSummary: supervisorCommentSummary,
+      initialReviewDetails: currentEvals.map((item) => ({
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.name,
+        status: item.status,
+        weightedScore: item.weightedScore != null ? Number(item.weightedScore) : null,
+        performanceStars: item.performanceStars ?? null,
+        performanceComment: item.performanceComment || "",
+        abilityStars: item.abilityStars ?? null,
+        abilityComment: item.abilityComment || "",
+        abilityBreakdown: [
+          { label: "综合能力", stars: item.comprehensiveStars ?? null },
+          { label: "学习能力", stars: item.learningStars ?? null },
+          { label: "适应能力", stars: item.adaptabilityStars ?? null },
+        ],
+        valuesStars: item.valuesStars ?? null,
+        valuesComment: buildValuesReviewComment(item),
+        valuesBreakdown: [
+          {
+            label: "坦诚真实",
+            stars: item.candidStars ?? null,
+            comment: item.candidComment || "",
+          },
+          {
+            label: "极致进取",
+            stars: item.progressStars ?? null,
+            comment: item.progressComment || "",
+          },
+          {
+            label: "成就利他",
+            stars: item.altruismStars ?? null,
+            comment: item.altruismComment || "",
+          },
+          {
+            label: "ROOT",
+            stars: item.rootStars ?? null,
+            comment: item.rootComment || "",
+          },
+        ],
+      })),
       handledCount,
       totalReviewerCount: employeeOpinionActorIds.length,
       summaryStats: {

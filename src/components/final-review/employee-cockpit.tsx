@@ -10,11 +10,6 @@ import type { DistributionEntry, EmployeeRow } from "./types";
 import { buildEmployeeQueueGroups } from "./workspace-view";
 
 type EmployeeCockpitProps = {
-  summaryStrip: {
-    deadline: string;
-    distribution: string;
-    dimensionGap: string;
-  };
   companyCount: number;
   initialEvalSubmissionRate: number;
   officialCompletionRate: number;
@@ -42,7 +37,6 @@ type EmployeeCockpitProps = {
 };
 
 export function EmployeeCockpit({
-  summaryStrip,
   companyCount,
   initialEvalSubmissionRate,
   officialCompletionRate,
@@ -104,7 +98,7 @@ export function EmployeeCockpit({
     id: employee.id,
     name: employee.name,
     meta: `${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-    detail: employee.referenceStars != null ? `${employee.referenceStars}星` : "—",
+    detail: `绩效初评等级（加权） ${employee.referenceStars != null ? `${employee.referenceStars}星` : "—"}`,
     status: employee.summaryStats.disagreementCount > 0 ? "两人不一致" : employee.officialStars == null ? "待双人校准" : "已形成结果",
     tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary",
   }));
@@ -113,29 +107,14 @@ export function EmployeeCockpit({
       ? "优先处理承霖、邱翔还没有都完成校准的人。"
       : activeQueueKey === "disagreement"
         ? "先看两位校准人当前结论不一致的人。"
-        : "需要回看时，可以直接从全部员工里搜索定位。";
+      : "需要回看时，可以直接搜索定位。";
 
   return (
     <div className="space-y-5">
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
-        <div className="grid gap-3 lg:grid-cols-3">
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">距离截止</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{summaryStrip.deadline}</p>
-          </div>
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">分布偏离</p>
-            <p className="mt-2 text-sm font-medium leading-6 text-[var(--cockpit-foreground)]">{summaryStrip.distribution}</p>
-          </div>
-          <div className="rounded-2xl border px-4 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">初评缺口</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{summaryStrip.dimensionGap}</p>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.2fr)]">
               <div className="rounded-2xl border px-4 py-3">
                 <p className="text-xs text-[var(--cockpit-muted-foreground)]">公司当前绩效分布全览</p>
                 <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{companyCount} 人</p>
@@ -145,12 +124,17 @@ export function EmployeeCockpit({
                 <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{initialEvalSubmissionRate}%</p>
               </div>
               <div className="rounded-2xl border px-4 py-3">
-                <p className="text-xs text-[var(--cockpit-muted-foreground)]">已形成结果</p>
-                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{officialCompletionRate}%</p>
-              </div>
-              <div className="rounded-2xl border px-4 py-3">
-                <p className="text-xs text-[var(--cockpit-muted-foreground)]">待双人一致</p>
-                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingOfficialCount} 人</p>
+                <p className="text-xs text-[var(--cockpit-muted-foreground)]">绩效校准进度</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-[var(--cockpit-muted-foreground)]">双人已一致</p>
+                    <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{officialCompletionRate}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--cockpit-muted-foreground)]">待双人一致</p>
+                    <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{pendingOfficialCount} 人</p>
+                  </div>
+                </div>
               </div>
             </div>
 
