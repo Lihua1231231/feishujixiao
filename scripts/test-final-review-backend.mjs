@@ -91,6 +91,7 @@ test("final review helper centralizes config parsing, access checks, and referen
 
 test("final review helper keeps full supervisor summaries and normalizes self-eval status labels", () => {
   const source = read("src/lib/final-review.ts");
+  const supervisorRoute = read("src/app/api/supervisor-eval/route.ts");
   const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
   const types = read("src/components/final-review/types.ts");
 
@@ -115,6 +116,19 @@ test("final review helper keeps full supervisor summaries and normalizes self-ev
     source.includes("selfEvalSourceUrl: selfEvalMap.get(employee.id)?.sourceUrl || null"),
     true,
     "employee payload should expose the self-evaluation source URL when it exists",
+  );
+  assert.equal(
+    source.includes("computePeerReviewAverageFromReviews(reviews)"),
+    true,
+    "final review should compute 360 averages from the unified peer-review summary helper instead of the legacy three fields",
+  );
+  assert.equal(
+    supervisorRoute.includes("buildPeerReviewCategorySummary(reviews)") &&
+      supervisorRoute.includes("getPeerReviewPerformanceAverage(review)") &&
+      supervisorRoute.includes("getPeerReviewAbilityAverage(review)") &&
+      supervisorRoute.includes("getPeerReviewValuesAverage(review)"),
+    true,
+    "supervisor evaluation should also read the new peer-review dimensions through the shared summary helper",
   );
   assert.equal(
     types.includes("selfEvalSourceUrl: string | null;"),

@@ -8,12 +8,10 @@ const rootDir = path.resolve(import.meta.dirname, "..");
 
 function runWeighted(expression) {
   const output = execFileSync(
-    "node",
+    "npx",
     [
-      "--no-warnings",
-      "--experimental-strip-types",
-      "--input-type=module",
-      "-e",
+      "tsx",
+      "--eval",
       `
         import {
           computeAbilityAverage,

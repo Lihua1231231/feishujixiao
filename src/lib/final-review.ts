@@ -10,6 +10,7 @@ import {
   resolveEmployeeConsensus,
   resolveLeaderFinalDecision,
 } from "@/lib/final-review-logic";
+import { computePeerReviewAverageFromReviews } from "@/lib/peer-review-summary";
 import { getActiveCycle, type SessionUser } from "@/lib/session";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
 import { computeWeightedScore } from "@/lib/weighted-score";
@@ -447,6 +448,14 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         outputScore: true,
         collaborationScore: true,
         valuesScore: true,
+        performanceStars: true,
+        comprehensiveStars: true,
+        learningStars: true,
+        adaptabilityStars: true,
+        candidStars: true,
+        progressStars: true,
+        altruismStars: true,
+        rootStars: true,
       },
     }),
     prisma.finalReviewOpinion.findMany({
@@ -510,8 +519,10 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     peerReviewGroups.set(review.revieweeId, current);
   }
   for (const [employeeId, reviews] of peerReviewGroups.entries()) {
-    const total = reviews.reduce((sum, review) => sum + (review.outputScore || 0) + (review.collaborationScore || 0) + (review.valuesScore || 0), 0);
-    peerReviewAverageByEmployee.set(employeeId, roundToOneDecimal(total / (reviews.length * 3)) || 0);
+    const average = computePeerReviewAverageFromReviews(reviews);
+    if (average != null) {
+      peerReviewAverageByEmployee.set(employeeId, average);
+    }
   }
 
   const leaderSubjectIds = new Set(config.leaderSubjectUserIds);

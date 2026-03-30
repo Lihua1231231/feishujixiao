@@ -674,12 +674,12 @@ test("department distribution board keeps names out of bars and moves them into 
 
   assert.equal(
     board.includes("activeStar") &&
-      board.includes("setActiveStar") &&
+      board.includes("setActiveStarOverride") &&
       board.includes("当前查看") &&
       board.includes("点击柱子切换名单") &&
       board.includes("selectedBucket") &&
       board.includes("selectedBucket.names") &&
-      board.includes("onClick={() => setActiveStar(item.stars)}") &&
+      board.includes("onClick={() => setActiveStarOverride(item.stars)}") &&
       !board.includes("compactNames(item.names)") &&
       !board.includes("line-clamp-3"),
     true,

@@ -7,12 +7,10 @@ const rootDir = path.resolve(import.meta.dirname, "..");
 
 function runLogic(expression) {
   const output = execFileSync(
-    "node",
+    "npx",
     [
-      "--no-warnings",
-      "--experimental-strip-types",
-      "--input-type=module",
-      "-e",
+      "tsx",
+      "--eval",
       `
         import {
           buildInitialDimensionChecks,

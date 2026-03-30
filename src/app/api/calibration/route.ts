@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser, getActiveCycle } from "@/lib/session";
 import { validateStars } from "@/lib/validate";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
+import { computePeerReviewAverageFromReviews } from "@/lib/peer-review-summary";
 
 // Get all calibration data
 export async function GET() {
@@ -72,9 +73,8 @@ export async function GET() {
           where: { cycleId: cycle.id, revieweeId: u.id, status: "SUBMITTED" },
         });
 
-        const peerAvg = peerReviews.length > 0
-          ? (peerReviews.reduce((s, r) => s + (r.outputScore || 0) + (r.collaborationScore || 0) + (r.valuesScore || 0), 0) / (peerReviews.length * 3)).toFixed(1)
-          : null;
+        const peerAverage = computePeerReviewAverageFromReviews(peerReviews);
+        const peerAvg = peerAverage != null ? peerAverage.toFixed(1) : null;
         const assignment = assignments.get(u.id);
         const supervisorEvals = (supervisorEvalsByEmployeeId.get(u.id) || []).map((item) => ({
           evaluatorName: item.evaluator.name,

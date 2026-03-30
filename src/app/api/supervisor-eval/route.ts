@@ -4,6 +4,12 @@ import { getSessionUser, getActiveCycle } from "@/lib/session";
 import { sanitizeText, validateStars } from "@/lib/validate";
 import { buildSupervisorAssignmentMap, isEvalListUser } from "@/lib/supervisor-assignments";
 import {
+  buildPeerReviewCategorySummary,
+  getPeerReviewAbilityAverage,
+  getPeerReviewPerformanceAverage,
+  getPeerReviewValuesAverage,
+} from "@/lib/peer-review-summary";
+import {
   computeRoundedAbilityStars,
   computeRoundedValuesStars,
   computeWeightedScoreFromDimensions,
@@ -85,10 +91,30 @@ export async function GET() {
         where: { cycleId: cycle.id, revieweeId: { in: relevantEmployeeIds }, status: "SUBMITTED" },
         select: {
           revieweeId: true,
-          outputScore: true, outputComment: true,
-          collaborationScore: true, collaborationComment: true,
-          valuesScore: true, valuesComment: true,
-          innovationScore: true, innovationComment: true,
+          outputScore: true,
+          outputComment: true,
+          collaborationScore: true,
+          collaborationComment: true,
+          valuesScore: true,
+          valuesComment: true,
+          innovationScore: true,
+          innovationComment: true,
+          performanceStars: true,
+          performanceComment: true,
+          comprehensiveStars: true,
+          comprehensiveComment: true,
+          learningStars: true,
+          learningComment: true,
+          adaptabilityStars: true,
+          adaptabilityComment: true,
+          candidStars: true,
+          candidComment: true,
+          progressStars: true,
+          progressComment: true,
+          altruismStars: true,
+          altruismComment: true,
+          rootStars: true,
+          rootComment: true,
         },
       }),
       prisma.reviewerNomination.findMany({
@@ -123,13 +149,40 @@ export async function GET() {
         const reviews = peerReviewsByEmployeeId.get(employeeId) || [];
         const isLegacyRecord = !assignment.currentEvaluatorIds.includes(user.id) && Boolean(myEval);
 
+        const categorySummary = buildPeerReviewCategorySummary(reviews);
         const avgPeer = {
-          output: reviews.length > 0 ? reviews.reduce((sum, review) => sum + (review.outputScore || 0), 0) / reviews.length : 0,
-          collaboration: reviews.length > 0 ? reviews.reduce((sum, review) => sum + (review.collaborationScore || 0), 0) / reviews.length : 0,
-          values: reviews.length > 0 ? reviews.reduce((sum, review) => sum + (review.valuesScore || 0), 0) / reviews.length : 0,
+          performance: categorySummary.performance ?? 0,
+          ability: categorySummary.ability ?? 0,
+          values: categorySummary.values ?? 0,
+          overall: categorySummary.overall ?? 0,
           count: reviews.length,
           expectedCount: expectedCountByEmployeeId.get(employeeId) || 0,
-          reviews,
+          reviews: reviews.map((review) => ({
+            performanceStars: getPeerReviewPerformanceAverage(review),
+            performanceComment: review.performanceComment || review.outputComment || "",
+            abilityAverage: getPeerReviewAbilityAverage(review),
+            comprehensiveStars: review.comprehensiveStars ?? null,
+            comprehensiveComment: review.comprehensiveComment || "",
+            learningStars: review.learningStars ?? null,
+            learningComment: review.learningComment || "",
+            adaptabilityStars: review.adaptabilityStars ?? null,
+            adaptabilityComment: review.adaptabilityComment || "",
+            legacyCollaborationScore: review.collaborationScore ?? null,
+            legacyCollaborationComment: review.collaborationComment || "",
+            valuesAverage: getPeerReviewValuesAverage(review),
+            candidStars: review.candidStars ?? null,
+            candidComment: review.candidComment || "",
+            progressStars: review.progressStars ?? null,
+            progressComment: review.progressComment || "",
+            altruismStars: review.altruismStars ?? null,
+            altruismComment: review.altruismComment || "",
+            rootStars: review.rootStars ?? null,
+            rootComment: review.rootComment || "",
+            legacyValuesScore: review.valuesScore ?? null,
+            legacyValuesComment: review.valuesComment || "",
+            innovationScore: review.innovationScore ?? null,
+            innovationComment: review.innovationComment || "",
+          })),
         };
 
         return {

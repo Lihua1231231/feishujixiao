@@ -47,15 +47,25 @@ type TeamEval = {
     sourceUrl?: string;
   } | null;
   peerReviewSummary: {
-    output: number;
-    collaboration: number;
+    performance: number;
+    ability: number;
     values: number;
+    overall: number;
     count: number;
     expectedCount: number;
     reviews: Array<{
-      outputScore: number | null; outputComment: string;
-      collaborationScore: number | null; collaborationComment: string;
-      valuesScore: number | null; valuesComment: string;
+      performanceStars: number | null; performanceComment: string;
+      abilityAverage: number | null;
+      comprehensiveStars: number | null; comprehensiveComment: string;
+      learningStars: number | null; learningComment: string;
+      adaptabilityStars: number | null; adaptabilityComment: string;
+      legacyCollaborationScore: number | null; legacyCollaborationComment: string;
+      valuesAverage: number | null;
+      candidStars: number | null; candidComment: string;
+      progressStars: number | null; progressComment: string;
+      altruismStars: number | null; altruismComment: string;
+      rootStars: number | null; rootComment: string;
+      legacyValuesScore: number | null; legacyValuesComment: string;
       innovationScore: number | null; innovationComment: string;
     }>;
   } | null;
@@ -165,6 +175,16 @@ function initFormData(ev: any): FormData {
     rootStars: ev?.rootStars || null,
     rootComment: ev?.rootComment || "",
   };
+}
+
+function renderPeerDimension(label: string, score: number | null, comment: string) {
+  if (score == null || !comment) return null;
+  return (
+    <div>
+      <span className="text-xs text-muted-foreground">{label} ({score}分)：</span>
+      <span>{comment}</span>
+    </div>
+  );
 }
 
 function TeamContent() {
@@ -456,12 +476,12 @@ function TeamContent() {
                         <CardContent className="space-y-4">
                           <div className="grid grid-cols-3 gap-4 text-center">
                             <div>
-                              <p className="text-2xl font-bold">{selectedEval.peerReviewSummary.output.toFixed(1)}</p>
+                              <p className="text-2xl font-bold">{selectedEval.peerReviewSummary.performance.toFixed(1)}</p>
                               <p className="text-xs text-gray-500">业绩产出</p>
                             </div>
                             <div>
-                              <p className="text-2xl font-bold">{selectedEval.peerReviewSummary.collaboration.toFixed(1)}</p>
-                              <p className="text-xs text-gray-500">协作配合</p>
+                              <p className="text-2xl font-bold">{selectedEval.peerReviewSummary.ability.toFixed(1)}</p>
+                              <p className="text-xs text-gray-500">个人能力</p>
                             </div>
                             <div>
                               <p className="text-2xl font-bold">{selectedEval.peerReviewSummary.values.toFixed(1)}</p>
@@ -475,24 +495,20 @@ function TeamContent() {
                               {selectedEval.peerReviewSummary.reviews.map((r, i) => (
                                 <div key={i} className="rounded-lg border border-border/60 p-3 space-y-2 text-sm">
                                   <p className="text-xs font-semibold text-muted-foreground">评估人 {i + 1}</p>
-                                  {r.outputComment && (
-                                    <div>
-                                      <span className="text-xs text-muted-foreground">业绩产出 ({r.outputScore}分)：</span>
-                                      <span>{r.outputComment}</span>
-                                    </div>
-                                  )}
-                                  {r.collaborationComment && (
-                                    <div>
-                                      <span className="text-xs text-muted-foreground">协作配合 ({r.collaborationScore}分)：</span>
-                                      <span>{r.collaborationComment}</span>
-                                    </div>
-                                  )}
-                                  {r.valuesComment && (
-                                    <div>
-                                      <span className="text-xs text-muted-foreground">价值观 ({r.valuesScore}分)：</span>
-                                      <span>{r.valuesComment}</span>
-                                    </div>
-                                  )}
+                                  {renderPeerDimension("业绩产出", r.performanceStars, r.performanceComment)}
+                                  {renderPeerDimension("综合能力", r.comprehensiveStars, r.comprehensiveComment)}
+                                  {renderPeerDimension("学习能力", r.learningStars, r.learningComment)}
+                                  {renderPeerDimension("适应能力", r.adaptabilityStars, r.adaptabilityComment)}
+                                  {!r.comprehensiveComment && !r.learningComment && !r.adaptabilityComment
+                                    ? renderPeerDimension("个人能力", r.abilityAverage, r.legacyCollaborationComment)
+                                    : null}
+                                  {renderPeerDimension("坦诚真实", r.candidStars, r.candidComment)}
+                                  {renderPeerDimension("极致进取", r.progressStars, r.progressComment)}
+                                  {renderPeerDimension("成就利他", r.altruismStars, r.altruismComment)}
+                                  {renderPeerDimension("ROOT", r.rootStars, r.rootComment)}
+                                  {!r.candidComment && !r.progressComment && !r.altruismComment && !r.rootComment
+                                    ? renderPeerDimension("价值观", r.valuesAverage, r.legacyValuesComment)
+                                    : null}
                                   {r.innovationComment && (
                                     <div>
                                       <span className="text-xs text-muted-foreground">其他 ({r.innovationScore}分)：</span>
