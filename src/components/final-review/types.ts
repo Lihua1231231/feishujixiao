@@ -40,6 +40,7 @@ export type EmployeeRow = {
     weightedScore: number | null;
   }>;
   selfEvalStatus: string | null;
+  selfEvalSourceUrl: string | null;
   peerAverage: number | null;
   supervisorCommentSummary: string | null;
   handledCount: number;

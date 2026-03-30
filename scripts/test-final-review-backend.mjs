@@ -92,6 +92,7 @@ test("final review helper centralizes config parsing, access checks, and referen
 test("final review helper keeps full supervisor summaries and normalizes self-eval status labels", () => {
   const source = read("src/lib/final-review.ts");
   const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+  const types = read("src/components/final-review/types.ts");
 
   assert.equal(
     source.includes("function formatSelfEvalStatus("),
@@ -109,6 +110,16 @@ test("final review helper keeps full supervisor summaries and normalizes self-ev
     source.includes("selfEvalStatus: formatSelfEvalStatus(selfEvalMap.get(employee.id) ?? null)"),
     true,
     "employee payload should use the normalized self-eval status helper",
+  );
+  assert.equal(
+    source.includes("selfEvalSourceUrl: selfEvalMap.get(employee.id)?.sourceUrl || null"),
+    true,
+    "employee payload should expose the self-evaluation source URL when it exists",
+  );
+  assert.equal(
+    types.includes("selfEvalSourceUrl: string | null;"),
+    true,
+    "employee row types should carry the self-evaluation source URL for the evidence panel",
   );
   assert.equal(
     source.includes('return truncateSummary(summaries.slice(0, 2).join(" / "));'),

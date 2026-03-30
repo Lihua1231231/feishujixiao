@@ -438,7 +438,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     }),
     prisma.selfEvaluation.findMany({
       where: { cycleId: cycle.id },
-      select: { userId: true, status: true, importedAt: true },
+      select: { userId: true, status: true, importedAt: true, sourceUrl: true },
     }),
     prisma.peerReview.findMany({
       where: { cycleId: cycle.id, status: "SUBMITTED" },
@@ -601,6 +601,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         weightedScore: item.weightedScore != null ? Number(item.weightedScore) : null,
       })),
       selfEvalStatus: formatSelfEvalStatus(selfEvalMap.get(employee.id) ?? null),
+      selfEvalSourceUrl: selfEvalMap.get(employee.id)?.sourceUrl || null,
       peerAverage: peerReviewAverageByEmployee.get(employee.id) ?? null,
       supervisorCommentSummary: supervisorCommentSummary,
       handledCount,

@@ -366,6 +366,23 @@ test("employee detail panel collapses opinion process rows until the permission 
   );
 });
 
+test("employee evidence panel turns imported self-eval status into a direct jump link when a source URL exists", () => {
+  const detailPanel = read("src/components/final-review/employee-detail-panel.tsx");
+
+  assert.equal(
+    detailPanel.includes("employee.selfEvalSourceUrl") &&
+      detailPanel.includes("查看自评"),
+    true,
+    "employee detail panel should render a direct self-evaluation jump action when the source URL exists",
+  );
+  assert.equal(
+    detailPanel.includes('target="_blank"') &&
+      detailPanel.includes('rel="noreferrer"'),
+    true,
+    "self-evaluation jump action should open the original self-evaluation in a new tab",
+  );
+});
+
 test("calibration page no longer drives manual employee or leader final-confirm calls", () => {
   const source = read("src/app/(main)/calibration/page.tsx");
 

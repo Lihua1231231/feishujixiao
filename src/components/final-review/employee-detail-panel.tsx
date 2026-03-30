@@ -183,7 +183,20 @@ export function EmployeeDetailPanel({
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <SummaryCard label="初评加权分" value={employee.weightedScore?.toFixed(1) ?? "—"} />
           <SummaryCard label="360 均分" value={employee.peerAverage?.toFixed(1) ?? "—"} />
-          <SummaryCard label="自评状态" value={employee.selfEvalStatus || "未导入"} />
+          {employee.selfEvalSourceUrl && employee.selfEvalStatus && employee.selfEvalStatus !== "未导入" ? (
+            <a
+              href={employee.selfEvalSourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-2xl border px-4 py-3 transition-colors hover:border-[var(--cockpit-accent-strong)] hover:bg-[var(--cockpit-accent-subtle)]/40"
+            >
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">自评状态</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{employee.selfEvalStatus}</p>
+              <p className="mt-2 text-xs text-[var(--cockpit-accent-strong)]">查看自评</p>
+            </a>
+          ) : (
+            <SummaryCard label="自评状态" value={employee.selfEvalStatus || "未导入"} />
+          )}
           <SummaryCard label="初评人" value={employee.currentEvaluatorNames.join("、") || "未配置"} />
         </div>
         <div className="mt-4 rounded-2xl border px-4 py-3">
