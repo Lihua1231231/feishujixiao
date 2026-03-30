@@ -35,6 +35,13 @@ async function main() {
     console.log(`ADD: SupervisorEval.${col}`);
   }
 
+  await db.execute("DROP INDEX IF EXISTS SupervisorEval_cycleId_employeeId_key");
+  console.log("DROP: SupervisorEval_cycleId_employeeId_key if exists");
+  await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS SupervisorEval_cycleId_employeeId_evaluatorId_key ON SupervisorEval(cycleId, employeeId, evaluatorId)");
+  await db.execute("CREATE INDEX IF NOT EXISTS SupervisorEval_cycleId_employeeId_idx ON SupervisorEval(cycleId, employeeId)");
+  await db.execute("CREATE INDEX IF NOT EXISTS SupervisorEval_cycleId_evaluatorId_idx ON SupervisorEval(cycleId, evaluatorId)");
+  console.log("ENSURE: SupervisorEval indexes");
+
   // Also check PeerReview table
   const prInfo = await db.execute("PRAGMA table_info(PeerReview)");
   const prCols = new Set(prInfo.rows.map(r => r.name as string));

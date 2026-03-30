@@ -759,6 +759,10 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         performanceComment: currentEval?.performanceComment || "",
         abilityComment: currentEval?.abilityComment || "",
         valuesComment: currentEval?.valuesComment || "",
+        candidComment: currentEval?.candidComment || "",
+        progressComment: currentEval?.progressComment || "",
+        altruismComment: currentEval?.altruismComment || "",
+        rootComment: currentEval?.rootComment || "",
       };
     }),
   );

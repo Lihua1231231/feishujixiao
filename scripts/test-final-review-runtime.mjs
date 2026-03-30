@@ -87,7 +87,11 @@ test("runtime initial-dimension check treats a fully filled draft as complete in
       valuesStars: 4,
       performanceComment: "有结果",
       abilityComment: "有能力评价",
-      valuesComment: "有价值观评价",
+      valuesComment: "",
+      candidComment: "坦诚真实有评价",
+      progressComment: "极致进取有评价",
+      altruismComment: "成就利他有评价",
+      rootComment: "ROOT有评价",
     },
     {
       id: "u2",
@@ -98,11 +102,15 @@ test("runtime initial-dimension check treats a fully filled draft as complete in
       valuesStars: 4,
       performanceComment: "",
       abilityComment: "有能力评价",
-      valuesComment: "有价值观评价",
+      valuesComment: "",
+      candidComment: "坦诚真实有评价",
+      progressComment: "极致进取有评价",
+      altruismComment: "成就利他有评价",
+      rootComment: "",
     },
   ])`);
 
   assert.equal(result.completeCount, 1);
   assert.equal(result.missingCount, 1);
-  assert.deepEqual(result.items[0].missingDimensions, ["业绩产出结果"]);
+  assert.deepEqual(result.items[0].missingDimensions, ["业绩产出结果", "价值观"]);
 });

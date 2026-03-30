@@ -170,13 +170,24 @@ export function buildInitialDimensionChecks(
     performanceComment: string;
     abilityComment: string;
     valuesComment: string;
+    candidComment: string;
+    progressComment: string;
+    altruismComment: string;
+    rootComment: string;
   }>,
 ) {
   const items = rows.map((row) => {
     const missingDimensions: string[] = [];
+    const hasValuesDimensionContent = hasDimensionContent(row.valuesComment)
+      || [
+        row.candidComment,
+        row.progressComment,
+        row.altruismComment,
+        row.rootComment,
+      ].every(hasDimensionContent);
     if (row.performanceStars == null || !hasDimensionContent(row.performanceComment)) missingDimensions.push("业绩产出结果");
     if (row.abilityStars == null || !hasDimensionContent(row.abilityComment)) missingDimensions.push("综合能力");
-    if (row.valuesStars == null || !hasDimensionContent(row.valuesComment)) missingDimensions.push("价值观");
+    if (row.valuesStars == null || !hasValuesDimensionContent) missingDimensions.push("价值观");
 
     return {
       employeeId: row.id,
