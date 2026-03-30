@@ -636,15 +636,19 @@ test("principles tab keeps the initial-dimension gap list in a scrollable area",
   );
 });
 
-test("department distribution board renders horizontal bar-chart tracks instead of progress-meter pills", () => {
+test("department distribution board collapses team distribution into one combined chart", () => {
   const board = read("src/components/final-review/department-distribution-board.tsx");
 
   assert.equal(
-    board.includes("origin-left rounded-r-[999px] rounded-l-[10px]") &&
-      board.includes("min-h-[40px] grid-cols-[56px_minmax(0,1fr)]") &&
-      !board.includes("h-3 overflow-hidden rounded-full"),
+    board.includes("<svg") &&
+      board.includes("polyline") &&
+      board.includes("departmentColors") &&
+      board.includes("segmentsByStar") &&
+      board.includes("部门图例") &&
+      !board.includes("xl:grid-cols-2") &&
+      !board.includes("<section key={item.department}"),
     true,
-    "the department distribution board should use clear horizontal bar-chart rows instead of progress-meter pills",
+    "the department distribution board should render one combined stacked chart with a suggestion line instead of a long grid of per-department cards",
   );
 });
 
