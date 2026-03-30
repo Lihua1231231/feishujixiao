@@ -565,7 +565,7 @@ test("employee calibration page follows the latest redline simplification", () =
   assert.equal(
     cockpit.includes("绩效初评等级（加权）") &&
       board.includes("可左右滑动查看全部部门") &&
-      board.includes("员工层名单"),
+      board.includes("员工层名单（不含主管层）"),
     true,
     "employee roster results should show weighted initial stars and the department rail should clarify the horizontal swipe behavior",
   );
@@ -603,7 +603,7 @@ test("department distribution board uses department cards to switch one clean ch
 
   assert.equal(
     board.includes('useState<"all" | string>("all")') &&
-      board.includes("员工层名单") &&
+      board.includes("员工层名单（不含主管层）") &&
       board.includes("setActiveDepartmentKey") &&
       board.includes("selectedDepartment") &&
       board.includes("polyline") &&

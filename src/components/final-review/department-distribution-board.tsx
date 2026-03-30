@@ -69,7 +69,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
   const selectedDepartment = departments.find((item) => item.department === activeDepartmentKey) ?? null;
   const selectedDistribution = selectedDepartment?.distribution ?? allDepartmentDistribution;
   const selectedTotal = selectedDepartment?.total ?? totalEmployees;
-  const selectedScopeLabel = selectedDepartment?.department ?? "员工层名单";
+  const selectedScopeLabel = selectedDepartment?.department ?? "员工层名单（不含主管层）";
 
   const selectedSummaries = useMemo(
     () =>
@@ -148,7 +148,7 @@ export function DepartmentDistributionBoard({ departments }: DepartmentDistribut
                 : "min-w-[148px] rounded-[22px] border bg-white px-4 py-3 text-left text-[var(--cockpit-foreground)] shadow-none transition-colors hover:bg-[color:rgba(191,127,65,0.06)]"
             }
           >
-            <p className="text-sm font-semibold">员工层名单</p>
+            <p className="text-sm font-semibold">员工层名单（不含主管层）</p>
             <p className={activeDepartmentKey === "all" ? "mt-1 text-xs text-white/80" : "mt-1 text-xs text-[var(--cockpit-muted-foreground)]"}>
               {totalEmployees} 人
             </p>
