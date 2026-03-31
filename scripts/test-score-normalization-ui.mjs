@@ -369,3 +369,40 @@ test("score normalization nav entry is present for authorized users", () => {
     "nav should expose a score normalization analysis entry",
   );
 });
+
+test("score normalization tables keep every row accessible through per-row expansion instead of truncating after twelve rows", () => {
+  const movementTable = read("src/components/score-normalization/change-preview-table.tsx");
+  const biasTable = read("src/components/score-normalization/rater-bias-table.tsx");
+
+  assert.equal(
+    movementTable.includes("slice(0, 12)"),
+    false,
+    "change preview should no longer truncate rows to the first twelve entries",
+  );
+  assert.equal(
+    movementTable.includes("还有 {extraCount} 条变化明细未展开"),
+    false,
+    "change preview should not hide the remaining movement rows behind a summary line",
+  );
+  assert.equal(
+    movementTable.includes("展开详情") || movementTable.includes("收起详情"),
+    true,
+    "change preview should expose a per-row expand/collapse control",
+  );
+
+  assert.equal(
+    biasTable.includes("slice(0, 12)"),
+    false,
+    "rater bias table should no longer truncate rows to the first twelve raters",
+  );
+  assert.equal(
+    biasTable.includes("还有 {extraCount} 位评分人未展开"),
+    false,
+    "rater bias table should not hide the remaining raters behind a summary line",
+  );
+  assert.equal(
+    biasTable.includes("展开详情") || biasTable.includes("收起详情"),
+    true,
+    "rater bias table should expose a per-rater expand/collapse control",
+  );
+});

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,8 +26,14 @@ function formatSignedNumber(value: number | null) {
 }
 
 export function RaterBiasTable({ raterBiasRows }: RaterBiasTableProps) {
-  const visibleRows = raterBiasRows.slice(0, 12);
-  const extraCount = Math.max(0, raterBiasRows.length - visibleRows.length);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const toggleRow = (rowId: string) => {
+    setExpandedRows((current) => ({
+      ...current,
+      [rowId]: !current[rowId],
+    }));
+  };
 
   return (
     <Card className="rounded-[28px] border-border/60 shadow-none">
@@ -46,29 +53,66 @@ export function RaterBiasTable({ raterBiasRows }: RaterBiasTableProps) {
               <TableHead>平均分</TableHead>
               <TableHead>偏移</TableHead>
               <TableHead className="text-right">倾向</TableHead>
+              <TableHead className="text-right">详情</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleRows.map((row) => {
+            {raterBiasRows.map((row) => {
               const tone = row.tendency === "偏高" ? "warning" : row.tendency === "偏低" ? "info" : "secondary";
+              const expanded = expandedRows[row.raterId] ?? false;
+              const detailSummary =
+                row.tendency === "偏高"
+                  ? "这位评分人的平均分明显高于整体口径，后续应用标准化后会被压回目标分布。"
+                  : row.tendency === "偏低"
+                    ? "这位评分人的平均分明显低于整体口径，后续应用标准化后会被抬回目标分布。"
+                    : "这位评分人的平均分和整体口径接近，标准化前后不会有明显偏移。";
               return (
-                <TableRow key={row.raterId}>
-                  <TableCell className="font-medium text-foreground">{row.raterName}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.raterDepartment || "—"}</TableCell>
-                  <TableCell>{row.sampleCount}</TableCell>
-                  <TableCell>{row.averageScore == null ? "—" : row.averageScore.toFixed(1)}</TableCell>
-                  <TableCell>{formatSignedNumber(row.offset)}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={tone}>{row.tendency}</Badge>
-                  </TableCell>
-                </TableRow>
+                <Fragment key={row.raterId}>
+                  <TableRow>
+                    <TableCell className="font-medium text-foreground">{row.raterName}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.raterDepartment || "—"}</TableCell>
+                    <TableCell>{row.sampleCount}</TableCell>
+                    <TableCell>{row.averageScore == null ? "—" : row.averageScore.toFixed(1)}</TableCell>
+                    <TableCell>{formatSignedNumber(row.offset)}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={tone}>{row.tendency}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => toggleRow(row.raterId)}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        {expanded ? "收起详情" : "展开详情"}
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                  {expanded ? (
+                    <TableRow className="bg-muted/20">
+                      <TableCell colSpan={7} className="space-y-3 py-4">
+                        <p className="text-sm text-foreground">{detailSummary}</p>
+                        <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
+                          <div>
+                            <p className="font-medium text-foreground">样本量</p>
+                            <p>{row.sampleCount} 条</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">平均分偏移</p>
+                            <p>{formatSignedNumber(row.offset)}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">当前判断</p>
+                            <p>{row.isAbnormal ? `异常：${row.tendency}` : "处于正常范围"}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </Fragment>
               );
             })}
           </TableBody>
         </Table>
-        {extraCount > 0 ? (
-          <p className="mt-3 text-xs text-muted-foreground">还有 {extraCount} 位评分人未展开。</p>
-        ) : null}
       </CardContent>
     </Card>
   );
