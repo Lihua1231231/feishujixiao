@@ -11,8 +11,6 @@ import { buildEmployeeQueueGroups } from "./workspace-view";
 
 type EmployeeCockpitProps = {
   companyCount: number;
-  initialEvalSubmissionRate: number;
-  pendingInitialReviewNames: string[];
   officialCompletionRate: number;
   pendingOfficialCount: number;
   companyDistribution: DistributionEntry[];
@@ -39,8 +37,6 @@ type EmployeeCockpitProps = {
 
 export function EmployeeCockpit({
   companyCount,
-  initialEvalSubmissionRate,
-  pendingInitialReviewNames,
   officialCompletionRate,
   pendingOfficialCount,
   companyDistribution,
@@ -116,19 +112,10 @@ export function EmployeeCockpit({
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.2fr)]">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border px-4 py-3">
                 <p className="text-xs text-[var(--cockpit-muted-foreground)]">公司当前绩效分布全览</p>
                 <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{companyCount} 人</p>
-              </div>
-              <div className="rounded-2xl border px-4 py-3">
-                <p className="text-xs text-[var(--cockpit-muted-foreground)]">绩效初评提交率</p>
-                <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{initialEvalSubmissionRate}%</p>
-                <p className="mt-2 text-xs leading-5 text-[var(--cockpit-muted-foreground)]">
-                  {pendingInitialReviewNames.length > 0
-                    ? `未提交：${pendingInitialReviewNames.join("、")}`
-                    : "当前没有未提交初评的人。"}
-                </p>
               </div>
               <div className="rounded-2xl border px-4 py-3">
                 <p className="text-xs text-[var(--cockpit-muted-foreground)]">绩效校准进度</p>

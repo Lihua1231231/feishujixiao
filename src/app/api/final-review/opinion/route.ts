@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     let reason = "";
 
     if (decision === "AGREE") {
-      suggestedStars = validateStars(body.referenceStars ?? body.suggestedStars);
+      suggestedStars = validateStars(body.suggestedStars ?? body.referenceStars);
       reason = sanitizeText(body.reason);
       if (suggestedStars == null) {
         return NextResponse.json({ error: "referenceStars is required when agreeing" }, { status: 400 });

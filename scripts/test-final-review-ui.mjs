@@ -121,9 +121,10 @@ test("calibration page source includes employee-tab redesign tokens", () => {
     !cockpit.includes("距离截止") &&
       !cockpit.includes("分布偏离") &&
       !cockpit.includes("初评缺口") &&
+      !cockpit.includes("绩效初评提交率") &&
       cockpit.includes("绩效校准进度"),
     true,
-    "employee tab should remove the old first-page cards and collapse the top area into direct working metrics",
+    "employee tab should remove the old first-page cards and the initial-review submission card, leaving only direct calibration metrics",
   );
   assert.equal(
     roster.includes("绩效初评等级（加权）"),
@@ -479,7 +480,7 @@ test("employee cockpit risk labels use review signals instead of generic bookkee
     "payload should derive anomaly tags from actual disagreement and score-spread signals",
   );
   assert.equal(
-    payload.includes("if (officialStars != null && referenceStars != null && officialStars !== referenceStars)") &&
+    payload.includes("if (officialStars != null && displayReferenceStars != null && officialStars !== displayReferenceStars)") &&
       !payload.includes("latestConfirmation && referenceStars != null && latestConfirmation.officialStars !== referenceStars"),
     true,
     "official override signaling should compare the resolved official stars against the reference stars",
@@ -502,11 +503,11 @@ test("employee cockpit shows concrete initial-review gaps instead of only a perc
     "workspace types should expose the specific names still missing initial reviews",
   );
   assert.equal(
-    cockpit.includes("pendingInitialReviewNames") &&
-      cockpit.includes("未提交：") &&
-      cockpit.includes("当前没有未提交初评的人。"),
+    !cockpit.includes("绩效初评提交率") &&
+      !cockpit.includes("未提交：") &&
+      !cockpit.includes("当前没有未提交初评的人。"),
     true,
-    "employee cockpit should render the names missing initial reviews directly under the submission-rate card",
+    "employee cockpit should remove the initial-review submission-rate card instead of surfacing the missing names in this area",
   );
   assert.equal(
     board.includes("员工层名单（不含主管层）"),
@@ -581,9 +582,11 @@ test("employee detail panel switches from third-person final confirmation to dua
     detailPanel.includes("当前结论") &&
       detailPanel.includes("承霖校准") &&
       detailPanel.includes("邱翔校准") &&
-      detailPanel.includes("是否同意绩效初评"),
+      detailPanel.includes("是否同意邱翔意见") &&
+      detailPanel.includes("同意邱翔意见") &&
+      detailPanel.includes("不同意邱翔意见"),
     true,
-    "employee detail panel should show the two company calibrators directly with agree-or-change guidance",
+    "employee detail panel should let Chenglin explicitly agree or disagree with Qiuxiang once Qiuxiang has already submitted an opinion",
   );
 });
 
@@ -598,31 +601,33 @@ test("employee calibration page follows the latest redline simplification", () =
       !cockpit.includes("距离截止") &&
       !cockpit.includes("分布偏离") &&
       !cockpit.includes("初评缺口") &&
+      !cockpit.includes("绩效初评提交率") &&
       cockpit.includes("绩效校准进度") &&
       cockpit.includes("双人已一致") &&
       cockpit.includes("待双人一致"),
     true,
-    "employee calibration should remove the extra top summary cards and replace them with one compact dual-calibration progress card",
+    "employee calibration should remove the extra top summary cards, including initial-review submission rate, and keep only the direct dual-calibration metrics",
   );
 
   assert.equal(
     cockpit.includes("绩效初评等级（加权）") &&
-      cockpit.includes("未提交：") &&
       board.includes("员工层名单（不含主管层）"),
     true,
-    "employee roster results should show weighted initial stars, and the top metrics should expose the names behind the missing initial-review submissions",
+    "employee roster results should show weighted initial stars while the team board keeps the clarified employee-only label",
   );
 
   assert.equal(
     detailPanel.includes("直属上级绩效初评明细") &&
       detailPanel.includes("初评加权方式") &&
-      detailPanel.includes("是否同意绩效初评") &&
+      detailPanel.includes("是否同意邱翔意见") &&
+      detailPanel.includes("同意邱翔意见") &&
+      detailPanel.includes("不同意邱翔意见") &&
       !detailPanel.includes("双人校准状态") &&
       !detailPanel.includes("过程留痕") &&
       !detailPanel.includes("参考说明") &&
       !detailPanel.includes("初评评语摘要"),
     true,
-    "employee detail should switch from generic summaries and audit blocks to direct initial-review detail plus two explicit calibrator boxes",
+    "employee detail should switch from generic summaries and audit blocks to direct initial-review detail plus Chenglin/Qiuxiang calibration boxes",
   );
 });
 

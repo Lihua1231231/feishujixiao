@@ -88,9 +88,9 @@ function renderDecisionYesNo(opinion: EmployeeOpinion | null) {
   return opinion.decision === "AGREE" ? "是" : "否";
 }
 
-function renderDecisionStars(opinion: EmployeeOpinion | null, referenceStars: number | null) {
+function renderDecisionStars(opinion: EmployeeOpinion | null, fallbackStars: number | null) {
   if (!opinion || opinion.decision === "PENDING") return "—";
-  return renderStars(opinion.decision === "AGREE" ? referenceStars : opinion.suggestedStars, "—");
+  return renderStars(opinion.suggestedStars ?? fallbackStars, "—");
 }
 
 function buildAbilityHelper(detail: EmployeeRow["initialReviewDetails"][number]) {
@@ -111,29 +111,36 @@ function CalibratorCard({
   label,
   opinion,
   referenceStars,
+  agreeTargetStars,
   editable,
   showInteractiveLayout,
   form,
   saving,
   onChange,
   onSave,
+  agreeLabel = "同意绩效初评",
+  disagreeLabel = "不同意绩效初评",
+  decisionSummaryLabel = "是否同意绩效初评",
 }: {
   label: string;
   opinion: EmployeeOpinion | null;
   referenceStars: number | null;
+  agreeTargetStars?: number | null;
   editable: boolean;
   showInteractiveLayout: boolean;
   form: EmployeeOpinionFormValue | null;
   saving: boolean;
   onChange: (patch: Partial<EmployeeOpinionFormValue>) => void;
   onSave: () => void;
+  agreeLabel?: string;
+  disagreeLabel?: string;
+  decisionSummaryLabel?: string;
 }) {
+  const resolvedAgreeTargetStars = agreeTargetStars ?? referenceStars;
   const selectedDecision = editable && form ? form.decision : opinion?.decision || "PENDING";
   const selectedStars = editable && form
     ? form.suggestedStars
-    : opinion?.decision === "AGREE"
-      ? referenceStars
-      : opinion?.suggestedStars ?? null;
+    : opinion?.suggestedStars ?? (opinion?.decision === "AGREE" ? resolvedAgreeTargetStars : null);
   const showReason = editable ? form?.reason || opinion?.reason || "" : opinion?.reason || "";
   const inspectionMode = showInteractiveLayout && !editable;
 
@@ -157,9 +164,9 @@ function CalibratorCard({
               type="button"
               variant={selectedDecision === "AGREE" ? "default" : "outline"}
               disabled={!editable}
-              onClick={() => onChange({ decision: "AGREE", suggestedStars: referenceStars })}
+              onClick={() => onChange({ decision: "AGREE", suggestedStars: resolvedAgreeTargetStars, reason: "" })}
             >
-              同意绩效初评
+              {agreeLabel}
             </Button>
             <Button
               type="button"
@@ -167,7 +174,7 @@ function CalibratorCard({
               disabled={!editable}
               onClick={() => onChange({ decision: "OVERRIDE" })}
             >
-              不同意绩效初评
+              {disagreeLabel}
             </Button>
           </div>
 
@@ -193,7 +200,7 @@ function CalibratorCard({
               <Textarea
                 value={form.reason}
                 onChange={(event) => onChange({ reason: event.target.value })}
-                placeholder={form.decision === "OVERRIDE" ? "如果不同意初评，请填写校准理由" : "如有补充说明，可在此填写"}
+                placeholder={form.decision === "OVERRIDE" ? "如果不同意，请填写校准理由" : "如有补充说明，可在此填写"}
               />
 
               <div className="flex items-center justify-between gap-3">
@@ -220,8 +227,8 @@ function CalibratorCard({
         </div>
       ) : (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <SummaryCard label="是否同意绩效初评" value={renderDecisionYesNo(opinion)} />
-          <SummaryCard label="校准等级" value={renderDecisionStars(opinion, referenceStars)} />
+          <SummaryCard label={decisionSummaryLabel} value={renderDecisionYesNo(opinion)} />
+          <SummaryCard label="校准等级" value={renderDecisionStars(opinion, resolvedAgreeTargetStars)} />
         </div>
       )}
 
@@ -261,6 +268,8 @@ export function EmployeeDetailPanel({
   const hasPeerReviewSummary = Boolean(employee.peerReviewSummary && employee.peerReviewSummary.count > 0);
   const chenglinOpinion = findOpinionByReviewerName(employee.opinions, "承霖");
   const qiuxiangOpinion = findOpinionByReviewerName(employee.opinions, "邱翔");
+  const qiuxiangHasSavedOpinion = Boolean(qiuxiangOpinion && qiuxiangOpinion.decision !== "PENDING");
+  const qiuxiangSuggestedStars = qiuxiangOpinion?.suggestedStars ?? employee.referenceStars;
   const agreementSummary =
     employee.agreementState === "AGREED"
       ? `已一致 · ${renderStars(employee.officialStars, "—")}`
@@ -312,12 +321,16 @@ export function EmployeeDetailPanel({
               label="承霖校准"
               opinion={chenglinOpinion}
               referenceStars={employee.referenceStars}
+              agreeTargetStars={qiuxiangHasSavedOpinion ? qiuxiangSuggestedStars : employee.referenceStars}
               editable={Boolean(employee.canSubmitOpinion && chenglinOpinion?.isMine)}
               showInteractiveLayout={employee.canViewOpinionDetails}
               form={employee.canSubmitOpinion && chenglinOpinion?.isMine ? opinionForm : null}
               saving={Boolean(employee.canSubmitOpinion && chenglinOpinion?.isMine && savingOpinion)}
               onChange={onOpinionChange}
               onSave={onSaveOpinion}
+              agreeLabel={qiuxiangHasSavedOpinion ? "同意邱翔意见" : "同意绩效初评"}
+              disagreeLabel={qiuxiangHasSavedOpinion ? "不同意邱翔意见" : "不同意绩效初评"}
+              decisionSummaryLabel={qiuxiangHasSavedOpinion ? "是否同意邱翔意见" : "是否同意绩效初评"}
             />
             <CalibratorCard
               label="邱翔校准"

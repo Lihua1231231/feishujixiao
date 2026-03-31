@@ -301,8 +301,6 @@ function CalibrationContent() {
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
             companyCount={workspace.employeeReview.overview.companyCount}
-            initialEvalSubmissionRate={workspace.employeeReview.overview.initialEvalSubmissionRate}
-            pendingInitialReviewNames={workspace.employeeReview.overview.pendingInitialReviewNames}
             officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
             pendingOfficialCount={workspace.employeeReview.overview.pendingOfficialCount}
             companyDistribution={workspace.leaderReview.companyDistributions.all}

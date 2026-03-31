@@ -209,6 +209,16 @@ test("final review helper centralizes config parsing, access checks, and referen
   );
 });
 
+test("employee opinion API lets Chenglin agree with Qiuxiang's submitted stars", () => {
+  const source = read("src/app/api/final-review/opinion/route.ts");
+
+  assert.equal(
+    source.includes("suggestedStars = validateStars(body.suggestedStars ?? body.referenceStars);"),
+    true,
+    "agreeing with an existing calibrator opinion should prefer the submitted suggested stars over the generic reference stars",
+  );
+});
+
 test("final review helper keeps full supervisor summaries and normalizes self-eval status labels", () => {
   const source = read("src/lib/final-review.ts");
   const supervisorRoute = read("src/app/api/supervisor-eval/route.ts");
