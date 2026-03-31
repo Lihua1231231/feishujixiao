@@ -320,6 +320,16 @@ test("final review routes expose config, workspace, opinion, leader review, and 
   );
 });
 
+test("calibration payload can read the active normalized layer when present", () => {
+  const source = read("src/lib/final-review.ts");
+
+  assert.equal(
+    source.includes("getAppliedNormalizationMap") || source.includes("appliedNormalization"),
+    true,
+    "final review payload should be able to read the active normalized layer when it exists",
+  );
+});
+
 test("final review config includes a dedicated ordinary employee roster field", () => {
   const schema = read("prisma/schema.prisma");
   const route = read("src/app/api/admin/final-review-config/route.ts");
