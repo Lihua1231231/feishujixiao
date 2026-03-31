@@ -58,7 +58,6 @@ function areLeaderFormsEqual(left: LeaderForm, right: LeaderForm) {
 }
 
 function buildDefaultLeaderForm(evaluation: LeaderEvaluation): LeaderForm {
-  if (evaluation.hasSavedEvaluation) return evaluation.form;
   if (evaluation.prefillForm) return evaluation.prefillForm;
   return evaluation.form;
 }
@@ -68,7 +67,7 @@ function buildLeaderFormSnapshot(leaders: LeaderRow[]): Record<string, LeaderFor
 
   leaders.forEach((leader) => {
     leader.evaluations.forEach((evaluation) => {
-      snapshot[`${leader.id}:${evaluation.evaluatorId}`] = evaluation.form;
+      snapshot[`${leader.id}:${evaluation.evaluatorId}`] = buildDefaultLeaderForm(evaluation);
     });
   });
 

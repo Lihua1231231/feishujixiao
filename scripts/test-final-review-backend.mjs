@@ -246,6 +246,19 @@ test("leader final review workspace also exposes same-person prior reviews as lo
     true,
     "leader questionnaire should explicitly warn that the imported same-person content is only a local draft until saved",
   );
+  assert.equal(
+    source.includes("function isMeaningfulLeaderReview(") &&
+      source.includes("const canUsePrefill = !existing || !isMeaningfulLeaderReview(existing);") &&
+      source.includes("const prefill = canUsePrefill"),
+    true,
+    "leader final review should still apply prefills when the only existing row is an untouched draft",
+  );
+  assert.equal(
+    page.includes("if (evaluation.prefillForm) return evaluation.prefillForm;") &&
+      !page.includes("if (evaluation.hasSavedEvaluation) return evaluation.form;"),
+    true,
+    "leader form initialization should prefer the prefill draft before falling back to an empty saved draft row",
+  );
 });
 
 test("final review routes expose config, workspace, opinion, leader review, and confirmation entrypoints", () => {

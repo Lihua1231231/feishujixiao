@@ -242,6 +242,18 @@ test("leader detail panel ties questionnaire editability to each evaluation's ow
   );
 });
 
+test("leader detail panel keeps prefilled draft context visible in read-only inspection mode", () => {
+  const detailPanel = read("src/components/final-review/leader-detail-panel.tsx");
+
+  assert.equal(
+    detailPanel.includes("showPrefillBanner") &&
+      detailPanel.includes("检查视图为只读") &&
+      detailPanel.includes("这份草稿来自你之前已提交的评估"),
+    true,
+    "leader detail panel should let inspectors see the prefilled draft source even when they cannot edit the questionnaire",
+  );
+});
+
 test("self-eval preview mode resolves content synchronously and skips the loading skeleton", () => {
   const source = read("src/app/(main)/self-eval/page.tsx");
 

@@ -73,6 +73,7 @@ function LeaderQuestionnaire({
   onSave: (action: "save" | "submit") => void;
 }) {
   const weightedScore = computeWeightedScore(form);
+  const showPrefillBanner = Boolean(evaluation.prefillSourceLabel && !evaluation.hasSavedEvaluation);
 
   return (
     <section className="rounded-[24px] border p-5">
@@ -87,9 +88,11 @@ function LeaderQuestionnaire({
       </div>
 
       <div className="mt-5 space-y-6">
-        {editable && evaluation.prefillSourceLabel && !evaluation.hasSavedEvaluation ? (
+        {showPrefillBanner ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
-            已根据你之前的{evaluation.prefillSourceLabel}预填草稿，确认保存后才会成为主管层终评。
+            {editable
+              ? `已根据你之前的${evaluation.prefillSourceLabel}预填草稿，确认保存后才会成为主管层终评。`
+              : `检查视图为只读，这份草稿来自你之前已提交的评估（${evaluation.prefillSourceLabel}）。`}
           </div>
         ) : null}
 

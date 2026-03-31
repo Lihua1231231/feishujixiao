@@ -676,6 +676,56 @@ function resolveLeaderEvaluationPrefill(args: {
   return null;
 }
 
+function isMeaningfulLeaderReview(review: {
+  performanceStars: number | null;
+  performanceComment: string;
+  abilityStars: number | null;
+  abilityComment: string;
+  comprehensiveStars: number | null;
+  learningStars: number | null;
+  adaptabilityStars: number | null;
+  valuesStars: number | null;
+  valuesComment: string;
+  candidStars: number | null;
+  candidComment: string;
+  progressStars: number | null;
+  progressComment: string;
+  altruismStars: number | null;
+  altruismComment: string;
+  rootStars: number | null;
+  rootComment: string;
+  weightedScore: number | null;
+  status: string;
+  submittedAt: Date | null;
+}) {
+  const hasAnyStars = [
+    review.performanceStars,
+    review.abilityStars,
+    review.comprehensiveStars,
+    review.learningStars,
+    review.adaptabilityStars,
+    review.valuesStars,
+    review.candidStars,
+    review.progressStars,
+    review.altruismStars,
+    review.rootStars,
+  ].some((value) => value != null);
+  const hasAnyComments = [
+    review.performanceComment,
+    review.abilityComment,
+    review.valuesComment,
+    review.candidComment,
+    review.progressComment,
+    review.altruismComment,
+    review.rootComment,
+  ].some((value) => normalizeFormText(value).length > 0);
+  return review.status === "SUBMITTED"
+    || review.submittedAt != null
+    || review.weightedScore != null
+    || hasAnyStars
+    || hasAnyComments;
+}
+
 function getWeightedScoreSpread(scores: Array<number | null | undefined>): number | null {
   const validScores = scores.filter((score): score is number => score != null);
   if (validScores.length < 2) return null;
@@ -1193,7 +1243,8 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     const evaluations = config.leaderEvaluatorUserIds.map((evaluatorId) => {
       const evaluator = usersById.get(evaluatorId);
       const existing = leaderEvalRows.find((item) => item.evaluatorId === evaluatorId) || null;
-      const prefill = !existing && evaluatorId === user.id
+      const canUsePrefill = !existing || !isMeaningfulLeaderReview(existing);
+      const prefill = canUsePrefill && (evaluatorId === user.id || canViewLeaderEvaluationDetails)
         ? resolveLeaderEvaluationPrefill({
           evaluatorId,
           employeeId: leader.id,
@@ -1202,6 +1253,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
           peerReviews,
         })
         : null;
+      const hasSavedEvaluation = Boolean(existing && isMeaningfulLeaderReview(existing));
       return {
         evaluatorId,
         evaluatorName: evaluator?.name || "未配置",
@@ -1210,7 +1262,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         editable: evaluatorId === user.id,
         submittedAt: existing?.submittedAt?.toISOString() || null,
         referenceStars: mapScoreToReferenceStars(existing?.weightedScore != null ? Number(existing.weightedScore) : null, config.referenceStarRanges) ?? prefill?.referenceStars ?? null,
-        hasSavedEvaluation: Boolean(existing),
+        hasSavedEvaluation,
         prefillForm: prefill?.form ?? null,
         prefillSourceLabel: prefill?.sourceLabel ?? null,
         form: {
