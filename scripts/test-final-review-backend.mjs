@@ -203,7 +203,7 @@ test("final review helper centralizes config parsing, access checks, and referen
     "workspace payload should expose direct initial-review detail blocks for each current evaluator",
   );
   assert.equal(
-    source.includes("if (officialStars != null && referenceStars != null && officialStars !== referenceStars)"),
+    source.includes("if (officialStars != null && displayReferenceStars != null && officialStars !== displayReferenceStars)"),
     true,
     "final review helper should flag official overrides from the resolved official stars, including calibration fallback results",
   );
@@ -445,6 +445,48 @@ test("calibration payload can read the active normalized layer when present", ()
       returnIdentifiers.has("appliedNormalizationMap"),
     true,
     "final review payload should thread getAppliedNormalizationMap into the returned workspace payload",
+  );
+});
+
+test("final review payload prefers normalized supervisor results for employee calibration displays", () => {
+  const source = read("src/lib/final-review.ts");
+
+  assert.equal(
+    source.includes("normalizedSupervisor = appliedNormalizationMap.SUPERVISOR_EVAL.get(employee.id)") &&
+      source.includes("displayWeightedScore = normalizedSupervisor?.normalizedScore ?? weightedScore") &&
+      source.includes("displayReferenceStars = normalizedSupervisor?.normalizedStars ?? referenceStars") &&
+      source.includes("const scoreSpread = normalizedSupervisor") &&
+      source.includes("weightedScore: displayWeightedScore") &&
+      source.includes("referenceStars: displayReferenceStars") &&
+      source.includes("distributionStars: currentStars") &&
+      source.includes("savedOpinion?.suggestedStars ?? displayReferenceStars") &&
+      source.includes("officialStars !== displayReferenceStars"),
+    true,
+    "employee calibration rows should prefer the active normalized supervisor results for reference displays while keeping official results authoritative",
+  );
+});
+
+test("admin verify export includes raw-vs-normalized comparison columns", () => {
+  const exportRoute = read("src/app/api/admin/verify/export/route.ts");
+  const verifyLib = read("src/lib/admin-verify.ts");
+
+  assert.equal(
+    exportRoute.includes("360原始均分") &&
+      exportRoute.includes("360标准化分") &&
+      exportRoute.includes("初评原始加权分") &&
+      exportRoute.includes("初评标准化分") &&
+      exportRoute.includes("初评原始等级") &&
+      exportRoute.includes("初评标准化等级"),
+    true,
+    "admin export should surface raw-vs-normalized score columns once standardization can be applied",
+  );
+  assert.equal(
+    verifyLib.includes("rawPeerReviewScore") &&
+      verifyLib.includes("normalizedPeerReviewScore") &&
+      verifyLib.includes("rawSupervisorScore") &&
+      verifyLib.includes("normalizedSupervisorScore"),
+    true,
+    "admin verify data should carry raw-vs-normalized score fields for exports and downstream reporting",
   );
 });
 
