@@ -1,10 +1,14 @@
 import { prisma } from "@/lib/db";
+import { getAppliedNormalizationMap } from "@/lib/applied-normalization";
+import { DEFAULT_REFERENCE_STAR_RANGES, mapScoreToReferenceStars } from "@/lib/final-review";
+import { computePeerReviewAverageFromReviews } from "@/lib/peer-review-summary";
 import {
   buildSupervisorAssignmentMap,
   EVAL_LIST_NAMES,
   GROUP_B_NAMES,
   isGroupBUser,
 } from "@/lib/supervisor-assignments";
+import { roundToOneDecimal } from "@/lib/weighted-score";
 
 export const PEER_NOMINATION_MIN_COUNT = 5;
 
@@ -50,6 +54,12 @@ export type VerifyRosterRow = {
   supervisorExpectedEvaluatorNames: string[];
   supervisorSubmittedEvaluatorNames: string[];
   supervisorPendingEvaluatorNames: string[];
+  rawPeerReviewScore: number | null;
+  normalizedPeerReviewScore: number | null;
+  rawSupervisorScore: number | null;
+  normalizedSupervisorScore: number | null;
+  rawSupervisorStars: number | null;
+  normalizedSupervisorStars: number | null;
   legacyEvaluators: string[];
   supervisorComplete: boolean;
   followUpFlags: string[];
@@ -122,7 +132,7 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
     return null;
   }
 
-  const [allUsers, selfEvals, nominations, peerReviews, supervisorEvals] = await Promise.all([
+  const [allUsers, selfEvals, nominations, peerReviews, supervisorEvals, normalizedPeerReviewMap, normalizedSupervisorMap] = await Promise.all([
     prisma.user.findMany({
       select: {
         id: true,
@@ -143,12 +153,29 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
     }),
     prisma.peerReview.findMany({
       where: { cycleId: cycle.id },
-      select: { reviewerId: true, revieweeId: true, status: true },
+      select: {
+        reviewerId: true,
+        revieweeId: true,
+        status: true,
+        outputScore: true,
+        collaborationScore: true,
+        valuesScore: true,
+        performanceStars: true,
+        comprehensiveStars: true,
+        learningStars: true,
+        adaptabilityStars: true,
+        candidStars: true,
+        progressStars: true,
+        altruismStars: true,
+        rootStars: true,
+      },
     }),
     prisma.supervisorEval.findMany({
       where: { cycleId: cycle.id },
       include: { evaluator: { select: { name: true } } },
     }),
+    getAppliedNormalizationMap(cycle.id, "PEER_REVIEW"),
+    getAppliedNormalizationMap(cycle.id, "SUPERVISOR_EVAL"),
   ]);
 
   const userByName = new Map(allUsers.map((user) => [user.name, user]));
@@ -178,12 +205,16 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
 
   const peerReviewReceivedByReviewee = new Map<string, { total: number; submitted: number; pendingReviewerNames: string[] }>();
   const peerReviewAssignedByReviewer = new Map<string, { total: number; submitted: number; pendingRevieweeNames: string[] }>();
+  const peerReviewScoresByReviewee = new Map<string, typeof peerReviews>();
   for (const review of peerReviews) {
     const reviewerName = userById.get(review.reviewerId)?.name || review.reviewerId;
     const received = peerReviewReceivedByReviewee.get(review.revieweeId) || { total: 0, submitted: 0, pendingReviewerNames: [] };
     received.total += 1;
     if (review.status === "SUBMITTED") {
       received.submitted += 1;
+      const currentScores = peerReviewScoresByReviewee.get(review.revieweeId) || [];
+      currentScores.push(review);
+      peerReviewScoresByReviewee.set(review.revieweeId, currentScores);
     } else {
       received.pendingReviewerNames.push(reviewerName);
     }
@@ -227,6 +258,32 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
     }))
   );
 
+  const rawPeerReviewScoreByUserId = new Map<string, number | null>();
+  for (const [revieweeId, reviews] of peerReviewScoresByReviewee.entries()) {
+    rawPeerReviewScoreByUserId.set(revieweeId, computePeerReviewAverageFromReviews(reviews));
+  }
+
+  const rawSupervisorScoreByUserId = new Map<string, number | null>();
+  const rawSupervisorStarsByUserId = new Map<string, number | null>();
+  for (const assignment of assignments.values()) {
+    const submittedCurrentEvals = supervisorEvals.filter((item) =>
+      item.employeeId === assignment.employeeId
+      && item.status === "SUBMITTED"
+      && assignment.currentEvaluatorIds.includes(item.evaluatorId),
+    );
+    const scores = submittedCurrentEvals
+      .map((item) => (item.weightedScore != null ? Number(item.weightedScore) : null))
+      .filter((value): value is number => value != null && !Number.isNaN(value));
+    const rawSupervisorScore = scores.length > 0
+      ? roundToOneDecimal(scores.reduce((sum, value) => sum + value, 0) / scores.length)
+      : null;
+    rawSupervisorScoreByUserId.set(assignment.employeeId, rawSupervisorScore);
+    rawSupervisorStarsByUserId.set(
+      assignment.employeeId,
+      mapScoreToReferenceStars(rawSupervisorScore, DEFAULT_REFERENCE_STAR_RANGES),
+    );
+  }
+
   const roster: VerifyRosterRow[] = EVAL_LIST_NAMES.map((name) => {
     const user = userByName.get(name);
     const isGroupB = isGroupBUser(name);
@@ -254,6 +311,12 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
         supervisorExpectedEvaluatorNames: [],
         supervisorSubmittedEvaluatorNames: [],
         supervisorPendingEvaluatorNames: [],
+        rawPeerReviewScore: null,
+        normalizedPeerReviewScore: null,
+        rawSupervisorScore: null,
+        normalizedSupervisorScore: null,
+        rawSupervisorStars: null,
+        normalizedSupervisorStars: null,
         legacyEvaluators: [],
         supervisorComplete: false,
         followUpFlags: [],
@@ -328,6 +391,12 @@ export async function buildAdminVerifyData(): Promise<VerifyData | null> {
       supervisorExpectedEvaluatorNames,
       supervisorSubmittedEvaluatorNames,
       supervisorPendingEvaluatorNames,
+      rawPeerReviewScore: rawPeerReviewScoreByUserId.get(user.id) ?? null,
+      normalizedPeerReviewScore: normalizedPeerReviewMap.get(user.id)?.normalizedScore ?? null,
+      rawSupervisorScore: rawSupervisorScoreByUserId.get(user.id) ?? null,
+      normalizedSupervisorScore: normalizedSupervisorMap.get(user.id)?.normalizedScore ?? null,
+      rawSupervisorStars: rawSupervisorStarsByUserId.get(user.id) ?? null,
+      normalizedSupervisorStars: normalizedSupervisorMap.get(user.id)?.normalizedStars ?? null,
       legacyEvaluators: assignment?.legacyEvaluatorNames || [],
       supervisorComplete,
       followUpFlags,

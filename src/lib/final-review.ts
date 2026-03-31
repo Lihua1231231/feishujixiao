@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getAppliedNormalizationMap } from "@/lib/applied-normalization";
 import {
   resolveDefaultCompanyFinalReviewerIds,
   resolveDefaultEmployeeSubjectIds,
@@ -1078,6 +1079,14 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
   const canViewOpinionDetails = user.role === "ADMIN" || isCompanyCalibrator || OPINION_LAYOUT_VIEWER_NAMES.has(user.name);
   const canViewLeaderEvaluationDetails =
     user.role === "ADMIN" || isCompanyCalibrator || config.leaderEvaluatorUserIds.includes(user.id);
+  const [appliedPeerNormalization, appliedSupervisorNormalization] = await Promise.all([
+    getAppliedNormalizationMap(cycle.id, "PEER_REVIEW"),
+    getAppliedNormalizationMap(cycle.id, "SUPERVISOR_EVAL"),
+  ]);
+  const appliedNormalizationMap = {
+    PEER_REVIEW: appliedPeerNormalization,
+    SUPERVISOR_EVAL: appliedSupervisorNormalization,
+  };
 
   const employeeRows = employeeUsers.map((employee) => {
     const assignment = assignments.get(employee.id);
@@ -1090,6 +1099,10 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       ? roundToOneDecimal(scoredCurrentEvals.reduce((sum, item) => sum + Number(item.weightedScore), 0) / scoredCurrentEvals.length)
       : null;
     const referenceStars = mapScoreToReferenceStars(weightedScore, config.referenceStarRanges);
+    const normalizedSupervisor = appliedNormalizationMap.SUPERVISOR_EVAL.get(employee.id);
+    const normalizedPeer = appliedNormalizationMap.PEER_REVIEW.get(employee.id);
+    const displayWeightedScore = normalizedSupervisor?.normalizedScore ?? weightedScore;
+    const displayReferenceStars = normalizedSupervisor?.normalizedStars ?? referenceStars;
     const employeeOpinions = (opinionsByEmployee.get(employee.id) || []).filter((item) =>
       employeeOpinionActorIds.includes(item.reviewerId),
     );
@@ -1097,10 +1110,12 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     const latestConfirmation = latestConfirmationMap.get(`EMPLOYEE:${employee.id}`);
     const handledCount = consensus.handledCount;
     const officialStars = consensus.officialStars;
-    const currentStars = officialStars ?? referenceStars;
+    const currentStars = officialStars ?? displayReferenceStars;
     const overrideOpinionCount = employeeOpinions.filter((item) => item.decision === "OVERRIDE").length;
     const pendingOpinionCount = consensus.pendingCount;
-    const scoreSpread = getWeightedScoreSpread(currentEvals.map((item) => item.weightedScore != null ? Number(item.weightedScore) : null));
+    const scoreSpread = normalizedSupervisor
+      ? null
+      : getWeightedScoreSpread(currentEvals.map((item) => item.weightedScore != null ? Number(item.weightedScore) : null));
     const opinionCards = employeeOpinionActorIds.map((reviewerId) => {
       const reviewer = usersById.get(reviewerId);
       const savedOpinion = employeeOpinions.find((item) => item.reviewerId === reviewerId);
@@ -1108,13 +1123,16 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
         ? resolveEmployeeOpinionPrefill({
           reviewerId,
           employeeId: employee.id,
-          referenceStars,
+          referenceStars: displayReferenceStars,
           ranges: config.referenceStarRanges,
           supervisorEvals: allSupervisorEvals,
           peerReviews,
         })
         : null;
-      const meta = pickOpinionStatusMeta(savedOpinion?.decision || "PENDING", savedOpinion?.suggestedStars ?? referenceStars);
+      const meta = pickOpinionStatusMeta(
+        savedOpinion?.decision || "PENDING",
+        savedOpinion?.suggestedStars ?? displayReferenceStars,
+      );
       return {
         reviewerId,
         reviewerName: reviewer?.name || "未配置",
@@ -1136,7 +1154,9 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     if (consensus.disagreed) anomalyTags.push("两位校准人结论不一致");
     if (overrideOpinionCount > 0) anomalyTags.push("存在改星意见");
     if (scoreSpread != null && scoreSpread >= 1) anomalyTags.push("初评分差较大");
-    if (officialStars != null && referenceStars != null && officialStars !== referenceStars) anomalyTags.push("已拍板改星");
+    if (officialStars != null && displayReferenceStars != null && officialStars !== displayReferenceStars) {
+      anomalyTags.push("已拍板改星");
+    }
     const officialReason = officialStars != null
       ? latestConfirmation?.officialStars === officialStars
         ? latestConfirmation.reason
@@ -1148,10 +1168,11 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       name: employee.name,
       department: employee.department,
       jobTitle: employee.jobTitle,
-      weightedScore,
-      referenceStars,
-      referenceSourceLabel:
-        "加权总分 = 业绩产出×50% + 个人能力均分（综合能力/学习能力/适应能力）×30% + 价值观均分（坦诚真实/极致进取/成就利他/ROOT）×20%，再按区间换算参考星级。",
+      weightedScore: displayWeightedScore,
+      referenceStars: displayReferenceStars,
+      referenceSourceLabel: normalizedSupervisor
+        ? "当前已启用绩效初评分布标准化结果，参考星级优先显示标准化后的结果。原始初评分仍保留在原始记录中。"
+        : "加权总分 = 业绩产出×50% + 个人能力均分（综合能力/学习能力/适应能力）×30% + 价值观均分（坦诚真实/极致进取/成就利他/ROOT）×20%，再按区间换算参考星级。",
       officialStars,
       officialReason,
       officialConfirmedAt: officialStars != null && latestConfirmation?.officialStars === officialStars
@@ -1170,7 +1191,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       })),
       selfEvalStatus: formatSelfEvalStatus(selfEvalMap.get(employee.id) ?? null),
       selfEvalSourceUrl: selfEvalMap.get(employee.id)?.sourceUrl || null,
-      peerAverage: peerReviewAverageByEmployee.get(employee.id) ?? null,
+      peerAverage: normalizedPeer?.normalizedScore ?? peerReviewAverageByEmployee.get(employee.id) ?? null,
       peerReviewSummary: peerReviewSummaryByEmployee.get(employee.id) ?? null,
       initialReviewDetails: currentEvals.map((item) => ({
         evaluatorId: item.evaluatorId,
@@ -1410,6 +1431,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       calibrationEnd: cycle.calibrationEnd.toISOString(),
     },
     canAccess: true,
+    appliedNormalizationMap,
     config: {
       ...config,
       accessUsers: configUsers.accessUsers,

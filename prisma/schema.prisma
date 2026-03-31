@@ -69,6 +69,8 @@ model ReviewCycle {
   finalReviewOpinions FinalReviewOpinion[]
   leaderFinalReviews LeaderFinalReview[]
   finalReviewConfirmations FinalReviewConfirmation[]
+  scoreNormalizationSnapshots ScoreNormalizationSnapshot[]
+  scoreNormalizationApplications ScoreNormalizationApplication[]
 }
 
 // ============ MODULE 1: SELF-EVALUATION ============
@@ -208,7 +210,61 @@ model CalibrationResult {
   @@unique([cycleId, userId])
 }
 
-// ============ MODULE 4.5: FINAL REVIEW WORKSPACE ============
+// ============ MODULE 4.5: SCORE NORMALIZATION LAYER ============
+
+model ScoreNormalizationSnapshot {
+  id              String   @id @default(cuid())
+  cycleId         String
+  cycle           ReviewCycle @relation(fields: [cycleId], references: [id])
+  source          String
+  strategy        String   @default("RANK_BUCKET")
+  targetBucketCount Int    @default(5)
+  rawRecordCount  Int
+  createdAt       DateTime @default(now())
+
+  entries         ScoreNormalizationEntry[]
+  applications    ScoreNormalizationApplication[]
+
+  @@unique([id, cycleId, source])
+  @@index([cycleId, source])
+  @@index([cycleId, createdAt])
+}
+
+model ScoreNormalizationEntry {
+  id              String   @id @default(cuid())
+  snapshotId      String
+  snapshot        ScoreNormalizationSnapshot @relation(fields: [snapshotId], references: [id])
+  sourceRecordId  String
+  subjectId       String
+  subjectName     String   @default("")
+  rawScore        Float?
+  rankIndex       Int?
+  bucketIndex     Int?
+  bucketLabel     String   @default("")
+  normalizedScore Float?
+  createdAt       DateTime @default(now())
+
+  @@unique([snapshotId, sourceRecordId])
+  @@index([snapshotId, bucketIndex])
+}
+
+model ScoreNormalizationApplication {
+  id            String   @id @default(cuid())
+  cycleId       String
+  cycle         ReviewCycle @relation(fields: [cycleId], references: [id])
+  source        String
+  snapshotId    String
+  snapshot      ScoreNormalizationSnapshot @relation(fields: [snapshotId, cycleId, source], references: [id, cycleId, source])
+  appliedAt     DateTime @default(now())
+  revertedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cycleId, source])
+  @@index([snapshotId])
+}
+
+// ============ MODULE 4.6: FINAL REVIEW WORKSPACE ============
 
 model FinalReviewConfig {
   id                      String      @id @default(cuid())
