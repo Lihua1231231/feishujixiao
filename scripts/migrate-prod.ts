@@ -235,6 +235,74 @@ async function main() {
   await db.execute("CREATE INDEX IF NOT EXISTS ScoreNormalizationApplication_snapshotId_idx ON ScoreNormalizationApplication(snapshotId)");
   console.log("ENSURE: ScoreNormalizationApplication");
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ManagerReviewNormalizationSnapshot (
+      id TEXT PRIMARY KEY NOT NULL,
+      cycleId TEXT NOT NULL,
+      source TEXT NOT NULL,
+      strategy TEXT NOT NULL DEFAULT 'REVIEWER_THEN_DEPARTMENT_BUCKET',
+      targetBucketCount INTEGER NOT NULL DEFAULT 5,
+      rawRecordCount INTEGER NOT NULL,
+      reviewerNormalizedCount INTEGER NOT NULL DEFAULT 0,
+      departmentNormalizedCount INTEGER NOT NULL DEFAULT 0,
+      createdById TEXT,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cycleId) REFERENCES ReviewCycle(id) ON DELETE RESTRICT ON UPDATE CASCADE
+    )
+  `);
+  await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ManagerReviewNormalizationSnapshot_id_cycleId_source_key ON ManagerReviewNormalizationSnapshot(id, cycleId, source)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationSnapshot_cycleId_source_idx ON ManagerReviewNormalizationSnapshot(cycleId, source)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationSnapshot_cycleId_createdAt_idx ON ManagerReviewNormalizationSnapshot(cycleId, createdAt)");
+  console.log("ENSURE: ManagerReviewNormalizationSnapshot");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ManagerReviewNormalizationEntry (
+      id TEXT PRIMARY KEY NOT NULL,
+      snapshotId TEXT NOT NULL,
+      sourceRecordId TEXT NOT NULL,
+      subjectId TEXT NOT NULL,
+      subjectName TEXT NOT NULL DEFAULT '',
+      department TEXT NOT NULL DEFAULT '',
+      raterId TEXT,
+      raterName TEXT NOT NULL DEFAULT '',
+      rawScore REAL,
+      rawStars INTEGER,
+      reviewerBiasDelta REAL,
+      reviewerAdjustedScore REAL,
+      reviewerNormalizedStars INTEGER,
+      reviewerRankIndex INTEGER,
+      departmentNormalizedStars INTEGER,
+      departmentRankIndex INTEGER,
+      movement TEXT NOT NULL DEFAULT 'UNCHANGED',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (snapshotId) REFERENCES ManagerReviewNormalizationSnapshot(id) ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `);
+  await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ManagerReviewNormalizationEntry_snapshotId_sourceRecordId_key ON ManagerReviewNormalizationEntry(snapshotId, sourceRecordId)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationEntry_snapshotId_department_idx ON ManagerReviewNormalizationEntry(snapshotId, department)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationEntry_snapshotId_reviewerNormalizedStars_idx ON ManagerReviewNormalizationEntry(snapshotId, reviewerNormalizedStars)");
+  console.log("ENSURE: ManagerReviewNormalizationEntry");
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ManagerReviewNormalizationApplication (
+      id TEXT PRIMARY KEY NOT NULL,
+      cycleId TEXT NOT NULL,
+      source TEXT NOT NULL,
+      snapshotId TEXT NOT NULL,
+      appliedById TEXT,
+      appliedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      revertedById TEXT,
+      revertedAt DATETIME,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cycleId) REFERENCES ReviewCycle(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+      FOREIGN KEY (snapshotId, cycleId, source) REFERENCES ManagerReviewNormalizationSnapshot(id, cycleId, source) ON DELETE RESTRICT ON UPDATE CASCADE
+    )
+  `);
+  await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ManagerReviewNormalizationApplication_cycleId_source_key ON ManagerReviewNormalizationApplication(cycleId, source)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationApplication_snapshotId_idx ON ManagerReviewNormalizationApplication(snapshotId)");
+  await db.execute("CREATE INDEX IF NOT EXISTS ManagerReviewNormalizationApplication_cycleId_source_revertedAt_idx ON ManagerReviewNormalizationApplication(cycleId, source, revertedAt)");
+  console.log("ENSURE: ManagerReviewNormalizationApplication");
+
   console.log("\nDone!");
 }
 

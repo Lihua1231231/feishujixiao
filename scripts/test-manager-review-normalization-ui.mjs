@@ -176,6 +176,16 @@ test("manager review normalization page is performance-review only and wires in 
     true,
     "manager-review page should render the normalization shell instead of inlining the workspace",
   );
+  assert.equal(
+    source.includes("/api/manager-review-normalization/workspace"),
+    true,
+    "manager-review page should load real workspace data instead of mock data",
+  );
+  assert.equal(
+    source.includes("mock-workspace"),
+    false,
+    "manager-review page should no longer rely on a mock workspace payload",
+  );
 });
 
 test("manager review normalization shell composes the overview, diff, rater-bias, change-preview, and apply-panel blocks", () => {
@@ -206,5 +216,47 @@ test("manager review normalization shell composes the overview, diff, rater-bias
       source.includes("application"),
     true,
     "manager-review normalization shell should pass through the raw, reviewer-normalized, department-normalized, and application payload sections",
+  );
+});
+
+test("manager review normalization shell wiring includes real apply and revert actions", () => {
+  const shellCandidate = readFirstExisting([
+    "src/components/manager-review-normalization/normalization-shell.tsx",
+    "src/components/manager-review-normalization/manager-review-normalization-shell.tsx",
+  ]);
+  assert.equal(shellCandidate != null, true, "manager-review normalization shell should exist");
+  if (!shellCandidate) return;
+
+  const { source } = shellCandidate;
+  assert.equal(
+    source.includes("onApply") && source.includes("onRevert"),
+    true,
+    "manager-review normalization shell should accept apply and revert callbacks",
+  );
+  assert.equal(
+    source.includes("ApplyPanel"),
+    true,
+    "manager-review normalization shell should render the apply panel",
+  );
+});
+
+test("score-normalization route or navigation points users to the manager-review normalization page", () => {
+  const scoreNormalizationSource = read("src/app/(main)/score-normalization/page.tsx");
+  const navSource = read("src/components/nav.tsx");
+
+  const routeRedirectsOrUsesManagerReview =
+    scoreNormalizationSource.includes("/manager-review-normalization") ||
+    scoreNormalizationSource.includes('title="绩效初评分布校准"') ||
+    scoreNormalizationSource.includes("redirect(");
+
+  assert.equal(
+    routeRedirectsOrUsesManagerReview,
+    true,
+    "score-normalization page should redirect to or render the manager-review normalization workspace",
+  );
+  assert.equal(
+    navSource.includes("/manager-review-normalization") || navSource.includes("/score-normalization"),
+    true,
+    "navigation should keep a visible entry point to the normalization page",
   );
 });

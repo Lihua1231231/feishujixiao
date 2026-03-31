@@ -125,20 +125,6 @@ function walkFunctionBody(functionLike, visitor) {
   ts.forEachChild(body, visit);
 }
 
-function functionCallsExactName(functionLike, calleeName) {
-  let found = false;
-  walkFunctionBody(functionLike, (node) => {
-    if (found) return;
-    if (ts.isCallExpression(node)) {
-      const currentName = getCalleeName(node.expression);
-      if (currentName === calleeName) {
-        found = true;
-      }
-    }
-  });
-  return found;
-}
-
 function hasCallToImportedHelper(functionLike, importedNames) {
   let found = false;
   walkFunctionBody(functionLike, (node) => {
@@ -150,59 +136,6 @@ function hasCallToImportedHelper(functionLike, importedNames) {
     }
   });
   return found;
-}
-
-function collectReturnedIdentifierNames(functionLike) {
-  const names = new Set();
-
-  const visitValue = (node) => {
-    const current = unwrapExpression(node);
-    if (!current) return;
-    if (ts.isFunctionDeclaration(current) || ts.isFunctionExpression(current) || ts.isArrowFunction(current)) {
-      return;
-    }
-    if (ts.isIdentifier(current)) {
-      names.add(current.text);
-      return;
-    }
-    if (ts.isObjectLiteralExpression(current)) {
-      for (const property of current.properties) {
-        if (ts.isShorthandPropertyAssignment(property)) {
-          names.add(property.name.text);
-        } else if (ts.isPropertyAssignment(property)) {
-          visitValue(property.initializer);
-        } else if (ts.isSpreadAssignment(property)) {
-          visitValue(property.expression);
-        }
-      }
-      return;
-    }
-    if (ts.isArrayLiteralExpression(current)) {
-      for (const element of current.elements) visitValue(element);
-      return;
-    }
-    if (ts.isCallExpression(current)) {
-      for (const argument of current.arguments) visitValue(argument);
-      return;
-    }
-    if (ts.isPropertyAccessExpression(current)) {
-      visitValue(current.expression);
-      return;
-    }
-    if (ts.isElementAccessExpression(current)) {
-      visitValue(current.expression);
-      visitValue(current.argumentExpression);
-      return;
-    }
-    ts.forEachChild(current, visitValue);
-  };
-
-  walkFunctionBody(functionLike, (node) => {
-    if (ts.isReturnStatement(node) && node.expression) {
-      visitValue(node.expression);
-    }
-  });
-  return names;
 }
 
 function parsePrismaModels(source) {
@@ -319,7 +252,7 @@ test("manager review normalization helper library is source-only and exposes lay
   const { file } = parseTs("src/lib/manager-review-normalization.ts");
   const exportedNames = getExportedCallableNames(file);
 
-  assert.equal(
+  assert.deepEqual(
     getTypeAliasUnionLiterals(file, "ManagerReviewNormalizationSource"),
     ["SUPERVISOR_EVAL"],
     "manager-review normalization should only target the performance-review source, not 360",
@@ -476,5 +409,46 @@ test("manager review normalization workspace route returns raw, reviewer-normali
     read("src/app/api/manager-review-normalization/workspace/route.ts").includes("PEER_REVIEW"),
     false,
     "manager-review workspace should not reintroduce the 360 peer-review source",
+  );
+});
+
+test("manager review normalization apply and revert routes exist and call the dedicated layer helpers", () => {
+  const applyPath = path.join(rootDir, "src/app/api/manager-review-normalization/apply/route.ts");
+  const revertPath = path.join(rootDir, "src/app/api/manager-review-normalization/revert/route.ts");
+  assert.equal(fs.existsSync(applyPath), true, "manager-review apply route should exist");
+  assert.equal(fs.existsSync(revertPath), true, "manager-review revert route should exist");
+  if (!fs.existsSync(applyPath) || !fs.existsSync(revertPath)) return;
+
+  const apply = parseTs("src/app/api/manager-review-normalization/apply/route.ts");
+  const revert = parseTs("src/app/api/manager-review-normalization/revert/route.ts");
+  const applyPost = getExportedFunction(apply.file, "POST");
+  const revertPost = getExportedFunction(revert.file, "POST");
+
+  assert.equal(applyPost != null, true, "apply route should export a POST handler");
+  assert.equal(revertPost != null, true, "revert route should export a POST handler");
+  if (!applyPost || !revertPost) return;
+
+  const applyImports = new Set(getImportedLocalNames(apply.file, "@/lib/manager-review-normalization"));
+  const revertImports = new Set(getImportedLocalNames(revert.file, "@/lib/manager-review-normalization"));
+
+  assert.equal(
+    hasCallToImportedHelper(applyPost, applyImports),
+    true,
+    "apply route should call the manager-review normalization apply helper",
+  );
+  assert.equal(
+    hasCallToImportedHelper(revertPost, revertImports),
+    true,
+    "revert route should call the manager-review normalization revert helper",
+  );
+  assert.equal(
+    read("src/app/api/manager-review-normalization/apply/route.ts").includes("PEER_REVIEW"),
+    false,
+    "manager-review apply route must not reintroduce the 360 source",
+  );
+  assert.equal(
+    read("src/app/api/manager-review-normalization/revert/route.ts").includes("PEER_REVIEW"),
+    false,
+    "manager-review revert route must not reintroduce the 360 source",
   );
 });

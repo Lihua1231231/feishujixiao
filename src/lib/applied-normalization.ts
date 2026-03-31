@@ -11,6 +11,48 @@ export async function getAppliedNormalizationMap(
   cycleId: string,
   source: ScoreNormalizationSource,
 ) {
+  if (source === "SUPERVISOR_EVAL") {
+    const application = await prisma.managerReviewNormalizationApplication.findUnique({
+      where: {
+        cycleId_source: {
+          cycleId,
+          source,
+        },
+      },
+      select: {
+        snapshotId: true,
+        revertedAt: true,
+      },
+    });
+
+    if (!application || application.revertedAt != null) {
+      return new Map<string, AppliedNormalizationValue>();
+    }
+
+    const entries = await prisma.managerReviewNormalizationEntry.findMany({
+      where: {
+        snapshotId: application.snapshotId,
+      },
+      select: {
+        subjectId: true,
+        reviewerAdjustedScore: true,
+        departmentNormalizedStars: true,
+      },
+    });
+
+    return new Map<string, AppliedNormalizationValue>(
+      entries.map((entry) => [
+        entry.subjectId,
+        {
+          normalizedScore:
+            entry.reviewerAdjustedScore != null ? Number(entry.reviewerAdjustedScore) : null,
+          normalizedStars: entry.departmentNormalizedStars ?? null,
+          snapshotId: application.snapshotId,
+        },
+      ]),
+    );
+  }
+
   const application = await prisma.scoreNormalizationApplication.findUnique({
     where: {
       cycleId_source: {

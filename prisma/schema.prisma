@@ -71,6 +71,8 @@ model ReviewCycle {
   finalReviewConfirmations FinalReviewConfirmation[]
   scoreNormalizationSnapshots ScoreNormalizationSnapshot[]
   scoreNormalizationApplications ScoreNormalizationApplication[]
+  managerReviewNormalizationSnapshots ManagerReviewNormalizationSnapshot[]
+  managerReviewNormalizationApplications ManagerReviewNormalizationApplication[]
 }
 
 // ============ MODULE 1: SELF-EVALUATION ============
@@ -262,6 +264,73 @@ model ScoreNormalizationApplication {
 
   @@unique([cycleId, source])
   @@index([snapshotId])
+}
+
+// ============ MODULE 4.6B: MANAGER REVIEW NORMALIZATION LAYER ============
+
+model ManagerReviewNormalizationSnapshot {
+  id                         String   @id @default(cuid())
+  cycleId                    String
+  cycle                      ReviewCycle @relation(fields: [cycleId], references: [id])
+  source                     String
+  strategy                   String   @default("REVIEWER_THEN_DEPARTMENT_BUCKET")
+  targetBucketCount          Int      @default(5)
+  rawRecordCount             Int
+  reviewerNormalizedCount    Int      @default(0)
+  departmentNormalizedCount  Int      @default(0)
+  createdById                String?
+  createdAt                  DateTime @default(now())
+
+  entries     ManagerReviewNormalizationEntry[]
+  applications ManagerReviewNormalizationApplication[]
+
+  @@unique([id, cycleId, source])
+  @@index([cycleId, source])
+  @@index([cycleId, createdAt])
+}
+
+model ManagerReviewNormalizationEntry {
+  id                        String   @id @default(cuid())
+  snapshotId                String
+  snapshot                  ManagerReviewNormalizationSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  sourceRecordId            String
+  subjectId                 String
+  subjectName               String   @default("")
+  department                String   @default("")
+  raterId                   String?
+  raterName                 String   @default("")
+  rawScore                  Float?
+  rawStars                  Int?
+  reviewerBiasDelta         Float?
+  reviewerAdjustedScore     Float?
+  reviewerNormalizedStars   Int?
+  reviewerRankIndex         Int?
+  departmentNormalizedStars Int?
+  departmentRankIndex       Int?
+  movement                  String   @default("UNCHANGED")
+  createdAt                 DateTime @default(now())
+
+  @@unique([snapshotId, sourceRecordId])
+  @@index([snapshotId, department])
+  @@index([snapshotId, reviewerNormalizedStars])
+}
+
+model ManagerReviewNormalizationApplication {
+  id           String   @id @default(cuid())
+  cycleId      String
+  cycle        ReviewCycle @relation(fields: [cycleId], references: [id])
+  source       String
+  snapshotId   String
+  snapshot     ManagerReviewNormalizationSnapshot @relation(fields: [snapshotId, cycleId, source], references: [id, cycleId, source])
+  appliedById  String?
+  appliedAt    DateTime @default(now())
+  revertedById String?
+  revertedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([cycleId, source])
+  @@index([snapshotId])
+  @@index([cycleId, source, revertedAt])
 }
 
 // ============ MODULE 4.6: FINAL REVIEW WORKSPACE ============
