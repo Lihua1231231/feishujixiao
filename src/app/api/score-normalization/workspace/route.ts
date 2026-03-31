@@ -144,7 +144,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const application = activeApplication && !activeApplication.revertedAt
+    const hasActiveApplication = activeApplication != null && activeApplication.revertedAt == null;
+    const application = hasActiveApplication
       ? buildScoreNormalizationApplicationRecord({
           cycleId: activeApplication.cycleId,
           source: activeApplication.source as ScoreNormalizationSource,
@@ -153,13 +154,14 @@ export async function GET(request: NextRequest) {
           revertedAt: null,
         })
       : null;
+    const targetBucketCount = hasActiveApplication ? activeApplication.snapshot.targetBucketCount : 5;
 
     const payload = buildScoreNormalizationWorkspacePayload({
       cycleId: cycle.id,
       source,
       rawRecords,
       application,
-      targetBucketCount: activeApplication?.snapshot.targetBucketCount ?? 5,
+      targetBucketCount,
     });
 
     return NextResponse.json({

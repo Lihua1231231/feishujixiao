@@ -400,31 +400,49 @@ test("score normalization library exports workspace, simulation, apply, and reve
 });
 
 test("score normalization permissions helper centralizes viewer access for page and mutation routes", () => {
-  const { file } = parseTs("src/lib/score-normalization-permissions.ts");
-  const exportedNames = getExportedCallableNames(file);
+  const permissions = loadTsModule("src/lib/score-normalization-permissions.ts");
+  const sampleUsers = {
+    admin: { id: "admin-user", name: "任何人", role: "ADMIN" },
+    stableIdViewer: { id: "cmmvntppj0000js04j8xm0ycx", name: "改名后的吴承霖", role: "EMPLOYEE" },
+    nameFallbackViewer: { id: "temporary-id", name: "邱翔", role: "EMPLOYEE" },
+    outsider: { id: "outsider", name: "普通员工", role: "EMPLOYEE" },
+  };
 
   assert.equal(
-    exportedNames.includes("canAccessScoreNormalization"),
-    true,
+    typeof permissions.canAccessScoreNormalization,
+    "function",
     "permissions helper should export the page-access guard",
   );
   assert.equal(
-    exportedNames.includes("canApplyScoreNormalization"),
-    true,
+    typeof permissions.canApplyScoreNormalization,
+    "function",
     "permissions helper should export the mutation-access guard",
   );
   assert.equal(
-    read("src/lib/score-normalization-permissions.ts").includes("吴承霖") &&
-      read("src/lib/score-normalization-permissions.ts").includes("邱翔") &&
-      read("src/lib/score-normalization-permissions.ts").includes("禹聪琪"),
+    permissions.canAccessScoreNormalization(sampleUsers.admin) &&
+      permissions.canApplyScoreNormalization(sampleUsers.admin),
     true,
-    "permissions helper should whitelist the three designated viewer names",
+    "admin users should always be allowed to access and apply score normalization",
   );
   assert.equal(
-    read("src/lib/score-normalization-permissions.ts").includes('user.role === "ADMIN"') &&
-      read("src/lib/score-normalization-permissions.ts").includes("NORMALIZATION_VIEWER_NAMES"),
+    permissions.canAccessScoreNormalization(sampleUsers.stableIdViewer) &&
+      permissions.canApplyScoreNormalization(sampleUsers.stableIdViewer),
     true,
-    "permissions helper should keep admin access and name-based access in one place",
+    "the stable viewer ids should keep working even if the display name changes",
+  );
+  assert.equal(
+    permissions.canAccessScoreNormalization(sampleUsers.nameFallbackViewer) &&
+      permissions.canApplyScoreNormalization(sampleUsers.nameFallbackViewer),
+    true,
+    "the helper should still accept a name fallback for the designated viewers",
+  );
+  assert.equal(
+    Boolean(
+      permissions.canAccessScoreNormalization(sampleUsers.outsider) ||
+        permissions.canApplyScoreNormalization(sampleUsers.outsider),
+    ),
+    false,
+    "ordinary users should not get score-normalization access",
   );
 });
 
@@ -579,6 +597,12 @@ test("workspace route delegates to a normalization builder helper instead of han
       read("src/app/api/score-normalization/workspace/route.ts").includes("...payload"),
     true,
     "workspace route should return the cycle, source, and helper payload together",
+  );
+  assert.equal(
+    read("src/app/api/score-normalization/workspace/route.ts").includes("activeApplication.revertedAt == null") &&
+      read("src/app/api/score-normalization/workspace/route.ts").includes("const targetBucketCount = hasActiveApplication ? activeApplication.snapshot.targetBucketCount : 5;"),
+    true,
+    "workspace route should ignore reverted applications when picking the active bucket count",
   );
 
   assert.equal(
