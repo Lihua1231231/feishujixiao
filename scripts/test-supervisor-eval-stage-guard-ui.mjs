@@ -30,18 +30,18 @@ test("team page stops showing fake success when supervisor-eval POST fails", () 
   );
 });
 
-test("supervisor-eval GET exposes whether the current cycle is still editable", () => {
+test("supervisor-eval GET no longer phase-gates editing", () => {
   const route = read("src/app/api/supervisor-eval/route.ts");
 
   assert.equal(
-    route.includes("const canEdit = user.role === \"ADMIN\" || cycle.status === \"SUPERVISOR_EVAL\";"),
+    route.includes("const canEdit = true;"),
     true,
-    "supervisor-eval GET should compute whether the current session can still edit in this cycle stage",
+    "supervisor-eval GET should treat the page as editable in any cycle stage",
   );
   assert.equal(
-    route.includes("const lockedReason = canEdit ? null : \"当前不是上级初评阶段，页面只保留查看\";"),
+    route.includes("const lockedReason = null;"),
     true,
-    "supervisor-eval GET should expose a plain locked reason for the UI",
+    "supervisor-eval GET should stop exposing a phase-based lock reason",
   );
   assert.equal(
     route.includes("return NextResponse.json({") &&
@@ -51,20 +51,25 @@ test("supervisor-eval GET exposes whether the current cycle is still editable", 
     true,
     "supervisor-eval GET should return the cycle status and editability metadata alongside the evaluation rows",
   );
+  assert.equal(
+    route.includes("当前不在上级评估阶段，无法执行此操作"),
+    false,
+    "supervisor-eval POST should no longer reject writes based on cycle stage",
+  );
 });
 
-test("team page becomes read-only outside supervisor-eval stage", () => {
+test("team page no longer becomes read-only outside supervisor-eval stage", () => {
   const source = read("src/app/(main)/team/page.tsx");
 
   assert.equal(
-    source.includes("const isReadOnly = (Boolean(isSubmitted) && !canEditSubmitted) || (!teamMeta.canEdit && !preview);"),
+    source.includes("const isReadOnly = Boolean(isSubmitted) && !canEditSubmitted;"),
     true,
-    "team page should combine submit lock and cycle-stage lock into one read-only flag",
+    "team page should only stay read-only for truly submitted records",
   );
   assert.equal(
-    source.includes("teamMeta.lockedReason"),
-    true,
-    "team page should render the backend-provided read-only reason",
+    source.includes("当前不是上级初评阶段，无法保存或提交"),
+    false,
+    "team page should stop blocking saves and submits with a phase-specific toast",
   );
   assert.equal(
     source.includes("{!isReadOnly && ("),

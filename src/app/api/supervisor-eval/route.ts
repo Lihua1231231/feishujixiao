@@ -30,8 +30,8 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     if (!cycle) return NextResponse.json([]);
-    const canEdit = user.role === "ADMIN" || cycle.status === "SUPERVISOR_EVAL";
-    const lockedReason = canEdit ? null : "当前不是上级初评阶段，页面只保留查看";
+    const canEdit = true;
+    const lockedReason = null;
 
     const allUsers = await prisma.user.findMany({
       select: {
@@ -252,10 +252,6 @@ export async function POST(req: NextRequest) {
     const cycle = await getActiveCycle();
     if (!cycle) {
       return NextResponse.json({ error: "No active cycle" }, { status: 400 });
-    }
-
-    if (user.role !== "ADMIN" && cycle.status !== "SUPERVISOR_EVAL") {
-      return NextResponse.json({ error: "当前不在上级评估阶段，无法执行此操作" }, { status: 400 });
     }
 
     const employee = await prisma.user.findUnique({

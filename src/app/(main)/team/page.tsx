@@ -102,12 +102,6 @@ type FormData = {
   rootComment: string;
 };
 
-type TeamMeta = {
-  cycleStatus: string | null;
-  canEdit: boolean;
-  lockedReason: string | null;
-};
-
 type TeamResponse = {
   cycleStatus: string | null;
   canEdit: boolean;
@@ -191,7 +185,6 @@ function renderPeerDimension(label: string, score: number | null, comment: strin
 function TeamContent() {
   const { preview, previewRole, getData } = usePreview();
   const [evals, setEvals] = useState<TeamEval[]>([]);
-  const [teamMeta, setTeamMeta] = useState<TeamMeta>({ cycleStatus: null, canEdit: true, lockedReason: null });
   const [selected, setSelected] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, FormData>>({});
   const [saving, setSaving] = useState(false);
@@ -203,7 +196,6 @@ function TeamContent() {
       const previewData = getData("team") as Record<string, unknown>;
       const previewEvals = (previewData.evals as TeamEval[]) || [];
       setEvals(previewEvals);
-      setTeamMeta({ cycleStatus: null, canEdit: true, lockedReason: null });
       const initial: Record<string, FormData> = {};
       for (const e of previewEvals) {
         initial[e.employee.id] = initFormData(e.evaluation);
@@ -215,11 +207,6 @@ function TeamContent() {
     const loadData = () => {
       fetch("/api/supervisor-eval").then((r) => r.json()).then((raw) => {
         const data = normalizeTeamResponse(raw);
-        setTeamMeta({
-          cycleStatus: data.cycleStatus,
-          canEdit: data.canEdit,
-          lockedReason: data.lockedReason,
-        });
         setEvals((prev) => {
           // First load: initialize form data
           if (prev.length === 0) {
@@ -243,10 +230,6 @@ function TeamContent() {
 
   const saveEval = async (employeeId: string, action: "save" | "submit") => {
     if (preview) return;
-    if (!teamMeta.canEdit) {
-      toast.error(teamMeta.lockedReason || "当前不是上级初评阶段，无法保存或提交");
-      return;
-    }
     const fd = formData[employeeId];
     const targetEval = evals.find((item) => item.employee.id === employeeId);
     const canEditImportedSubmitted = Boolean(targetEval?.evaluation?.canEditSubmitted);
@@ -279,11 +262,6 @@ function TeamContent() {
       toast.success(action === "submit" ? "评估已提交" : "已保存");
       const refreshed = await fetch("/api/supervisor-eval").then((r) => r.json());
       const data = normalizeTeamResponse(refreshed);
-      setTeamMeta({
-        cycleStatus: data.cycleStatus,
-        canEdit: data.canEdit,
-        lockedReason: data.lockedReason,
-      });
       setEvals(data.items);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "操作失败");
@@ -295,7 +273,7 @@ function TeamContent() {
   const selectedEval = evals.find((e) => e.employee.id === selected);
   const isSubmitted = selectedEval?.evaluation?.status === "SUBMITTED";
   const canEditSubmitted = Boolean(selectedEval?.evaluation?.canEditSubmitted);
-  const isReadOnly = (Boolean(isSubmitted) && !canEditSubmitted) || (!teamMeta.canEdit && !preview);
+  const isReadOnly = Boolean(isSubmitted) && !canEditSubmitted;
   const currentForm = selected ? formData[selected] : null;
   const liveWeightedScore = currentForm ? computeWeightedScore(currentForm) : null;
 
@@ -410,15 +388,6 @@ function TeamContent() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {!preview && teamMeta.lockedReason ? (
-                    <Card className="border-amber-200 bg-amber-50/70">
-                      <CardContent className="py-4 text-sm text-amber-900">
-                        {teamMeta.lockedReason}
-                        {teamMeta.cycleStatus ? `（当前周期阶段：${teamMeta.cycleStatus}）` : ""}
-                      </CardContent>
-                    </Card>
-                  ) : null}
 
                   {canEditSubmitted ? (
                     <Card className="border-blue-200 bg-blue-50/70">
