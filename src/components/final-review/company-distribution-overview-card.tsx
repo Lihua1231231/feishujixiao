@@ -36,6 +36,13 @@ function formatSuggestedCountRange(stars: number, denominator: number) {
   return floor === ceil ? `${ceil} 人` : `${floor}-${ceil} 人`;
 }
 
+function formatCurrentCountSummary(
+  distribution: Array<{ stars: number; count: number }>,
+) {
+  const counts = new Map(distribution.map((item) => [item.stars, item.count]));
+  return `当前各档对应人数：五星${counts.get(5) || 0}人，四星${counts.get(4) || 0}人，三星${counts.get(3) || 0}人，二星${counts.get(2) || 0}人，一星${counts.get(1) || 0}人。`;
+}
+
 export function CompanyDistributionOverviewCard({
   title,
   description,
@@ -55,6 +62,9 @@ export function CompanyDistributionOverviewCard({
     ruleLabel: DISTRIBUTION_RULE_LABELS[item.stars as keyof typeof DISTRIBUTION_RULE_LABELS],
     countRange: formatSuggestedCountRange(item.stars, overview.includedCount),
   }));
+  const excludedCount = Math.max(overview.totalParticipants - overview.includedCount, 0);
+  const progressLabel = `${overview.calibratedCount}/${overview.includedCount || 0}`;
+  const currentCountSummary = formatCurrentCountSummary(overview.distribution);
 
   return (
     <Card className="rounded-[var(--radius-2xl)] border shadow-none" style={panelStyle}>
@@ -65,24 +75,37 @@ export function CompanyDistributionOverviewCard({
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border px-3 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">本次参评人数</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">本次绩效考核参评</p>
             <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.totalParticipants} 人</p>
           </div>
           <div className="rounded-2xl border px-3 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前图口径</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">当前图统计口径</p>
             <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.includedCount} 人</p>
+            {excludedCount > 0 ? (
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">已剔除 ROOT {excludedCount} 人</p>
+            ) : null}
           </div>
           <div className="rounded-2xl border px-3 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">已完成校准</p>
+            <p className="text-xs text-[var(--cockpit-muted-foreground)]">已完成绩效校准</p>
             <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.calibratedCount} 人</p>
           </div>
           <div className="rounded-2xl border px-3 py-3">
             <p className="text-xs text-[var(--cockpit-muted-foreground)]">校准进度</p>
             <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.progressPct}%</p>
+            <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{progressLabel}</p>
           </div>
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 grid gap-2 sm:grid-cols-5">
+          {data.map((item) => (
+            <div key={`headline:${item.label}`} className="rounded-2xl border px-3 py-3">
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">{item.label}</p>
+              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{item.count} 人</p>
+              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{item.pctLabel}</p>
+            </div>
+          ))}
+        </div>
         <div className="h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
@@ -119,18 +142,12 @@ export function CompanyDistributionOverviewCard({
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-5">
-          {data.map((item) => (
-            <div key={`guidance:${item.label}`} className="rounded-2xl border px-3 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">{item.ruleLabel}</p>
-              <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">
-                当前 {item.count} 人 · {item.pctLabel}
-              </p>
-              <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-                建议人数 {item.countRange}
-              </p>
-            </div>
-          ))}
+        <div className="mt-4 rounded-2xl border px-4 py-3 text-sm leading-7 text-[var(--cockpit-foreground)]">
+          <p>建议分布：五星≤10%，四星≤20%，三星50%+，二星≤15%，一星≤5%。</p>
+          <p className="mt-1">{currentCountSummary}</p>
+          <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
+            当前图建议人数：五星{data[4]?.countRange || "0 人"}，四星{data[3]?.countRange || "0 人"}，三星{data[2]?.countRange || "0 人+"}，二星{data[1]?.countRange || "0 人"}，一星{data[0]?.countRange || "0 人"}。实时更新。
+          </p>
         </div>
       </CardContent>
     </Card>

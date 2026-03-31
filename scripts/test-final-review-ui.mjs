@@ -195,11 +195,18 @@ test("calibration page source includes leader-tab redesign tokens", () => {
     "leader tab should split the company-level distribution into ROOT-included and ROOT-excluded charts",
   );
   assert.equal(
-    overviewCard.includes("本次参评人数") &&
-      overviewCard.includes("已完成校准") &&
+    overviewCard.includes("本次绩效考核参评") &&
+      overviewCard.includes("已完成绩效校准") &&
       overviewCard.includes("校准进度"),
     true,
     "leader tab company charts should surface the participation and calibration progress metrics",
+  );
+  assert.equal(
+    overviewCard.includes("当前图统计口径") &&
+      overviewCard.includes("建议分布：五星≤10%，四星≤20%，三星50%+，二星≤15%，一星≤5%。") &&
+      overviewCard.includes("当前各档对应人数："),
+    true,
+    "leader tab company charts should explain the active population, the target distribution rule, and the live per-star counts",
   );
 });
 
