@@ -171,8 +171,8 @@ function DashboardContent() {
             icon: MessageSquare,
             iconColor: "text-emerald-600",
             iconBg: "bg-emerald-50",
-            title: "面谈记录",
-            description: "记录绩效面谈",
+            title: "绩效确定",
+            description: "绩效面谈与结果确认",
             accent: "group-hover:border-emerald-200",
           },
         ]

@@ -15,15 +15,20 @@ import {
 import { getAppliedNormalizationMap } from "@/lib/applied-normalization";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
 import { computeWeightedScoreFromDimensions } from "@/lib/weighted-score";
-import { buildMeetingInterviewerMap, getAssignedEmployeeIds } from "@/lib/meeting-assignments";
+import { buildMeetingInterviewerMap, getAssignedEmployeeIds, type DbInterviewerOverrides } from "@/lib/meeting-assignments";
 
 function roundToOneDecimal(value: number | null): number | null {
   if (value == null) return null;
   return Math.round(value * 10) / 10;
 }
 
+function parseDbOverrides(raw: string | undefined | null): DbInterviewerOverrides {
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
 // Get interview data
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,6 +36,25 @@ export async function GET() {
     if (!cycle) return NextResponse.json({ role: "EMPLOYEE", cycleStatus: null, items: [] });
 
     const isSupervisor = ["SUPERVISOR", "HRBP", "ADMIN"].includes(user.role);
+
+    // Admin perspective toggle: ?view=employee&employeeId=xxx
+    const url = new URL(req.url);
+    const viewParam = url.searchParams.get("view");
+    if (viewParam === "employee" && user.role === "ADMIN") {
+      const employeeId = url.searchParams.get("employeeId");
+      if (!employeeId) {
+        return NextResponse.json({ error: "employeeId required" }, { status: 400 });
+      }
+      const targetUser = await prisma.user.findUnique({
+        where: { id: employeeId },
+        select: { id: true, name: true, role: true },
+      });
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      const empData = await buildEmployeeData(targetUser, cycle);
+      return NextResponse.json({ ...empData, adminPreview: true, employeeName: targetUser.name });
+    }
 
     if (isSupervisor) {
       return NextResponse.json(await buildSupervisorData(user, cycle));
@@ -53,11 +77,16 @@ async function buildSupervisorData(
   });
 
   // Build interviewer map and find assigned employees
-  const interviewerMap = buildMeetingInterviewerMap(allUsers);
+  const meetingConfig = await prisma.finalReviewConfig.findUnique({
+    where: { cycleId: cycle.id },
+    select: { meetingInterviewerOverrides: true },
+  });
+  const dbOverrides = parseDbOverrides(meetingConfig?.meetingInterviewerOverrides);
+  const interviewerMap = buildMeetingInterviewerMap(allUsers, dbOverrides);
   const assignedEmployeeIds = getAssignedEmployeeIds(interviewerMap, user.id);
 
   if (assignedEmployeeIds.length === 0) {
-    return { role: "SUPERVISOR", cycleStatus: cycle.status, cycleName: cycle.name, items: [] };
+    return { role: "SUPERVISOR", userRole: user.role, cycleStatus: cycle.status, cycleName: cycle.name, items: [] };
   }
 
   const subordinates = allUsers
@@ -271,6 +300,7 @@ async function buildSupervisorData(
 
   return {
     role: "SUPERVISOR",
+    userRole: user.role,
     cycleStatus: cycle.status,
     cycleName: cycle.name,
     items,

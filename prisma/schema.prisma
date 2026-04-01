@@ -345,6 +345,7 @@ model FinalReviewConfig {
   leaderSubjectUserIds    String      @default("[]")
   employeeSubjectUserIds  String      @default("[]")
   referenceStarRanges     String      @default("[]")
+  meetingInterviewerOverrides String  @default("{}")
   createdAt               DateTime    @default(now())
   updatedAt               DateTime    @updatedAt
 }

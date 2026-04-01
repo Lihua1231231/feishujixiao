@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
     }
     if (!summary?.trim()) {
-      return NextResponse.json({ error: "请填写绩效确定综述后再标记完成" }, { status: 400 });
+      return NextResponse.json({ error: "请填写绩效面谈综述后再标记完成" }, { status: 400 });
     }
 
     const cycle = await getActiveCycle();

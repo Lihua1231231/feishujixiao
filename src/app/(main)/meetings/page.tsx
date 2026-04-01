@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { ListPageSkeleton } from "@/components/page-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
+import { Eye } from "lucide-react";
 import { toast } from "sonner";
 
 // ========== Types ==========
@@ -94,6 +95,7 @@ type InterviewItem = {
 
 type SupervisorData = {
   role: "SUPERVISOR";
+  userRole: string;
   cycleStatus: string;
   cycleName: string;
   items: InterviewItem[];
@@ -443,6 +445,14 @@ function EmployeeInterviewCard({
               <p className="text-xs text-muted-foreground">
                 请你针对员工上周期绩效表现进行简评，并在绩效面谈时传达。注意：该简评将会体现在员工绩效面谈确认界面。
               </p>
+              <div className="rounded-xl border bg-muted/30 px-4 py-3 space-y-1 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground text-sm">综述模板参考：</p>
+                <p>本次绩效判断主要基于以下方面：</p>
+                <p className="pl-3">1）关键业绩结果与价值贡献；</p>
+                <p className="pl-3">2）综合能力表现，包括问题解决、学习适应、AI-first 工作方式落地情况；</p>
+                <p className="pl-3">3）价值观与协作表现。</p>
+                <p className="mt-1">已向员工说明其本周期主要亮点/主要不足，并明确下周期重点要求为：A. ______ B. ______ C. ______</p>
+              </div>
               <Textarea
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
@@ -470,6 +480,66 @@ function EmployeeInterviewCard({
         </div>
       )}
     </div>
+  );
+}
+
+// ========== Interview Guide ==========
+
+function InterviewGuide() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">绩效面谈指引</CardTitle>
+          <span className="text-xs text-muted-foreground">{expanded ? "收起" : "展开查看"}</span>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="space-y-6 text-sm leading-7">
+          {/* 准备工作 */}
+          <div className="space-y-3">
+            <p className="font-semibold text-base">一、准备工作</p>
+            <div className="space-y-2 text-muted-foreground">
+              <p><span className="font-medium text-foreground">第一，一句话结论。</span>格式："这次你的绩效分数加权是 xx 分，绩效等级是 X 星。"（注意：如在绩效终评校准环节发生了校准，以校准后的绩效加权分数和绩效等级作为最终信息）</p>
+              <p><span className="font-medium text-foreground">第二，浏览。</span>点击 360 环评 - 展开详情，梳理环评人的公允反馈。</p>
+              <p><span className="font-medium text-foreground">第三，梳理。</span>业绩产出维度的有效产出及综评、待改进建议；学习能力维度、价值观维度同理。以及，下一周期的成长目标引导。</p>
+            </div>
+          </div>
+
+          {/* 绩效面谈 */}
+          <div className="space-y-3">
+            <p className="font-semibold text-base">二、绩效面谈（建议 10-20 分钟，有需要可邀请 HRBP 禹聪琪共同参与）</p>
+            <div className="space-y-2 text-muted-foreground">
+              <p>提前做完准备工作后，针对员工上周期绩效表现进行简评，并录入绩效面谈对话框，在绩效面谈时合理传达。</p>
+              <p className="text-amber-700 font-medium">注意：该简评将会体现在员工绩效面谈确认界面。</p>
+            </div>
+          </div>
+
+          {/* 话术参考 */}
+          <div className="space-y-3">
+            <p className="font-semibold text-base">三、参考话术（核心是坦诚清晰、简洁直接、基于事实）</p>
+            <div className="rounded-xl border bg-muted/30 px-5 py-4 space-y-3 text-muted-foreground">
+              <p>"同学，你好，今天绩效面谈，我们沟通三件事：</p>
+              <ul className="list-disc pl-5 space-y-2">
+                <li>第一，回顾你这个绩效周期的整体表现和结果，你先用 3-5 分钟讲一下，你觉得这周期最值得肯定的 2 件事，和最需要改进的 1-2 件事</li>
+                <li>第二，同步本次绩效周期你的绩效分数和绩效等级，讲清楚公司为什么做这个判断</li>
+                <li>第三，确认你下个周期最重要的提升点，和我会给你的支持。下个周期，我希望你重点抓 3 件事：1）保持什么；2）改掉什么；3）建立什么新能力。我也会给你对应支持：资源、节奏、反馈节点、协作人。"</li>
+              </ul>
+              <p>最后，面谈结束必须有 next step。我们把有共识和没共识的地方都记下来，后面按节奏继续跟。</p>
+            </div>
+          </div>
+
+          {/* 重要提醒 */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-5 py-4 space-y-2">
+            <p className="font-semibold text-amber-800">重要提醒</p>
+            <p className="text-sm text-amber-700">各级管理者是团队绩效管理第一责任人：设清晰目标、及时反馈、促进成长、有效管理。请各位主管在绩效面谈中遵循：及时反馈、有效管理、促进员工成长三原则。</p>
+            <p className="text-sm text-amber-700">除此之外，在未来也需持续关注下属的目标对齐、双月 OKR 过程辅导、日常一对一反馈沟通。并在绩效周期后，视需制定下属绩效改进计划，落地人才发展动作。</p>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
@@ -528,19 +598,12 @@ function SupervisorView({ data }: { data: SupervisorData }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="绩效面谈"
-        description={`${data.cycleName} · 面谈阶段`}
+        title="绩效确定"
+        description={`${data.cycleName} · 绩效面谈阶段`}
       />
 
-      {/* Interview guide placeholder */}
-      <Card>
-        <CardHeader className="cursor-pointer">
-          <CardTitle className="text-base">绩效面谈指引</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          面谈指引内容将在后续补充。
-        </CardContent>
-      </Card>
+      {/* Interview guide */}
+      <InterviewGuide />
 
       {/* Pending count */}
       <div className="text-lg font-semibold">
@@ -574,9 +637,10 @@ function SupervisorView({ data }: { data: SupervisorData }) {
 
 // ========== Employee View ==========
 
-function EmployeeView({ data }: { data: EmployeeData }) {
+function EmployeeView({ data }: { data: EmployeeData & { adminPreview?: boolean; employeeName?: string } }) {
   const [acked, setAcked] = useState(data.employeeAck);
   const [confirming, setConfirming] = useState(false);
+  const isAdminPreview = Boolean(data.adminPreview);
 
   const handleConfirm = async () => {
     if (!confirm("确认面谈结果？确认后无法撤销。")) return;
@@ -600,10 +664,10 @@ function EmployeeView({ data }: { data: EmployeeData }) {
     }
   };
 
-  if (data.cycleStatus !== "MEETING") {
+  if (!isAdminPreview && data.cycleStatus !== "MEETING") {
     return (
       <div className="space-y-6">
-        <PageHeader title="绩效面谈" description={data.cycleName || ""} />
+        <PageHeader title="绩效确定" description={data.cycleName || ""} />
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             当前不在面谈阶段
@@ -616,7 +680,7 @@ function EmployeeView({ data }: { data: EmployeeData }) {
   if (data.officialStars == null) {
     return (
       <div className="space-y-6">
-        <PageHeader title="绩效面谈" description={data.cycleName || ""} />
+        <PageHeader title="绩效确定" description={data.cycleName || ""} />
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             你的绩效结果尚在处理中，请稍后再来查看。
@@ -628,7 +692,7 @@ function EmployeeView({ data }: { data: EmployeeData }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="绩效面谈" description={data.cycleName || ""} />
+      <PageHeader title="绩效确定" description={data.cycleName || ""} />
 
       <Card>
         <CardContent className="py-8 space-y-6">
@@ -679,11 +743,59 @@ function EmployeeView({ data }: { data: EmployeeData }) {
   );
 }
 
+// ========== Admin Perspective Toggle ==========
+
+function AdminPerspectiveToggle({
+  items,
+  onPreviewEmployee,
+  onBackToSupervisor,
+  previewingEmployee,
+}: {
+  items: InterviewItem[];
+  onPreviewEmployee: (id: string) => void;
+  onBackToSupervisor: () => void;
+  previewingEmployee: string | null;
+}) {
+  return (
+    <Card className="border-blue-200 bg-blue-50/30">
+      <CardContent className="py-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Eye className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-800">管理员透视</span>
+          <span className="text-xs text-blue-600">切换查看员工视角</span>
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <Button
+              variant={previewingEmployee === null ? "default" : "outline"}
+              size="sm"
+              onClick={onBackToSupervisor}
+            >
+              主管视角
+            </Button>
+            {items.map((item) => (
+              <Button
+                key={item.employee.id}
+                variant={previewingEmployee === item.employee.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => onPreviewEmployee(item.employee.id)}
+              >
+                {item.employee.name}视角
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ========== Main Page ==========
 
 function MeetingsContent() {
   const [data, setData] = useState<MeetingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewingEmployee, setPreviewingEmployee] = useState<string | null>(null);
+  const [employeePreviewData, setEmployeePreviewData] = useState<(EmployeeData & { adminPreview?: boolean; employeeName?: string }) | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/meeting")
@@ -699,6 +811,21 @@ function MeetingsContent() {
       });
   }, []);
 
+  const handlePreviewEmployee = useCallback(async (employeeId: string) => {
+    setPreviewingEmployee(employeeId);
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/meeting?view=employee&employeeId=${employeeId}`);
+      const result = await res.json();
+      setEmployeePreviewData(result);
+    } catch {
+      toast.error("加载员工视角失败");
+      setPreviewingEmployee(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
   if (loading) return <ListPageSkeleton />;
 
   if (!data) {
@@ -712,7 +839,40 @@ function MeetingsContent() {
   }
 
   if (data.role === "SUPERVISOR") {
-    return <SupervisorView data={data as SupervisorData} />;
+    const supData = data as SupervisorData;
+    const isAdmin = supData.userRole === "ADMIN";
+
+    // Show employee preview if active
+    if (previewingEmployee && employeePreviewData && !previewLoading) {
+      return (
+        <div className="space-y-4">
+          <AdminPerspectiveToggle
+            items={supData.items}
+            onPreviewEmployee={handlePreviewEmployee}
+            onBackToSupervisor={() => { setPreviewingEmployee(null); setEmployeePreviewData(null); }}
+            previewingEmployee={previewingEmployee}
+          />
+          <div className="rounded-xl border border-blue-200 bg-blue-50/20 px-4 py-2 text-sm text-blue-700">
+            当前正在查看 <span className="font-semibold">{employeePreviewData.employeeName}</span> 的员工视角
+          </div>
+          <EmployeeView data={employeePreviewData} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {isAdmin && supData.items.length > 0 && (
+          <AdminPerspectiveToggle
+            items={supData.items}
+            onPreviewEmployee={handlePreviewEmployee}
+            onBackToSupervisor={() => { setPreviewingEmployee(null); setEmployeePreviewData(null); }}
+            previewingEmployee={previewingEmployee}
+          />
+        )}
+        {previewLoading ? <ListPageSkeleton /> : <SupervisorView data={supData} />}
+      </div>
+    );
   }
 
   return <EmployeeView data={data as EmployeeData} />;

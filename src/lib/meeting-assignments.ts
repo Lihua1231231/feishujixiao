@@ -1,7 +1,7 @@
 /**
  * Meeting interviewer assignments.
  * Maps each employee to their designated interviewer(s) for the performance meeting.
- * Default: interviewer = direct supervisor. Overrides below for special cases.
+ * Priority: DB overrides > hardcoded overrides > direct supervisor.
  */
 
 // employeeName -> interviewerNames[]
@@ -24,16 +24,7 @@ const INTERVIEWER_OVERRIDES: Record<string, string[]> = {
   "郑文文": ["邱翔"],
 };
 
-export function getMeetingInterviewerNames(
-  employeeName: string,
-  supervisorName: string | null,
-): string[] {
-  const override = INTERVIEWER_OVERRIDES[employeeName];
-  if (override) return override;
-  return supervisorName ? [supervisorName] : [];
-}
-
-type MeetingUser = {
+export type MeetingUser = {
   id: string;
   name: string;
   supervisorId: string | null;
@@ -41,16 +32,38 @@ type MeetingUser = {
 };
 
 /**
+ * DB overrides format: { "employeeName": ["interviewerName1", ...] }
+ */
+export type DbInterviewerOverrides = Record<string, string[]>;
+
+function resolveInterviewerNames(
+  employeeName: string,
+  supervisorName: string | null,
+  dbOverrides?: DbInterviewerOverrides,
+): string[] {
+  // Priority 1: DB overrides
+  if (dbOverrides && dbOverrides[employeeName]?.length) {
+    return dbOverrides[employeeName];
+  }
+  // Priority 2: Hardcoded overrides
+  const hardcoded = INTERVIEWER_OVERRIDES[employeeName];
+  if (hardcoded) return hardcoded;
+  // Priority 3: Direct supervisor
+  return supervisorName ? [supervisorName] : [];
+}
+
+/**
  * Returns Map<employeeId, interviewerIds[]>
  */
 export function buildMeetingInterviewerMap(
   users: MeetingUser[],
+  dbOverrides?: DbInterviewerOverrides,
 ): Map<string, string[]> {
   const byName = new Map(users.map((u) => [u.name, u]));
   const result = new Map<string, string[]>();
 
   for (const user of users) {
-    const names = getMeetingInterviewerNames(user.name, user.supervisor?.name ?? null);
+    const names = resolveInterviewerNames(user.name, user.supervisor?.name ?? null, dbOverrides);
     const ids = names
       .map((n) => byName.get(n)?.id)
       .filter((id): id is string => Boolean(id));
@@ -76,4 +89,11 @@ export function getAssignedEmployeeIds(
     }
   }
   return result;
+}
+
+/**
+ * Check if an employee has a DB override (vs hardcoded or default).
+ */
+export function isDbOverridden(employeeName: string, dbOverrides?: DbInterviewerOverrides): boolean {
+  return Boolean(dbOverrides && dbOverrides[employeeName]?.length);
 }

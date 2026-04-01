@@ -377,18 +377,18 @@ export function GuidePage({ cycle, userRole }: Props) {
               </CardHeader>
             </Card>
 
-            {/* 绩效面谈 - 补全信息 (Task 7) */}
+            {/* 绩效确定 - 补全信息 (Task 7) */}
             <GuideCard
               icon={<MessageSquare className="h-6 w-6 text-blue-600" />}
-              title="绩效面谈"
+              title="绩效确定"
               items={[
                 "与每位下属一对一面谈",
                 "结合员工工作总结、360度评估反馈、周期内实际产出进行反馈",
-                "记录面谈纪要",
-                "员工确认面谈结果",
+                "记录面谈综述",
+                "员工确认绩效结果",
               ]}
               href="/meetings"
-              linkText="前往面谈"
+              linkText="前往绩效确定"
             />
           </TabsContent>
 
