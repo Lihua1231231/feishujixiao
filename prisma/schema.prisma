@@ -425,9 +425,11 @@ model Meeting {
   employee     User      @relation("MeetingEmployee", fields: [employeeId], references: [id])
   supervisorId String
   supervisor   User      @relation("MeetingSupervisor", fields: [supervisorId], references: [id])
-  meetingDate  DateTime?
-  notes        String    @default("")
-  employeeAck  Boolean   @default(false)
+  meetingDate          DateTime?
+  notes                String    @default("")
+  summary              String    @default("")
+  employeeAck          Boolean   @default(false)
+  supervisorCompleted  Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
