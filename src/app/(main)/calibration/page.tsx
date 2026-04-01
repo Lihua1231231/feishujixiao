@@ -5,6 +5,7 @@ import {
   buildLeaderSubmissionSummary,
 } from "@/components/final-review/workspace-view";
 import { ArchiveTables } from "@/components/final-review/archive-tables";
+import { CompanyDistributionOverviewCard } from "@/components/final-review/company-distribution-overview-card";
 import { EmployeeCockpit } from "@/components/final-review/employee-cockpit";
 import { EmployeeDetailPanel } from "@/components/final-review/employee-detail-panel";
 import { LeaderCockpit } from "@/components/final-review/leader-cockpit";
@@ -423,6 +424,7 @@ function CalibrationContent() {
           <TabsTrigger value="leaders">主管层绩效终评校准</TabsTrigger>
           <TabsTrigger value="normalization">绩效打分分布校准</TabsTrigger>
           <TabsTrigger value="archive">公司绩效终评校准留档</TabsTrigger>
+          <TabsTrigger value="distribution">公司整体绩效分布图</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
@@ -490,6 +492,14 @@ function CalibrationContent() {
             employees={workspace.employeeReview.employees}
             leaders={workspace.leaderReview.leaders}
             leaderForms={leaderForms}
+          />
+        </TabsContent>
+
+        <TabsContent value="distribution" className="space-y-4">
+          <CompanyDistributionOverviewCard
+            title="公司整体绩效分布（不含ROOT及已离职人员）"
+            description="用于留档的公司最终绩效分布，剔除 ROOT 独立评估对象和已离职人员后的整体结果。"
+            overview={workspace.leaderReview.companyDistributionOverviews.withoutRoot}
           />
         </TabsContent>
       </Tabs>
