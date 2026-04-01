@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   buildLeaderSubmissionSummary,
 } from "@/components/final-review/workspace-view";
+import { ArchiveTables } from "@/components/final-review/archive-tables";
 import { EmployeeCockpit } from "@/components/final-review/employee-cockpit";
 import { EmployeeDetailPanel } from "@/components/final-review/employee-detail-panel";
 import { LeaderCockpit } from "@/components/final-review/leader-cockpit";
@@ -294,15 +295,11 @@ function CalibrationContent() {
         <TabsList>
           <TabsTrigger value="employees">员工层绩效校准</TabsTrigger>
           <TabsTrigger value="leaders">主管层绩效终评校准</TabsTrigger>
+          <TabsTrigger value="archive">公司绩效终评校准留档</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees" className="space-y-4" data-priority-pending-count={pendingPriorityCount}>
           <EmployeeCockpit
-            companyCount={workspace.employeeReview.overview.companyCount}
-            officialCompletionRate={workspace.employeeReview.overview.officialCompletionRate}
-            pendingOfficialCount={workspace.employeeReview.overview.pendingOfficialCount}
-            companyDistribution={workspace.employeeReview.companyDistribution}
-            distributionChecks={workspace.overview.distributionComplianceChecks}
             departmentDistributions={workspace.employeeReview.departmentDistributions}
             allEmployees={workspace.employeeReview.employees}
             selectedEmployeeId={selectedEmployee?.id ?? null}
@@ -337,6 +334,7 @@ function CalibrationContent() {
             confirmedCount={workspace.leaderReview.overview.confirmedCount}
             leaderDistribution={workspace.leaderReview.leaderDistribution}
             companyDistributionOverviews={workspace.leaderReview.companyDistributionOverviews}
+            distributionChecks={workspace.overview.distributionComplianceChecks}
             evaluatorProgress={workspace.leaderReview.overview.evaluatorProgress}
             allLeaders={workspace.leaderReview.leaders}
             selectedLeaderId={selectedLeader?.id ?? null}
@@ -353,6 +351,14 @@ function CalibrationContent() {
                 onSaveEvaluation={saveLeaderEvaluation}
               />
             )}
+          />
+        </TabsContent>
+
+        <TabsContent value="archive" className="space-y-4">
+          <ArchiveTables
+            employees={workspace.employeeReview.employees}
+            leaders={workspace.leaderReview.leaders}
+            leaderForms={leaderForms}
           />
         </TabsContent>
       </Tabs>

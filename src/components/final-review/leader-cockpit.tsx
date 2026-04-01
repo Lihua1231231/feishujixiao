@@ -19,6 +19,16 @@ type LeaderCockpitProps = {
     withRoot: CompanyDistributionOverview;
     withoutRoot: CompanyDistributionOverview;
   };
+  distributionChecks: Array<{
+    stars: number;
+    label: string;
+    target: string;
+    actualCount: number;
+    actualPct: number;
+    compliant: boolean;
+    deltaCount: number;
+    summary: string;
+  }>;
   evaluatorProgress: Array<{
     evaluatorId: string;
     evaluatorName: string;
@@ -37,6 +47,7 @@ export function LeaderCockpit({
   confirmedCount,
   leaderDistribution,
   companyDistributionOverviews,
+  distributionChecks,
   evaluatorProgress,
   allLeaders,
   selectedLeaderId,
@@ -135,6 +146,23 @@ export function LeaderCockpit({
             description="ROOT 独立评估，不含 ROOT 的整体结果才用于对照建议分布并做后续微调。"
             overview={companyDistributionOverviews.withoutRoot}
           />
+        </div>
+
+        <div className="mt-4 space-y-3 rounded-[24px] border p-4">
+          <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前偏离摘要</p>
+          {distributionChecks.map((item) => (
+            <div key={`distribution-check:${item.stars}`} className="rounded-2xl border px-4 py-3">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-[var(--cockpit-foreground)]">{item.label}</span>
+                <span className={item.compliant ? "text-[var(--cockpit-muted-foreground)]" : item.stars === 3 ? "text-[color:#b7791f]" : "text-[color:#c2410c]"}>
+                  {item.compliant ? "符合建议" : item.summary}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[var(--cockpit-muted-foreground)]">
+                当前 {item.actualCount} 人 · {item.actualPct}% · {item.target}
+              </p>
+            </div>
+          ))}
         </div>
 
         <section className="mt-4 space-y-4 rounded-[24px] border p-4">
