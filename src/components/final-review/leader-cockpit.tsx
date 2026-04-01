@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CompanyDistributionOverviewCard } from "./company-distribution-overview-card";
 import { QueueTabs } from "./queue-tabs";
 import { RosterSearchList, type RosterSearchItem } from "./roster-search-list";
@@ -55,6 +56,7 @@ export function LeaderCockpit({
   detailPanel,
 }: LeaderCockpitProps) {
   const [activeQueueKey, setActiveQueueKey] = useState<"all">("all");
+  const [chartsExpanded, setChartsExpanded] = useState(false);
   const [queuePanelHeight, setQueuePanelHeight] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const panelStyle: CSSProperties = {
@@ -117,25 +119,36 @@ export function LeaderCockpit({
           </Badge>
         </div>
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px] xl:items-start">
-          <StarDistributionChart
-            title="主管层等级全览"
-            description="先看主管层当前正式分布，再决定哪些对象需要优先回看。"
-            distribution={leaderDistribution}
-          />
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-4 w-full"
+          onClick={() => setChartsExpanded((v) => !v)}
+        >
+          {chartsExpanded ? "收起分布图表" : "展开分布图表"}
+        </Button>
 
-          <CompanyDistributionOverviewCard
-            title="公司整体绩效分布（含ROOT）"
-            description="含 ROOT 的整体结果用于看全公司最终落点，先确认整体口径再决定是否需要回收。"
-            overview={companyDistributionOverviews.withRoot}
-          />
+        {chartsExpanded ? (
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px] xl:items-start">
+            <StarDistributionChart
+              title="主管层等级全览"
+              description="先看主管层当前正式分布，再决定哪些对象需要优先回看。"
+              distribution={leaderDistribution}
+            />
 
-          <CompanyDistributionOverviewCard
-            title="公司整体绩效分布（不含ROOT）"
-            description="ROOT 独立评估，不含 ROOT 的整体结果才用于对照建议分布并做后续微调。"
-            overview={companyDistributionOverviews.withoutRoot}
-          />
-        </div>
+            <CompanyDistributionOverviewCard
+              title="公司整体绩效分布（含ROOT）"
+              description="含 ROOT 的整体结果用于看全公司最终落点，先确认整体口径再决定是否需要回收。"
+              overview={companyDistributionOverviews.withRoot}
+            />
+
+            <CompanyDistributionOverviewCard
+              title="公司整体绩效分布（不含ROOT）"
+              description="ROOT 独立评估，不含 ROOT 的整体结果才用于对照建议分布并做后续微调。"
+              overview={companyDistributionOverviews.withoutRoot}
+            />
+          </div>
+        ) : null}
 
         <div className="mt-4 space-y-3 rounded-[24px] border p-4">
           <p className="text-sm font-semibold text-[var(--cockpit-foreground)]">当前偏离摘要</p>
