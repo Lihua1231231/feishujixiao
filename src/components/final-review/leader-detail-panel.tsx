@@ -206,7 +206,7 @@ export function LeaderDetailPanel({
   }
 
   const pendingReviewCount = leader.submissionSummary.pendingCount;
-  const statusLabel = leader.officialStars != null ? "已形成结果，可切换下一位" : leader.bothSubmitted ? "待生成结果" : "待双人提交";
+  const statusLabel = leader.officialStars != null ? "终评意见一致，可切换下一位" : leader.bothSubmitted ? "待生成结果" : "待双人提交";
 
   return (
     <aside className="sticky top-6 space-y-4">

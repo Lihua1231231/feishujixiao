@@ -274,7 +274,7 @@ export function EmployeeDetailPanel({
     employee.agreementState === "AGREED"
       ? `已一致 · ${renderStars(employee.officialStars, "—")}`
       : employee.agreementState === "DISAGREED"
-        ? "两人不一致"
+        ? "发生校准"
         : "待两位完成";
   const calibratorSummaryText =
     employee.anomalyTags.length > 0 ? `当前风险信号：${employee.anomalyTags.join("、")}` : "当前没有额外风险信号。";
@@ -292,7 +292,7 @@ export function EmployeeDetailPanel({
             </p>
           </div>
           <Badge variant={employee.officialStars == null ? "outline" : "default"}>
-            {employee.officialStars == null ? "待双人校准" : "已形成结果，可切换下一位"}
+            {employee.officialStars == null ? "待双人校准" : "终评意见一致，可切换下一位"}
           </Badge>
         </div>
 
@@ -311,7 +311,7 @@ export function EmployeeDetailPanel({
               />
               <SummaryCard
                 label="校准状态"
-                value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "两人不一致" : "待两位完成"}
+                value={employee.agreementState === "AGREED" ? "已一致" : employee.agreementState === "DISAGREED" ? "发生校准" : "待两位完成"}
               />
             </div>
           </div>

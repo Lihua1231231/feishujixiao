@@ -89,7 +89,7 @@ export function EmployeeCockpit({
     : baseQueueRows;
   const queueItems = [
     { key: "pending", label: "待双人校准", count: queueGroups.pending.length },
-    { key: "disagreement", label: "两人不一致", count: queueGroups.disagreement.length },
+    { key: "disagreement", label: "发生校准", count: queueGroups.disagreement.length },
     { key: "all", label: "全部员工", count: queueGroups.all.length },
   ];
   const rosterItems: RosterSearchItem[] = visibleRows.map((employee) => ({
@@ -97,14 +97,14 @@ export function EmployeeCockpit({
     name: employee.name,
     meta: `${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
     detail: `绩效初评等级（加权） ${employee.referenceStars != null ? `${employee.referenceStars}星` : "—"}`,
-    status: employee.summaryStats.disagreementCount > 0 ? "两人不一致" : employee.officialStars == null ? "待双人校准" : "已形成结果",
+    status: employee.summaryStats.disagreementCount > 0 ? "发生校准" : employee.officialStars == null ? "待双人校准" : "终评意见一致",
     tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary",
   }));
   const queueDescription =
     activeQueueKey === "pending"
       ? "优先处理承霖、邱翔还没有都完成校准的人。"
       : activeQueueKey === "disagreement"
-        ? "先看两位校准人当前结论不一致的人。"
+        ? "先看发生校准的人。"
       : "需要回看时，可以直接搜索定位。";
 
   return (

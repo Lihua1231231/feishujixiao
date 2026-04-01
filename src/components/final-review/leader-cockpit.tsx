@@ -98,7 +98,7 @@ export function LeaderCockpit({
     id: leader.id,
     name: leader.name,
     meta: `${leader.department}${leader.jobTitle ? ` · ${leader.jobTitle}` : ""}`,
-    status: leader.officialStars != null ? "已形成结果" : leader.bothSubmitted ? "待生成结果" : "待双人提交",
+    status: leader.officialStars != null ? "终评意见一致" : leader.bothSubmitted ? "待生成结果" : "待双人提交",
     tone: leader.officialStars != null ? "secondary" : leader.bothSubmitted ? "outline" : "destructive",
   }));
   const pendingCount = queueGroups.pending.length;
@@ -154,7 +154,7 @@ export function LeaderCockpit({
               <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{leaderCount} 人</p>
             </div>
             <div className="rounded-2xl border px-4 py-3">
-              <p className="text-xs text-[var(--cockpit-muted-foreground)]">已形成结果</p>
+              <p className="text-xs text-[var(--cockpit-muted-foreground)]">终评意见一致</p>
               <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{confirmedCount} 人</p>
             </div>
             <div className="rounded-2xl border px-4 py-3">
