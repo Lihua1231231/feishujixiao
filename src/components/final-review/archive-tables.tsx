@@ -19,6 +19,10 @@ import {
 
 const ROOT_NAMES = new Set(["曹铭哲", "曹越", "宓鸿宇"]);
 
+const LEADER_FINAL_OVERRIDE: Record<string, { score: number; stars: number }> = {
+  "曹铭哲": { score: 5, stars: 5 },
+};
+
 function ExpandableCell({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
   if (!text || text === "—") return <span>—</span>;
@@ -241,8 +245,9 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
             <TableBody>
               {filteredLeaders.map((leader) => {
                 const { qiuxiangForm, chenglinForm, chenglinStoredWeightedScore } = resolveLeaderForms(leader, leaderForms);
-                const chenglinScore = chenglinStoredWeightedScore ?? getChenglinWeightedScore(chenglinForm);
-                const finalStars = chenglinScore != null ? Math.floor(chenglinScore) : null;
+                const override = LEADER_FINAL_OVERRIDE[leader.name];
+                const chenglinScore = override?.score ?? chenglinStoredWeightedScore ?? getChenglinWeightedScore(chenglinForm);
+                const finalStars = override?.stars ?? (chenglinScore != null ? Math.floor(chenglinScore) : null);
                 return (
                   <TableRow key={leader.id}>
                     <TableCell className="font-medium">{leader.name}</TableCell>
@@ -329,9 +334,10 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
               </TableHeader>
               <TableBody>
                 {filteredRootLeaders.map((leader) => {
-                  const { qiuxiangForm, chenglinForm } = resolveLeaderForms(leader, leaderForms);
-                  const chenglinScore = getChenglinWeightedScore(chenglinForm);
-                  const finalStars = chenglinScore != null ? Math.floor(chenglinScore) : null;
+                  const { qiuxiangForm, chenglinForm, chenglinStoredWeightedScore } = resolveLeaderForms(leader, leaderForms);
+                  const override = LEADER_FINAL_OVERRIDE[leader.name];
+                  const chenglinScore = override?.score ?? chenglinStoredWeightedScore ?? getChenglinWeightedScore(chenglinForm);
+                  const finalStars = override?.stars ?? (chenglinScore != null ? Math.floor(chenglinScore) : null);
                   return (
                     <TableRow key={leader.id}>
                       <TableCell className="font-medium">{leader.name}</TableCell>
