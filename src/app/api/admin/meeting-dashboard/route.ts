@@ -28,7 +28,7 @@ export async function GET() {
       return NextResponse.json({ error: "No active cycle" }, { status: 400 });
     }
 
-    const [allUsers, meetings, config] = await Promise.all([
+    const [allUsers, meetings] = await Promise.all([
       prisma.user.findMany({
         select: {
           id: true, name: true, department: true, role: true,
@@ -39,11 +39,15 @@ export async function GET() {
       prisma.meeting.findMany({
         where: { cycleId: cycle.id },
       }),
-      prisma.finalReviewConfig.findUnique({
+    ]);
+
+    let config: { meetingInterviewerOverrides: string } | null = null;
+    try {
+      config = await prisma.finalReviewConfig.findUnique({
         where: { cycleId: cycle.id },
         select: { meetingInterviewerOverrides: true },
-      }),
-    ]);
+      });
+    } catch { /* column may not exist yet */ }
 
     const dbOverrides = getDbOverrides(config);
     const interviewerMap = buildMeetingInterviewerMap(allUsers, dbOverrides);

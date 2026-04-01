@@ -77,11 +77,14 @@ async function buildSupervisorData(
   });
 
   // Build interviewer map and find assigned employees
-  const meetingConfig = await prisma.finalReviewConfig.findUnique({
-    where: { cycleId: cycle.id },
-    select: { meetingInterviewerOverrides: true },
-  });
-  const dbOverrides = parseDbOverrides(meetingConfig?.meetingInterviewerOverrides);
+  let dbOverrides: DbInterviewerOverrides = {};
+  try {
+    const meetingConfig = await prisma.finalReviewConfig.findUnique({
+      where: { cycleId: cycle.id },
+      select: { meetingInterviewerOverrides: true },
+    });
+    dbOverrides = parseDbOverrides(meetingConfig?.meetingInterviewerOverrides);
+  } catch { /* column may not exist yet */ }
   const interviewerMap = buildMeetingInterviewerMap(allUsers, dbOverrides);
   const assignedEmployeeIds = getAssignedEmployeeIds(interviewerMap, user.id);
 
@@ -370,10 +373,13 @@ export async function POST(req: NextRequest) {
         select: { id: true, name: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
       });
       const cycle = await getActiveCycle();
-      const mc = cycle ? await prisma.finalReviewConfig.findUnique({
-        where: { cycleId: cycle.id },
-        select: { meetingInterviewerOverrides: true },
-      }) : null;
+      let mc: { meetingInterviewerOverrides: string } | null = null;
+      try {
+        mc = cycle ? await prisma.finalReviewConfig.findUnique({
+          where: { cycleId: cycle.id },
+          select: { meetingInterviewerOverrides: true },
+        }) : null;
+      } catch { /* column may not exist yet */ }
       const interviewerMap = buildMeetingInterviewerMap(allUsers, parseDbOverrides(mc?.meetingInterviewerOverrides));
       const interviewerIds = interviewerMap.get(body.employeeId) || [];
       if (!interviewerIds.includes(user.id)) {

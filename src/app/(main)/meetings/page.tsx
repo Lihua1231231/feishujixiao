@@ -533,7 +533,13 @@ function InterviewGuide() {
 
           {/* 重要提醒 */}
           <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-5 py-4 space-y-2">
-            <p className="font-semibold text-amber-800">重要提醒</p>
+            <div className="flex items-start justify-between gap-4">
+              <p className="font-semibold text-amber-800">重要提醒</p>
+              <p className="text-sm text-red-600 font-medium shrink-0">
+                如果你是第一次在深度赋智做正式的绩效面谈：务必浏览
+                <a href="https://deepwisdom.feishu.cn/wiki/PPgCwdpqoiulYnkuPiocOxhznBc" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-800">绩效面谈指引</a>
+              </p>
+            </div>
             <p className="text-sm text-amber-700">各级管理者是团队绩效管理第一责任人：设清晰目标、及时反馈、促进成长、有效管理。请各位主管在绩效面谈中遵循：及时反馈、有效管理、促进员工成长三原则。</p>
             <p className="text-sm text-amber-700">除此之外，在未来也需持续关注下属的目标对齐、双月 OKR 过程辅导、日常一对一反馈沟通。并在绩效周期后，视需制定下属绩效改进计划，落地人才发展动作。</p>
           </div>
@@ -547,7 +553,9 @@ function InterviewGuide() {
 
 function SupervisorView({ data }: { data: SupervisorData }) {
   const [items, setItems] = useState(data.items);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(data.items.map((item) => item.employee.id)),
+  );
 
   const pendingCount = items.filter((item) => !item.meeting?.supervisorCompleted).length;
 
@@ -623,8 +631,13 @@ function SupervisorView({ data }: { data: SupervisorData }) {
             <EmployeeInterviewCard
               key={item.employee.id}
               item={item}
-              isSelected={selectedId === item.employee.id}
-              onSelect={() => setSelectedId(selectedId === item.employee.id ? null : item.employee.id)}
+              isSelected={expandedIds.has(item.employee.id)}
+              onSelect={() => setExpandedIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(item.employee.id)) next.delete(item.employee.id);
+                else next.add(item.employee.id);
+                return next;
+              })}
               onSaveSummary={handleSaveSummary}
               onComplete={handleComplete}
             />

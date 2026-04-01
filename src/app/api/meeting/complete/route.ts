@@ -35,10 +35,13 @@ export async function POST(req: NextRequest) {
       const allUsers = await prisma.user.findMany({
         select: { id: true, name: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
       });
-      const mc = await prisma.finalReviewConfig.findUnique({
-        where: { cycleId: cycle.id },
-        select: { meetingInterviewerOverrides: true },
-      });
+      let mc: { meetingInterviewerOverrides: string } | null = null;
+      try {
+        mc = await prisma.finalReviewConfig.findUnique({
+          where: { cycleId: cycle.id },
+          select: { meetingInterviewerOverrides: true },
+        });
+      } catch { /* column may not exist yet */ }
       const interviewerMap = buildMeetingInterviewerMap(allUsers, parseDbOverrides(mc?.meetingInterviewerOverrides));
       const interviewerIds = interviewerMap.get(employeeId) || [];
       if (!interviewerIds.includes(user.id)) {
