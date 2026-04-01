@@ -15,6 +15,7 @@ import {
 import { getAppliedNormalizationMap } from "@/lib/applied-normalization";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
 import { computeWeightedScoreFromDimensions } from "@/lib/weighted-score";
+import { buildMeetingInterviewerMap, getAssignedEmployeeIds } from "@/lib/meeting-assignments";
 
 function roundToOneDecimal(value: number | null): number | null {
   if (value == null) return null;
@@ -46,22 +47,24 @@ async function buildSupervisorData(
   user: { id: string; role: string; name: string },
   cycle: { id: string; name: string; status: string },
 ) {
-  // Get subordinates
-  const subordinates = await prisma.user.findMany({
-    where: { supervisorId: user.id },
-    select: { id: true, name: true, department: true, jobTitle: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
+  // Get all users for assignment resolution and config
+  const allUsers = await prisma.user.findMany({
+    select: { id: true, name: true, department: true, role: true, jobTitle: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
   });
 
-  if (subordinates.length === 0) {
+  // Build interviewer map and find assigned employees
+  const interviewerMap = buildMeetingInterviewerMap(allUsers);
+  const assignedEmployeeIds = getAssignedEmployeeIds(interviewerMap, user.id);
+
+  if (assignedEmployeeIds.length === 0) {
     return { role: "SUPERVISOR", cycleStatus: cycle.status, cycleName: cycle.name, items: [] };
   }
 
-  const subordinateIds = subordinates.map((s) => s.id);
+  const subordinates = allUsers
+    .filter((u) => assignedEmployeeIds.includes(u.id))
+    .map((u) => ({ id: u.id, name: u.name, department: u.department, jobTitle: u.jobTitle, supervisorId: u.supervisorId, supervisor: u.supervisor }));
 
-  // Get all users for assignment resolution and config
-  const allUsers = await prisma.user.findMany({
-    select: { id: true, name: true, department: true, role: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
-  });
+  const subordinateIds = subordinates.map((s) => s.id);
 
   // Get FinalReviewConfig for calibration data
   const configRecord = await prisma.finalReviewConfig.findUnique({
@@ -331,11 +334,15 @@ export async function POST(req: NextRequest) {
     if (!["SUPERVISOR", "HRBP", "ADMIN"].includes(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const body = await req.json();
 
-    // Supervisor relationship check (ADMIN exempt)
+    // Verify interviewer relationship (ADMIN exempt)
     if (user.role !== "ADMIN") {
-      const employee = await prisma.user.findUnique({ where: { id: body.employeeId } });
-      if (!employee || employee.supervisorId !== user.id) {
-        return NextResponse.json({ error: "你不是该员工的直属上级" }, { status: 403 });
+      const allUsers = await prisma.user.findMany({
+        select: { id: true, name: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
+      });
+      const interviewerMap = buildMeetingInterviewerMap(allUsers);
+      const interviewerIds = interviewerMap.get(body.employeeId) || [];
+      if (!interviewerIds.includes(user.id)) {
+        return NextResponse.json({ error: "你不是该员工的绩效面谈人" }, { status: 403 });
       }
     }
 

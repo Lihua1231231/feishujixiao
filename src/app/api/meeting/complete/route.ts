@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, getActiveCycle } from "@/lib/session";
+import { buildMeetingInterviewerMap } from "@/lib/meeting-assignments";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
     }
     if (!summary?.trim()) {
-      return NextResponse.json({ error: "请填写绩效面谈综述后再标记完成" }, { status: 400 });
+      return NextResponse.json({ error: "请填写绩效确定综述后再标记完成" }, { status: 400 });
     }
 
     const cycle = await getActiveCycle();
@@ -24,11 +25,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No active cycle" }, { status: 400 });
     }
 
-    // Verify supervisor relationship (ADMIN exempt)
+    // Verify interviewer relationship (ADMIN exempt)
     if (user.role !== "ADMIN") {
-      const employee = await prisma.user.findUnique({ where: { id: employeeId } });
-      if (!employee || employee.supervisorId !== user.id) {
-        return NextResponse.json({ error: "你不是该员工的直属上级" }, { status: 403 });
+      const allUsers = await prisma.user.findMany({
+        select: { id: true, name: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
+      });
+      const interviewerMap = buildMeetingInterviewerMap(allUsers);
+      const interviewerIds = interviewerMap.get(employeeId) || [];
+      if (!interviewerIds.includes(user.id)) {
+        return NextResponse.json({ error: "你不是该员工的绩效面谈人" }, { status: 403 });
       }
     }
 
