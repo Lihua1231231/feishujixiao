@@ -16,7 +16,10 @@ import type {
   LeaderRow,
   WorkspacePayload,
 } from "@/components/final-review/types";
+import { NormalizationShell } from "@/components/manager-review-normalization/normalization-shell";
+import type { ManagerReviewNormalizationWorkspaceResponse } from "@/components/manager-review-normalization/types";
 import { PageSkeleton } from "@/components/page-skeleton";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
@@ -52,6 +55,129 @@ function buildDefaultEmployeeOpinionForm(employee: EmployeeRow): EmployeeOpinion
     suggestedStars: employee.referenceStars,
     reason: "",
   };
+}
+
+const NORMALIZATION_ACTION_ENDPOINTS = {
+  SUPERVISOR_EVAL: {
+    apply: "/api/manager-review-normalization/apply",
+    revert: "/api/manager-review-normalization/revert",
+  },
+  PEER_REVIEW: {
+    apply: "/api/score-normalization/apply",
+    revert: "/api/score-normalization/revert",
+  },
+} as const;
+
+type NormalizationActionSource = keyof typeof NORMALIZATION_ACTION_ENDPOINTS;
+type NormalizationActionType = "apply" | "revert";
+
+function NormalizationTabContent() {
+  const [workspace, setWorkspace] = useState<ManagerReviewNormalizationWorkspaceResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<`${NormalizationActionSource}:${NormalizationActionType}` | null>(null);
+  const requestIdRef = useRef(0);
+
+  const loadWorkspace = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/manager-review-normalization/workspace");
+      const data = (await response.json()) as ManagerReviewNormalizationWorkspaceResponse & { error?: string };
+      if (requestId !== requestIdRef.current) return;
+      if (!response.ok) {
+        throw new Error(data.error || "加载失败");
+      }
+      setWorkspace(data);
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      setError(err instanceof Error ? err.message : "加载失败");
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  const runAction = useCallback(
+    async (source: NormalizationActionSource, action: NormalizationActionType) => {
+      const actionKey = `${source}:${action}` as const;
+      setPendingAction(actionKey);
+      setError("");
+
+      try {
+        const response = await fetch(NORMALIZATION_ACTION_ENDPOINTS[source][action], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            confirmed: true,
+            ...(source === "PEER_REVIEW" ? { source: "PEER_REVIEW" } : {}),
+          }),
+        });
+        const data = (await response.json()) as { error?: string };
+        if (!response.ok) {
+          throw new Error(data.error || "操作失败");
+        }
+        await loadWorkspace();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "操作失败");
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [loadWorkspace],
+  );
+
+  useEffect(() => {
+    void loadWorkspace();
+  }, [loadWorkspace]);
+
+  if (loading && !workspace) {
+    return <PageSkeleton />;
+  }
+
+  if (error && !workspace) {
+    return (
+      <Card className="rounded-[28px] border-border/60 shadow-none">
+        <CardContent className="space-y-3 py-12 text-center">
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <Button type="button" variant="outline" onClick={() => void loadWorkspace()}>
+            重新加载
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!workspace) return null;
+
+  return (
+    <div className="space-y-4">
+      {error ? (
+        <Card className="rounded-[20px] border-amber-200 bg-amber-50/70 shadow-none">
+          <CardContent className="py-3 text-sm text-amber-900">{error}</CardContent>
+        </Card>
+      ) : null}
+
+      <NormalizationShell
+        cycleName={workspace.cycle.name}
+        rosterSummary={workspace.rosterSummary}
+        applications={workspace.applications}
+        rows={workspace.rows}
+        onApplyManagerReview={() => runAction("SUPERVISOR_EVAL", "apply")}
+        onRevertManagerReview={() => runAction("SUPERVISOR_EVAL", "revert")}
+        onApplyPeerReview={() => runAction("PEER_REVIEW", "apply")}
+        onRevertPeerReview={() => runAction("PEER_REVIEW", "revert")}
+        applyingManagerReview={pendingAction === "SUPERVISOR_EVAL:apply"}
+        revertingManagerReview={pendingAction === "SUPERVISOR_EVAL:revert"}
+        applyingPeerReview={pendingAction === "PEER_REVIEW:apply"}
+        revertingPeerReview={pendingAction === "PEER_REVIEW:revert"}
+      />
+    </div>
+  );
 }
 
 function areLeaderFormsEqual(left: LeaderForm, right: LeaderForm) {
@@ -295,6 +421,7 @@ function CalibrationContent() {
         <TabsList>
           <TabsTrigger value="employees">员工层绩效校准</TabsTrigger>
           <TabsTrigger value="leaders">主管层绩效终评校准</TabsTrigger>
+          <TabsTrigger value="normalization">绩效打分分布校准</TabsTrigger>
           <TabsTrigger value="archive">公司绩效终评校准留档</TabsTrigger>
         </TabsList>
 
@@ -352,6 +479,10 @@ function CalibrationContent() {
               />
             )}
           />
+        </TabsContent>
+
+        <TabsContent value="normalization" className="space-y-4">
+          <NormalizationTabContent />
         </TabsContent>
 
         <TabsContent value="archive" className="space-y-4">
