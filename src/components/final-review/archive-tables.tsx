@@ -17,6 +17,8 @@ import {
   computeWeightedScoreFromDimensions,
 } from "@/lib/weighted-score";
 
+const ROOT_NAMES = new Set(["曹铭哲", "曹越", "宓鸿宇"]);
+
 function stars(value: number | null) {
   return value != null ? `${value}星` : "—";
 }
@@ -45,8 +47,16 @@ function resolveEmployeeFinalStars(emp: EmployeeRow): number | null {
   return emp.officialStars ?? emp.referenceStars;
 }
 
-function formatLeaderEvalGrade(form: LeaderForm) {
-  const weighted = computeWeightedScoreFromDimensions({
+function formatEmployeeFinalCell(emp: EmployeeRow): string {
+  const finalStars = resolveEmployeeFinalStars(emp);
+  const label = stars(finalStars);
+  const calibrated = emp.agreementState === "DISAGREED";
+  return calibrated ? `${label}（发生校准）` : label;
+}
+
+function getChenglinWeightedScore(form: LeaderForm | undefined | null): number | null {
+  if (!form) return null;
+  return computeWeightedScoreFromDimensions({
     performanceStars: form.performanceStars,
     comprehensiveStars: form.comprehensiveStars,
     learningStars: form.learningStars,
@@ -56,6 +66,10 @@ function formatLeaderEvalGrade(form: LeaderForm) {
     altruismStars: form.altruismStars,
     rootStars: form.rootStars,
   });
+}
+
+function formatLeaderEvalGrade(form: LeaderForm) {
+  const weighted = getChenglinWeightedScore(form);
   const ability = computeAbilityAverage(form.comprehensiveStars, form.learningStars, form.adaptabilityStars);
   const values = computeValuesAverage(form.candidStars, form.progressStars, form.altruismStars, form.rootStars);
   const lines = [
@@ -80,6 +94,17 @@ function formatLeaderEvalComment(form: LeaderForm) {
   return parts.join("\n") || "—";
 }
 
+function resolveLeaderForms(leader: LeaderRow, leaderForms: Record<string, LeaderForm>) {
+  const qiuxiangEval = leader.evaluations.find((e) => e.evaluatorName.includes("邱翔"));
+  const chenglinEval = leader.evaluations.find((e) => e.evaluatorName.includes("承霖"));
+  const qiuxiangKey = qiuxiangEval ? `${leader.id}:${qiuxiangEval.evaluatorId}` : null;
+  const chenglinKey = chenglinEval ? `${leader.id}:${chenglinEval.evaluatorId}` : null;
+  return {
+    qiuxiangForm: (qiuxiangKey ? leaderForms[qiuxiangKey] : null) ?? qiuxiangEval?.form,
+    chenglinForm: (chenglinKey ? leaderForms[chenglinKey] : null) ?? chenglinEval?.form,
+  };
+}
+
 type ArchiveTablesProps = {
   employees: EmployeeRow[];
   leaders: LeaderRow[];
@@ -95,14 +120,18 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
   };
 
   const keyword = search.trim().toLowerCase();
-  const filteredEmployees = useMemo(
-    () => keyword ? employees.filter((e) => e.name.toLowerCase().includes(keyword) || e.department.toLowerCase().includes(keyword)) : employees,
-    [employees, keyword],
-  );
-  const filteredLeaders = useMemo(
-    () => keyword ? leaders.filter((l) => l.name.toLowerCase().includes(keyword) || l.department.toLowerCase().includes(keyword)) : leaders,
-    [leaders, keyword],
-  );
+  const matchesKeyword = (name: string, department: string) =>
+    !keyword || name.toLowerCase().includes(keyword) || department.toLowerCase().includes(keyword);
+
+  const nonRootEmployees = useMemo(() => employees.filter((e) => !ROOT_NAMES.has(e.name)), [employees]);
+  const nonRootLeaders = useMemo(() => leaders.filter((l) => !ROOT_NAMES.has(l.name)), [leaders]);
+  const rootEmployees = useMemo(() => employees.filter((e) => ROOT_NAMES.has(e.name)), [employees]);
+  const rootLeaders = useMemo(() => leaders.filter((l) => ROOT_NAMES.has(l.name)), [leaders]);
+
+  const filteredEmployees = useMemo(() => nonRootEmployees.filter((e) => matchesKeyword(e.name, e.department)), [nonRootEmployees, keyword]);
+  const filteredLeaders = useMemo(() => nonRootLeaders.filter((l) => matchesKeyword(l.name, l.department)), [nonRootLeaders, keyword]);
+  const filteredRootEmployees = useMemo(() => rootEmployees.filter((e) => matchesKeyword(e.name, e.department)), [rootEmployees, keyword]);
+  const filteredRootLeaders = useMemo(() => rootLeaders.filter((l) => matchesKeyword(l.name, l.department)), [rootLeaders, keyword]);
 
   return (
     <div className="space-y-6">
@@ -113,29 +142,28 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
         className="max-w-sm"
       />
 
+      {/* 员工层 */}
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">员工层绩效终评校准留档</h2>
-        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {employees.length} 人{keyword ? `，当前筛选 ${filteredEmployees.length} 人` : ""}</p>
-        <div className="mt-4 overflow-x-auto">
+        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {nonRootEmployees.length} 人{keyword ? `，当前筛选 ${filteredEmployees.length} 人` : ""}</p>
+        <div className="mt-4">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[80px]">姓名</TableHead>
-                <TableHead className="min-w-[100px]">团队</TableHead>
-                <TableHead className="min-w-[100px]">360环评填写数</TableHead>
-                <TableHead className="min-w-[100px]">360环评均分</TableHead>
-                <TableHead className="min-w-[180px]">校准前等级（直属上级绩效初评）</TableHead>
-                <TableHead className="min-w-[100px]">是否发生校准</TableHead>
-                <TableHead className="min-w-[200px]">邱翔终评等级和说明</TableHead>
-                <TableHead className="min-w-[200px]">承霖终评等级和说明</TableHead>
-                <TableHead className="min-w-[180px]">公司级绩效校准（终评）等级</TableHead>
+                <TableHead>姓名</TableHead>
+                <TableHead>团队</TableHead>
+                <TableHead>360环评填写数</TableHead>
+                <TableHead>360环评均分</TableHead>
+                <TableHead>校准前等级（直属上级绩效初评）</TableHead>
+                <TableHead>邱翔终评等级和说明</TableHead>
+                <TableHead>承霖终评等级和说明</TableHead>
+                <TableHead>公司级绩效校准（终评）等级</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredEmployees.map((emp) => {
                 const qiuxiang = findOpinionByName(emp.opinions, "邱翔");
                 const chenglin = findOpinionByName(emp.opinions, "承霖");
-                const calibrated = emp.agreementState === "DISAGREED";
                 return (
                   <TableRow key={emp.id}>
                     <TableCell className="font-medium">{emp.name}</TableCell>
@@ -143,10 +171,9 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                     <TableCell>{emp.peerReviewSummary?.count ?? 0}</TableCell>
                     <TableCell>{emp.peerAverage?.toFixed(1) ?? "—"}</TableCell>
                     <TableCell>{stars(emp.referenceStars)}</TableCell>
-                    <TableCell>{calibrated ? "是" : "否"}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{formatOpinionCell(qiuxiang, emp.referenceStars)}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{formatOpinionCell(chenglin, emp.referenceStars)}</TableCell>
-                    <TableCell className="font-medium">{stars(resolveEmployeeFinalStars(emp))}</TableCell>
+                    <TableCell className="font-medium">{formatEmployeeFinalCell(emp)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -155,31 +182,28 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
         </div>
       </section>
 
+      {/* 主管层 */}
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">主管层绩效终评校准留档</h2>
-        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {leaders.length} 人{keyword ? `，当前筛选 ${filteredLeaders.length} 人` : ""}</p>
-        <div className="mt-4 overflow-x-auto">
+        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {nonRootLeaders.length} 人{keyword ? `，当前筛选 ${filteredLeaders.length} 人` : ""}</p>
+        <div className="mt-4">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[80px]">姓名</TableHead>
-                <TableHead className="min-w-[100px]">团队</TableHead>
-                <TableHead className="min-w-[220px]">直属上级初评（等级）-邱翔</TableHead>
-                <TableHead className="min-w-[220px]">直属上级初评（评语）-邱翔</TableHead>
-                <TableHead className="min-w-[220px]">直属上级初评（等级）-承霖</TableHead>
-                <TableHead className="min-w-[220px]">直属上级初评（评语）-承霖</TableHead>
-                <TableHead className="min-w-[180px]">绩效终评等级（按承霖+邱翔 1:1）</TableHead>
+                <TableHead>姓名</TableHead>
+                <TableHead>团队</TableHead>
+                <TableHead>直属上级初评（等级）-邱翔</TableHead>
+                <TableHead>直属上级初评（评语）-邱翔</TableHead>
+                <TableHead>直属上级初评（等级）-承霖</TableHead>
+                <TableHead>直属上级初评（评语）-承霖</TableHead>
+                <TableHead>最终绩效分数</TableHead>
+                <TableHead>绩效终评等级（按承霖+邱翔 1:1）</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredLeaders.map((leader) => {
-                const qiuxiangEval = leader.evaluations.find((e) => e.evaluatorName.includes("邱翔"));
-                const chenglinEval = leader.evaluations.find((e) => e.evaluatorName.includes("承霖"));
-                const qiuxiangKey = qiuxiangEval ? `${leader.id}:${qiuxiangEval.evaluatorId}` : null;
-                const chenglinKey = chenglinEval ? `${leader.id}:${chenglinEval.evaluatorId}` : null;
-                const qiuxiangForm = (qiuxiangKey ? leaderForms[qiuxiangKey] : null) ?? qiuxiangEval?.form;
-                const chenglinForm = (chenglinKey ? leaderForms[chenglinKey] : null) ?? chenglinEval?.form;
-
+                const { qiuxiangForm, chenglinForm } = resolveLeaderForms(leader, leaderForms);
+                const chenglinScore = getChenglinWeightedScore(chenglinForm);
                 return (
                   <TableRow key={leader.id}>
                     <TableCell className="font-medium">{leader.name}</TableCell>
@@ -188,6 +212,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                     <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"}</TableCell>
                     <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"}</TableCell>
                     <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"}</TableCell>
+                    <TableCell className="font-medium">{chenglinScore?.toFixed(1) ?? "—"}</TableCell>
                     <TableCell className="font-medium">{stars(leader.officialStars)}</TableCell>
                   </TableRow>
                 );
@@ -195,6 +220,88 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
             </TableBody>
           </Table>
         </div>
+      </section>
+
+      {/* ROOT 独立评估 */}
+      <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
+        <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">ROOT 独立评估留档</h2>
+        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">曹铭哲、曹越、宓鸿宇</p>
+
+        {filteredRootEmployees.length > 0 ? (
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-medium text-[var(--cockpit-foreground)]">员工层维度</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>姓名</TableHead>
+                  <TableHead>团队</TableHead>
+                  <TableHead>360环评填写数</TableHead>
+                  <TableHead>360环评均分</TableHead>
+                  <TableHead>校准前等级（直属上级绩效初评）</TableHead>
+                  <TableHead>邱翔终评等级和说明</TableHead>
+                  <TableHead>承霖终评等级和说明</TableHead>
+                  <TableHead>公司级绩效校准（终评）等级</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRootEmployees.map((emp) => {
+                  const qiuxiang = findOpinionByName(emp.opinions, "邱翔");
+                  const chenglin = findOpinionByName(emp.opinions, "承霖");
+                  return (
+                    <TableRow key={emp.id}>
+                      <TableCell className="font-medium">{emp.name}</TableCell>
+                      <TableCell>{emp.department}</TableCell>
+                      <TableCell>{emp.peerReviewSummary?.count ?? 0}</TableCell>
+                      <TableCell>{emp.peerAverage?.toFixed(1) ?? "—"}</TableCell>
+                      <TableCell>{stars(emp.referenceStars)}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{formatOpinionCell(qiuxiang, emp.referenceStars)}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{formatOpinionCell(chenglin, emp.referenceStars)}</TableCell>
+                      <TableCell className="font-medium">{formatEmployeeFinalCell(emp)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+
+        {filteredRootLeaders.length > 0 ? (
+          <div className="mt-6">
+            <p className="mb-2 text-sm font-medium text-[var(--cockpit-foreground)]">主管层维度</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>姓名</TableHead>
+                  <TableHead>团队</TableHead>
+                  <TableHead>直属上级初评（等级）-邱翔</TableHead>
+                  <TableHead>直属上级初评（评语）-邱翔</TableHead>
+                  <TableHead>直属上级初评（等级）-承霖</TableHead>
+                  <TableHead>直属上级初评（评语）-承霖</TableHead>
+                  <TableHead>最终绩效分数</TableHead>
+                  <TableHead>绩效终评等级（按承霖+邱翔 1:1）</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRootLeaders.map((leader) => {
+                  const { qiuxiangForm, chenglinForm } = resolveLeaderForms(leader, leaderForms);
+                  const chenglinScore = getChenglinWeightedScore(chenglinForm);
+                  return (
+                    <TableRow key={leader.id}>
+                      <TableCell className="font-medium">{leader.name}</TableCell>
+                      <TableCell>{leader.department}</TableCell>
+                      <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalGrade(qiuxiangForm) : "—"}</TableCell>
+                      <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"}</TableCell>
+                      <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"}</TableCell>
+                      <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"}</TableCell>
+                      <TableCell className="font-medium">{chenglinScore?.toFixed(1) ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{stars(leader.officialStars)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
       </section>
     </div>
   );
