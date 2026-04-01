@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -31,6 +32,14 @@ function formatOpinionCell(opinion: ReturnType<typeof findOpinionByName>, refere
     : stars(opinion.suggestedStars);
   const reason = opinion.reason ? `\n${opinion.reason}` : "";
   return `${s}${reason}`;
+}
+
+function resolveEmployeeFinalStars(emp: EmployeeRow): number | null {
+  const chenglin = findOpinionByName(emp.opinions, "承霖");
+  if (chenglin && chenglin.decision !== "PENDING") {
+    return chenglin.suggestedStars ?? emp.referenceStars;
+  }
+  return emp.officialStars;
 }
 
 function formatLeaderEvalGrade(form: LeaderForm) {
@@ -75,17 +84,35 @@ type ArchiveTablesProps = {
 };
 
 export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTablesProps) {
+  const [search, setSearch] = useState("");
   const panelStyle: CSSProperties = {
     background: "var(--cockpit-surface)",
     borderColor: "var(--cockpit-border)",
     boxShadow: "var(--shadow-xs)",
   };
 
+  const keyword = search.trim().toLowerCase();
+  const filteredEmployees = useMemo(
+    () => keyword ? employees.filter((e) => e.name.toLowerCase().includes(keyword) || e.department.toLowerCase().includes(keyword)) : employees,
+    [employees, keyword],
+  );
+  const filteredLeaders = useMemo(
+    () => keyword ? leaders.filter((l) => l.name.toLowerCase().includes(keyword) || l.department.toLowerCase().includes(keyword)) : leaders,
+    [leaders, keyword],
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <Input
+        placeholder="搜索姓名或团队"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
+
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">员工层绩效终评校准留档</h2>
-        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {employees.length} 人</p>
+        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {employees.length} 人{keyword ? `，当前筛选 ${filteredEmployees.length} 人` : ""}</p>
         <div className="mt-4 overflow-x-auto">
           <Table>
             <TableHeader>
@@ -102,7 +129,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((emp) => {
+              {filteredEmployees.map((emp) => {
                 const qiuxiang = findOpinionByName(emp.opinions, "邱翔");
                 const chenglin = findOpinionByName(emp.opinions, "承霖");
                 const calibrated = emp.agreementState === "DISAGREED";
@@ -116,7 +143,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                     <TableCell>{calibrated ? "是" : "否"}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{formatOpinionCell(qiuxiang, emp.referenceStars)}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{formatOpinionCell(chenglin, emp.referenceStars)}</TableCell>
-                    <TableCell className="font-medium">{stars(emp.officialStars)}</TableCell>
+                    <TableCell className="font-medium">{stars(resolveEmployeeFinalStars(emp))}</TableCell>
                   </TableRow>
                 );
               })}
@@ -127,7 +154,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
 
       <section className="rounded-[28px] border p-5 md:p-6" style={panelStyle}>
         <h2 className="text-lg font-semibold text-[var(--cockpit-foreground)]">主管层绩效终评校准留档</h2>
-        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {leaders.length} 人</p>
+        <p className="mt-1 text-sm text-[var(--cockpit-muted-foreground)]">共 {leaders.length} 人{keyword ? `，当前筛选 ${filteredLeaders.length} 人` : ""}</p>
         <div className="mt-4 overflow-x-auto">
           <Table>
             <TableHeader>
@@ -142,7 +169,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leaders.map((leader) => {
+              {filteredLeaders.map((leader) => {
                 const qiuxiangEval = leader.evaluations.find((e) => e.evaluatorName.includes("邱翔"));
                 const chenglinEval = leader.evaluations.find((e) => e.evaluatorName.includes("承霖"));
                 const qiuxiangKey = qiuxiangEval ? `${leader.id}:${qiuxiangEval.evaluatorId}` : null;

@@ -1271,13 +1271,13 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
   }).filter((row) => {
     // 排除已离职人员（无绩效初评且无星级）
     if (row.weightedScore == null && row.distributionStars == null) return false;
-    // 排除 ROOT 独立评估对象
-    if (EMPLOYEE_DISTRIBUTION_EXCLUDED_NAMES.has(row.name)) return false;
     return true;
   });
 
-  const departmentDistributions = [...new Set(employeeRows.map((item) => item.department).filter(Boolean))].map((department) => {
-    const rows = employeeRows.filter((item) => item.department === department);
+  const distributionEmployeeRows = employeeRows.filter((row) => !EMPLOYEE_DISTRIBUTION_EXCLUDED_NAMES.has(row.name));
+
+  const departmentDistributions = [...new Set(distributionEmployeeRows.map((item) => item.department).filter(Boolean))].map((department) => {
+    const rows = distributionEmployeeRows.filter((item) => item.department === department);
     return {
       department,
       total: rows.length,
@@ -1285,7 +1285,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     };
   });
 
-  const employeeDistribution = buildDistribution(employeeRows.map((item) => ({ name: item.name, stars: item.distributionStars })));
+  const employeeDistribution = buildDistribution(distributionEmployeeRows.map((item) => ({ name: item.name, stars: item.distributionStars })));
 
   const leaderRows = leaderUsers.map((leader) => {
     const leaderEvalRows = leaderReviewsByEmployee.get(leader.id) || [];
