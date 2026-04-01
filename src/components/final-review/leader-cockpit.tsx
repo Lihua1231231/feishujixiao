@@ -54,7 +54,7 @@ export function LeaderCockpit({
   onSelectLeader,
   detailPanel,
 }: LeaderCockpitProps) {
-  const [activeQueueKey, setActiveQueueKey] = useState<"pending" | "awaitingDual" | "all">("awaitingDual");
+  const [activeQueueKey, setActiveQueueKey] = useState<"all">("all");
   const [queuePanelHeight, setQueuePanelHeight] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const panelStyle: CSSProperties = {
@@ -86,25 +86,14 @@ export function LeaderCockpit({
 
   const queueGroups = useMemo(() => buildLeaderQueueGroups(allLeaders), [allLeaders]);
   const selectedLeader = allLeaders.find((leader) => leader.id === selectedLeaderId) || null;
-  const baseQueueRows = activeQueueKey === "pending"
-    ? queueGroups.pending
-    : activeQueueKey === "awaitingDual"
-      ? queueGroups.awaitingDual
-      : queueGroups.all;
+  const baseQueueRows = queueGroups.all;
   const visibleRows = selectedLeader && !baseQueueRows.some((leader) => leader.id === selectedLeader.id)
     ? [selectedLeader, ...baseQueueRows]
     : baseQueueRows;
   const queueItems = [
-    { key: "pending", label: "待生成结果", count: queueGroups.pending.length },
-    { key: "awaitingDual", label: "待双人提交", count: queueGroups.awaitingDual.length },
     { key: "all", label: "全部主管", count: queueGroups.all.length },
   ];
-  const queueDescription =
-    activeQueueKey === "pending"
-      ? "优先查看两份问卷都已齐备、系统即将生成结果的主管。"
-      : activeQueueKey === "awaitingDual"
-        ? "先看仍在等待承霖、邱翔双人提交的主管。"
-        : "需要回看时，可以直接从全部主管里搜索定位。";
+  const queueDescription = "需要回看时，可以直接从全部主管里搜索定位。";
   const rosterItems: RosterSearchItem[] = visibleRows.map((leader) => ({
     id: leader.id,
     name: leader.name,
@@ -230,7 +219,7 @@ export function LeaderCockpit({
             </Badge>
           </div>
 
-          <QueueTabs items={queueItems} activeKey={activeQueueKey} onChange={(key) => setActiveQueueKey(key as "pending" | "awaitingDual" | "all")} />
+          <QueueTabs items={queueItems} activeKey={activeQueueKey} onChange={(key) => setActiveQueueKey(key as "all")} />
 
           {selectedLeader && !baseQueueRows.some((leader) => leader.id === selectedLeader.id) ? (
             <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">

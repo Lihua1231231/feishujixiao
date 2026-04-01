@@ -422,7 +422,7 @@ function CalibrationContent() {
         <TabsList>
           <TabsTrigger value="employees">员工层绩效校准</TabsTrigger>
           <TabsTrigger value="leaders">主管层绩效终评校准</TabsTrigger>
-          <TabsTrigger value="normalization">绩效打分分布校准</TabsTrigger>
+          <TabsTrigger value="normalization">环评及初评正态分布</TabsTrigger>
           <TabsTrigger value="archive">公司绩效终评校准留档</TabsTrigger>
           <TabsTrigger value="distribution">公司整体绩效分布图</TabsTrigger>
         </TabsList>

@@ -27,7 +27,7 @@ export function EmployeeCockpit({
   onSelectEmployee,
   detailPanel,
 }: EmployeeCockpitProps) {
-  const [activeQueueKey, setActiveQueueKey] = useState<"pending" | "disagreement" | "all">("disagreement");
+  const [activeQueueKey, setActiveQueueKey] = useState<"disagreement" | "all">("disagreement");
   const [queuePanelHeight, setQueuePanelHeight] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const panelStyle: CSSProperties = {
@@ -59,11 +59,9 @@ export function EmployeeCockpit({
 
   const queueGroups = useMemo(() => buildEmployeeQueueGroups(allEmployees), [allEmployees]);
   const selectedEmployee = allEmployees.find((employee) => employee.id === selectedEmployeeId) || null;
-  const baseQueueRows = activeQueueKey === "pending"
-    ? queueGroups.pending
-    : activeQueueKey === "disagreement"
-      ? queueGroups.disagreement
-      : queueGroups.all;
+  const baseQueueRows = activeQueueKey === "disagreement"
+    ? queueGroups.disagreement
+    : queueGroups.all;
   const visibleRows = selectedEmployee && !baseQueueRows.some((employee) => employee.id === selectedEmployee.id)
     ? [selectedEmployee, ...baseQueueRows]
     : baseQueueRows;
@@ -80,10 +78,8 @@ export function EmployeeCockpit({
     tone: employee.summaryStats.disagreementCount > 0 ? "destructive" : employee.officialStars == null ? "outline" : "secondary",
   }));
   const queueDescription =
-    activeQueueKey === "pending"
-      ? "优先处理承霖、邱翔还没有都完成校准的人。"
-      : activeQueueKey === "disagreement"
-        ? "先看发生校准的人。"
+    activeQueueKey === "disagreement"
+      ? "先看发生校准的人。"
       : "需要回看时，可以直接搜索定位。";
 
   return (
@@ -105,7 +101,7 @@ export function EmployeeCockpit({
             </Badge>
           </div>
 
-          <QueueTabs items={queueItems} activeKey={activeQueueKey} onChange={(key) => setActiveQueueKey(key as "pending" | "disagreement" | "all")} />
+          <QueueTabs items={queueItems} activeKey={activeQueueKey} onChange={(key) => setActiveQueueKey(key as "disagreement" | "all")} />
 
           {selectedEmployee && !baseQueueRows.some((employee) => employee.id === selectedEmployee.id) ? (
             <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-[var(--cockpit-muted-foreground)]">

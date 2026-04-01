@@ -184,6 +184,9 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                 <TableHead>团队</TableHead>
                 <TableHead>360环评填写数</TableHead>
                 <TableHead>360环评均分</TableHead>
+                <TableHead>业绩产出</TableHead>
+                <TableHead>个人能力</TableHead>
+                <TableHead>价值观</TableHead>
                 <TableHead>校准前等级（直属上级绩效初评）</TableHead>
                 <TableHead>邱翔终评等级和说明</TableHead>
                 <TableHead>承霖终评等级和说明</TableHead>
@@ -194,15 +197,19 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
               {filteredEmployees.map((emp) => {
                 const qiuxiang = findOpinionByName(emp.opinions, "邱翔");
                 const chenglin = findOpinionByName(emp.opinions, "承霖");
+                const dims = formatDimensionStars(emp);
                 return (
                   <TableRow key={emp.id}>
                     <TableCell className="font-medium">{emp.name}</TableCell>
                     <TableCell>{emp.department}</TableCell>
                     <TableCell>{emp.peerReviewSummary?.count ?? 0}</TableCell>
                     <TableCell>{emp.peerAverage?.toFixed(1) ?? "—"}</TableCell>
+                    <TableCell>{dims.performance}</TableCell>
+                    <TableCell>{dims.ability}</TableCell>
+                    <TableCell>{dims.values}</TableCell>
                     <TableCell>{stars(emp.referenceStars)}</TableCell>
-                    <TableCell className="whitespace-pre-wrap">{formatOpinionCell(qiuxiang, emp.referenceStars)}</TableCell>
-                    <TableCell className="whitespace-pre-wrap">{formatOpinionCell(chenglin, emp.referenceStars)}</TableCell>
+                    <TableCell><ExpandableCell text={formatOpinionCell(qiuxiang, emp.referenceStars)} /></TableCell>
+                    <TableCell><ExpandableCell text={formatOpinionCell(chenglin, emp.referenceStars)} /></TableCell>
                     <TableCell className="font-medium">{formatEmployeeFinalCell(emp)}</TableCell>
                   </TableRow>
                 );
@@ -227,23 +234,24 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                 <TableHead>直属上级初评（等级）-承霖</TableHead>
                 <TableHead>直属上级初评（评语）-承霖</TableHead>
                 <TableHead>最终绩效分数</TableHead>
-                <TableHead>绩效终评等级（按承霖+邱翔 1:1）</TableHead>
+                <TableHead>绩效终评等级（按承霖）</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredLeaders.map((leader) => {
                 const { qiuxiangForm, chenglinForm } = resolveLeaderForms(leader, leaderForms);
                 const chenglinScore = getChenglinWeightedScore(chenglinForm);
+                const finalStars = chenglinScore != null ? Math.floor(chenglinScore) : null;
                 return (
                   <TableRow key={leader.id}>
                     <TableCell className="font-medium">{leader.name}</TableCell>
                     <TableCell>{leader.department}</TableCell>
-                    <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalGrade(qiuxiangForm) : "—"}</TableCell>
-                    <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"}</TableCell>
-                    <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"}</TableCell>
-                    <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"}</TableCell>
+                    <TableCell><ExpandableCell text={qiuxiangForm ? formatLeaderEvalGrade(qiuxiangForm) : "—"} /></TableCell>
+                    <TableCell><ExpandableCell text={qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"} /></TableCell>
+                    <TableCell><ExpandableCell text={chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"} /></TableCell>
+                    <TableCell><ExpandableCell text={chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"} /></TableCell>
                     <TableCell className="font-medium">{chenglinScore?.toFixed(1) ?? "—"}</TableCell>
-                    <TableCell className="font-medium">{stars(leader.officialStars)}</TableCell>
+                    <TableCell className="font-medium">{stars(finalStars)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -267,6 +275,9 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                   <TableHead>团队</TableHead>
                   <TableHead>360环评填写数</TableHead>
                   <TableHead>360环评均分</TableHead>
+                  <TableHead>业绩产出</TableHead>
+                  <TableHead>个人能力</TableHead>
+                  <TableHead>价值观</TableHead>
                   <TableHead>校准前等级（直属上级绩效初评）</TableHead>
                   <TableHead>邱翔终评等级和说明</TableHead>
                   <TableHead>承霖终评等级和说明</TableHead>
@@ -277,15 +288,19 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                 {filteredRootEmployees.map((emp) => {
                   const qiuxiang = findOpinionByName(emp.opinions, "邱翔");
                   const chenglin = findOpinionByName(emp.opinions, "承霖");
+                  const dims = formatDimensionStars(emp);
                   return (
                     <TableRow key={emp.id}>
                       <TableCell className="font-medium">{emp.name}</TableCell>
                       <TableCell>{emp.department}</TableCell>
                       <TableCell>{emp.peerReviewSummary?.count ?? 0}</TableCell>
                       <TableCell>{emp.peerAverage?.toFixed(1) ?? "—"}</TableCell>
+                      <TableCell>{dims.performance}</TableCell>
+                      <TableCell>{dims.ability}</TableCell>
+                      <TableCell>{dims.values}</TableCell>
                       <TableCell>{stars(emp.referenceStars)}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{formatOpinionCell(qiuxiang, emp.referenceStars)}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{formatOpinionCell(chenglin, emp.referenceStars)}</TableCell>
+                      <TableCell><ExpandableCell text={formatOpinionCell(qiuxiang, emp.referenceStars)} /></TableCell>
+                      <TableCell><ExpandableCell text={formatOpinionCell(chenglin, emp.referenceStars)} /></TableCell>
                       <TableCell className="font-medium">{formatEmployeeFinalCell(emp)}</TableCell>
                     </TableRow>
                   );
@@ -308,23 +323,24 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                   <TableHead>直属上级初评（等级）-承霖</TableHead>
                   <TableHead>直属上级初评（评语）-承霖</TableHead>
                   <TableHead>最终绩效分数</TableHead>
-                  <TableHead>绩效终评等级（按承霖+邱翔 1:1）</TableHead>
+                  <TableHead>绩效终评等级</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRootLeaders.map((leader) => {
                   const { qiuxiangForm, chenglinForm } = resolveLeaderForms(leader, leaderForms);
                   const chenglinScore = getChenglinWeightedScore(chenglinForm);
+                  const finalStars = chenglinScore != null ? Math.floor(chenglinScore) : null;
                   return (
                     <TableRow key={leader.id}>
                       <TableCell className="font-medium">{leader.name}</TableCell>
                       <TableCell>{leader.department}</TableCell>
-                      <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalGrade(qiuxiangForm) : "—"}</TableCell>
-                      <TableCell className="whitespace-pre-wrap text-xs">{qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"}</TableCell>
-                      <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"}</TableCell>
-                      <TableCell className="whitespace-pre-wrap text-xs">{chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"}</TableCell>
+                      <TableCell><ExpandableCell text={qiuxiangForm ? formatLeaderEvalGrade(qiuxiangForm) : "—"} /></TableCell>
+                      <TableCell><ExpandableCell text={qiuxiangForm ? formatLeaderEvalComment(qiuxiangForm) : "—"} /></TableCell>
+                      <TableCell><ExpandableCell text={chenglinForm ? formatLeaderEvalGrade(chenglinForm) : "—"} /></TableCell>
+                      <TableCell><ExpandableCell text={chenglinForm ? formatLeaderEvalComment(chenglinForm) : "—"} /></TableCell>
                       <TableCell className="font-medium">{chenglinScore?.toFixed(1) ?? "—"}</TableCell>
-                      <TableCell className="font-medium">{stars(leader.officialStars)}</TableCell>
+                      <TableCell className="font-medium">{stars(finalStars)}</TableCell>
                     </TableRow>
                   );
                 })}
