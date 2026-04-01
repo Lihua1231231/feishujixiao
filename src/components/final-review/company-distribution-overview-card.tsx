@@ -73,7 +73,7 @@ export function CompanyDistributionOverviewCard({
           <CardTitle className="text-base text-[var(--cockpit-foreground)]">{title}</CardTitle>
           <CardDescription className="mt-1 text-[var(--cockpit-muted-foreground)]">{description}</CardDescription>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded-2xl border px-3 py-3">
             <p className="text-xs text-[var(--cockpit-muted-foreground)]">本次绩效考核参评</p>
             <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.totalParticipants} 人</p>
@@ -84,15 +84,6 @@ export function CompanyDistributionOverviewCard({
             {excludedCount > 0 ? (
               <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">已剔除 ROOT 3 人 + 已离职 3 人</p>
             ) : null}
-          </div>
-          <div className="rounded-2xl border px-3 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">已完成绩效校准</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.calibratedCount} 人</p>
-          </div>
-          <div className="rounded-2xl border px-3 py-3">
-            <p className="text-xs text-[var(--cockpit-muted-foreground)]">校准进度</p>
-            <p className="mt-2 text-sm font-medium text-[var(--cockpit-foreground)]">{overview.progressPct}%</p>
-            <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">{progressLabel}</p>
           </div>
         </div>
       </CardHeader>
@@ -145,9 +136,6 @@ export function CompanyDistributionOverviewCard({
         <div className="mt-4 rounded-2xl border px-4 py-3 text-sm leading-7 text-[var(--cockpit-foreground)]">
           <p>建议分布：五星≤10%，四星≤20%，三星50%+，二星≤15%，一星≤5%。</p>
           <p className="mt-1">{currentCountSummary}</p>
-          <p className="mt-1 text-xs text-[var(--cockpit-muted-foreground)]">
-            当前图建议人数：五星{data[4]?.countRange || "0 人"}，四星{data[3]?.countRange || "0 人"}，三星{data[2]?.countRange || "0 人+"}，二星{data[1]?.countRange || "0 人"}，一星{data[0]?.countRange || "0 人"}。实时更新。
-          </p>
         </div>
       </CardContent>
     </Card>

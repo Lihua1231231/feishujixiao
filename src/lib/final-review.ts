@@ -1346,6 +1346,10 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       };
     });
     const submittedCount = evaluations.filter((item) => item.status === "SUBMITTED").length;
+    const chenglinEval = evaluations.find((item) => item.evaluatorName.includes("承霖"));
+    const chenglinDistributionStars = chenglinEval?.weightedScore != null
+      ? Math.floor(chenglinEval.weightedScore)
+      : null;
     const finalDecision = resolveLeaderFinalDecision(
       config.leaderEvaluatorUserIds,
       evaluations.map((item) => ({
@@ -1387,6 +1391,7 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
       combinedWeightedScore: finalDecision.combinedWeightedScore,
       combinedReferenceStars: finalDecision.officialStars,
       bothSubmitted: finalDecision.ready,
+      chenglinDistributionStars,
     };
   });
 
@@ -1404,13 +1409,13 @@ export async function buildFinalReviewWorkspacePayload(user: SessionUser) {
     })),
     ...leaderRows.map((item) => ({
       name: item.name,
-      stars: item.officialStars,
-      calibrated: item.officialStars != null,
+      stars: item.chenglinDistributionStars,
+      calibrated: item.chenglinDistributionStars != null,
     })),
   ];
   const companyDistributionRowsWithoutRoot = companyDistributionRows.filter((item) => !ROOT_EXCEPTION_NAMES.has(item.name));
   const leaderDistribution = buildDistribution(
-    leaderRows.map((item) => ({ name: item.name, stars: item.officialStars })),
+    leaderRows.map((item) => ({ name: item.name, stars: item.chenglinDistributionStars })),
   );
   const mergedDistribution = buildDistribution(
     companyDistributionRows.map((item) => ({ name: item.name, stars: item.stars })),

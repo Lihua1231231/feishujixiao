@@ -234,7 +234,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                 <TableHead>直属上级初评（等级）-承霖</TableHead>
                 <TableHead>直属上级初评（评语）-承霖</TableHead>
                 <TableHead>最终绩效分数</TableHead>
-                <TableHead>绩效终评等级（按承霖）</TableHead>
+                <TableHead>绩效终评等级（向下取整）</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -323,7 +323,7 @@ export function ArchiveTables({ employees, leaders, leaderForms }: ArchiveTables
                   <TableHead>直属上级初评（等级）-承霖</TableHead>
                   <TableHead>直属上级初评（评语）-承霖</TableHead>
                   <TableHead>最终绩效分数</TableHead>
-                  <TableHead>绩效终评等级</TableHead>
+                  <TableHead>绩效终评等级（向下取整）</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
