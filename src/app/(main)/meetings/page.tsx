@@ -82,6 +82,7 @@ type InterviewItem = {
     displayReferenceStars: number | null;
     officialStars: number | null;
     calibrated: boolean;
+    disagreed: boolean;
     opinions: CalibrationOpinion[];
   };
   meeting: {
@@ -267,7 +268,7 @@ function EvalCalibrationSection({ item }: { item: InterviewItem }) {
           <SummaryCard
             label="终评校准等级"
             value={calibration.officialStars != null
-              ? `${calibration.officialStars} 星${calibration.calibrated ? " (发生校准)" : ""}`
+              ? `${calibration.officialStars} 星${calibration.calibrated ? " (发生校准)" : calibration.disagreed ? " (已发生校准)" : ""}`
               : "待校准"
             }
           />
