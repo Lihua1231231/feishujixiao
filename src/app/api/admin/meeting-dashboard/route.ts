@@ -55,7 +55,7 @@ export async function GET() {
     const meetingsByEmployee = new Map(meetings.map((m) => [m.employeeId, m]));
 
     const employees = allUsers
-      .filter((u) => u.role === "EMPLOYEE" || u.role === "SUPERVISOR")
+      .filter((u) => interviewerMap.has(u.id))
       .map((u) => {
         const interviewerIds = interviewerMap.get(u.id) || [];
         const interviewerNames = interviewerIds
