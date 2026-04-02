@@ -19,9 +19,7 @@ import {
 
 const ROOT_NAMES = new Set(["曹铭哲", "曹越", "宓鸿宇"]);
 
-const LEADER_FINAL_OVERRIDE: Record<string, { score: number; stars: number }> = {
-  "曹铭哲": { score: 5, stars: 5 },
-};
+const LEADER_FINAL_OVERRIDE: Record<string, { score: number; stars: number }> = {};
 
 function ExpandableCell({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
