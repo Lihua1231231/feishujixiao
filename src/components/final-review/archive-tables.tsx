@@ -16,6 +16,7 @@ import {
   computeValuesAverage,
   computeWeightedScoreFromDimensions,
 } from "@/lib/weighted-score";
+import { resolveFinalStars } from "@/lib/resolve-final-stars";
 
 const ROOT_NAMES = new Set(["曹铭哲", "曹越", "宓鸿宇"]);
 
@@ -69,14 +70,7 @@ function formatOpinionCell(opinion: ReturnType<typeof findOpinionByName>, refere
 }
 
 function resolveEmployeeFinalStars(emp: EmployeeRow): number | null {
-  const chenglin = findOpinionByName(emp.opinions, "承霖");
-  if (chenglin && chenglin.decision !== "PENDING") {
-    if (chenglin.decision === "AGREE") {
-      return chenglin.suggestedStars ?? emp.referenceStars;
-    }
-    return chenglin.suggestedStars;
-  }
-  return emp.officialStars ?? emp.referenceStars;
+  return resolveFinalStars(emp.opinions, emp.referenceStars, emp.officialStars);
 }
 
 function formatEmployeeFinalCell(emp: EmployeeRow): string {

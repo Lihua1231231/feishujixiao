@@ -16,6 +16,7 @@ import { getAppliedNormalizationMap } from "@/lib/applied-normalization";
 import { buildSupervisorAssignmentMap } from "@/lib/supervisor-assignments";
 import { computeWeightedScoreFromDimensions } from "@/lib/weighted-score";
 import { buildMeetingInterviewerMap, getAssignedEmployeeIds, type DbInterviewerOverrides } from "@/lib/meeting-assignments";
+import { resolveFinalStars } from "@/lib/resolve-final-stars";
 
 function roundToOneDecimal(value: number | null): number | null {
   if (value == null) return null;
@@ -194,26 +195,17 @@ async function buildSupervisorData(
     const displayWeightedScore = normalizedSupervisor?.normalizedScore ?? weightedScore;
     const displayReferenceStars = normalizedSupervisor?.normalizedStars ?? referenceStars;
 
-    // Official stars from calibration — match archive-tables.tsx logic:
-    // Chenglin's opinion takes priority, then consensus, then referenceStars
+    // Official stars — use shared resolveFinalStars (same as archive-tables)
     const employeeOpinions = (opinionsByEmployee.get(employee.id) || []).filter(
       (o) => employeeOpinionActorIds.includes(o.reviewerId),
     );
     const consensus = resolveEmployeeConsensus(employeeOpinionActorIds, employeeOpinions);
-
-    // Find 承霖's opinion (same as archive-tables resolveEmployeeFinalStars)
-    const chenglinOpinion = employeeOpinions.find((o) => {
-      const reviewer = usersById.get(o.reviewerId);
-      return reviewer?.name?.includes("承霖");
-    });
-    let resolvedStars: number | null = null;
-    if (chenglinOpinion && chenglinOpinion.decision !== "PENDING") {
-      resolvedStars = chenglinOpinion.decision === "AGREE"
-        ? (chenglinOpinion.suggestedStars ?? displayReferenceStars)
-        : chenglinOpinion.suggestedStars;
-    } else {
-      resolvedStars = consensus.officialStars ?? displayReferenceStars;
-    }
+    const opinionsWithNames = employeeOpinions.map((o) => ({
+      reviewerName: usersById.get(o.reviewerId)?.name || "",
+      decision: o.decision,
+      suggestedStars: o.suggestedStars,
+    }));
+    const resolvedStars = resolveFinalStars(opinionsWithNames, displayReferenceStars, consensus.officialStars);
     const calibrated = resolvedStars != null && displayReferenceStars != null && resolvedStars !== displayReferenceStars;
 
     // Build calibration opinions for display
@@ -339,7 +331,7 @@ async function buildEmployeeData(
 
   // Get all users for config resolution
   const allUsers = await prisma.user.findMany({
-    select: { id: true, name: true, department: true, role: true },
+    select: { id: true, name: true, department: true, role: true, supervisorId: true, supervisor: { select: { id: true, name: true } } },
   });
 
   const configRecord = await prisma.finalReviewConfig.findUnique({
@@ -351,6 +343,28 @@ async function buildEmployeeData(
     allUsers.map((u) => ({ id: u.id, name: u.name, department: u.department, role: u.role })),
   );
 
+  // Compute referenceStars for this employee (same as buildSupervisorData)
+  const supervisorEvals = await prisma.supervisorEval.findMany({
+    where: { cycleId: cycle.id, employeeId: user.id },
+    include: { evaluator: { select: { id: true, name: true } } },
+  });
+  const assignments = buildSupervisorAssignmentMap(
+    allUsers.map((u) => ({ id: u.id, name: u.name, supervisorId: u.supervisorId, supervisor: u.supervisor })),
+    supervisorEvals.map((e) => ({ employeeId: e.employeeId, evaluatorId: e.evaluatorId, evaluatorName: e.evaluator.name })),
+  );
+  const assignment = assignments.get(user.id);
+  const currentEvals = supervisorEvals.filter(
+    (e) => Boolean(assignment?.currentEvaluatorIds.includes(e.evaluatorId)),
+  );
+  const scoredEvals = currentEvals.filter((e) => e.weightedScore != null);
+  const weightedScore = scoredEvals.length > 0
+    ? scoredEvals.reduce((sum, e) => sum + Number(e.weightedScore), 0) / scoredEvals.length
+    : null;
+  const rawReferenceStars = mapScoreToReferenceStars(weightedScore, config.referenceStarRanges);
+  const appliedNorm = await getAppliedNormalizationMap(cycle.id, "SUPERVISOR_EVAL");
+  const norm = appliedNorm.get(user.id);
+  const referenceStars = norm?.normalizedStars ?? rawReferenceStars;
+
   // Get calibration opinions for this employee
   const opinions = await prisma.finalReviewOpinion.findMany({
     where: { cycleId: cycle.id, employeeId: user.id },
@@ -360,20 +374,14 @@ async function buildEmployeeData(
   const filteredOpinions = opinions.filter((o) => employeeOpinionActorIds.includes(o.reviewerId));
   const consensus = resolveEmployeeConsensus(employeeOpinionActorIds, filteredOpinions);
 
-  // Resolve final stars — match archive-tables logic (承霖's opinion takes priority)
+  // Use shared resolveFinalStars (same as archive-tables)
   const usersById = new Map(allUsers.map((u) => [u.id, u]));
-  const chenglinOp = filteredOpinions.find((o) => {
-    const reviewer = usersById.get(o.reviewerId);
-    return reviewer?.name?.includes("承霖");
-  });
-  let employeeFinalStars: number | null = null;
-  if (chenglinOp && chenglinOp.decision !== "PENDING") {
-    employeeFinalStars = chenglinOp.decision === "AGREE"
-      ? (chenglinOp.suggestedStars ?? null)
-      : chenglinOp.suggestedStars;
-  } else {
-    employeeFinalStars = consensus.officialStars;
-  }
+  const opinionsWithNames = filteredOpinions.map((o) => ({
+    reviewerName: usersById.get(o.reviewerId)?.name || "",
+    decision: o.decision,
+    suggestedStars: o.suggestedStars,
+  }));
+  const employeeFinalStars = resolveFinalStars(opinionsWithNames, referenceStars, consensus.officialStars);
 
   // Get meeting data
   const meeting = await prisma.meeting.findUnique({

@@ -143,6 +143,7 @@ type MeetingDashboardEmployee = {
   meetingStatus: "pending" | "completed" | "acked";
   summary: string;
   isOverridden: boolean;
+  finalStars: number | null;
 };
 
 type MeetingDashboardData = {
@@ -1275,6 +1276,7 @@ function AdminContent() {
                         <TableHead>部门</TableHead>
                         <TableHead>直属上级</TableHead>
                         <TableHead>面谈人</TableHead>
+                        <TableHead>绩效等级</TableHead>
                         <TableHead>状态</TableHead>
                         <TableHead>综述</TableHead>
                       </TableRow>
@@ -1292,8 +1294,10 @@ function AdminContent() {
                               onUpdate={updateInterviewer}
                             />
                           </TableCell>
+                          <TableCell className="font-medium">
+                            {emp.finalStars != null ? `${emp.finalStars} 星` : "—"}
+                          </TableCell>
                           <TableCell>
-                            {emp.meetingStatus === "acked" ? (
                               <Badge variant="success">员工已确认</Badge>
                             ) : emp.meetingStatus === "completed" ? (
                               <Badge className="bg-blue-50 text-blue-700 border-blue-200">已完成</Badge>
