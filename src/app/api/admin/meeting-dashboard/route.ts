@@ -58,7 +58,8 @@ export async function GET() {
       where: { cycleId: cycle.id },
     });
     try {
-      config = configRecord ? { meetingInterviewerOverrides: (configRecord as Record<string, string>).meetingInterviewerOverrides || "{}" } : null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      config = configRecord ? { meetingInterviewerOverrides: (configRecord as any).meetingInterviewerOverrides || "{}" } : null;
     } catch { config = null; }
 
     const fullConfig = getFinalReviewConfigValue(
