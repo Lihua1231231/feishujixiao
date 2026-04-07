@@ -153,7 +153,7 @@ async function buildSupervisorData(
     getAppliedNormalizationMap(cycle.id, "SUPERVISOR_EVAL"),
     prisma.leaderFinalReview.findMany({
       where: { cycleId: cycle.id, employeeId: { in: subordinateIds }, status: "SUBMITTED" },
-      select: { employeeId: true, evaluatorId: true, weightedScore: true, evaluator: { select: { name: true } } },
+      select: { employeeId: true, evaluatorId: true, weightedScore: true },
     }),
   ]);
 
@@ -218,7 +218,7 @@ async function buildSupervisorData(
     let resolvedStars: number | null;
     if (isLeader) {
       const chenglinReview = leaderFinalReviews.find(
-        (r) => r.employeeId === employee.id && r.evaluator.name.includes("承霖"),
+        (r) => r.employeeId === employee.id && (usersById.get(r.evaluatorId)?.name ?? "").includes("承霖"),
       );
       resolvedStars = resolveLeaderFinalStars(
         chenglinReview?.weightedScore != null ? Number(chenglinReview.weightedScore) : null,
@@ -406,9 +406,9 @@ async function buildEmployeeData(
   if (isLeader) {
     const chenglinReviews = await prisma.leaderFinalReview.findMany({
       where: { cycleId: cycle.id, employeeId: user.id, status: "SUBMITTED" },
-      select: { evaluatorId: true, weightedScore: true, evaluator: { select: { name: true } } },
+      select: { evaluatorId: true, weightedScore: true },
     });
-    const chenglinReview = chenglinReviews.find((r) => r.evaluator.name.includes("承霖"));
+    const chenglinReview = chenglinReviews.find((r) => (usersById.get(r.evaluatorId)?.name ?? "").includes("承霖"));
     employeeFinalStars = resolveLeaderFinalStars(
       chenglinReview?.weightedScore != null ? Number(chenglinReview.weightedScore) : null,
     );

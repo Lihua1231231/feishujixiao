@@ -53,7 +53,7 @@ export async function GET() {
       }),
       prisma.leaderFinalReview.findMany({
         where: { cycleId: cycle.id, status: "SUBMITTED" },
-        select: { employeeId: true, evaluatorId: true, weightedScore: true, evaluator: { select: { name: true } } },
+        select: { employeeId: true, evaluatorId: true, weightedScore: true },
       }),
     ]);
 
@@ -140,7 +140,7 @@ export async function GET() {
         let finalStars: number | null;
         if (isLeader) {
           const chenglinReview = leaderFinalReviews.find(
-            (r) => r.employeeId === u.id && r.evaluator.name.includes("承霖"),
+            (r) => r.employeeId === u.id && (usersById.get(r.evaluatorId)?.name ?? "").includes("承霖"),
           );
           finalStars = resolveLeaderFinalStars(
             chenglinReview?.weightedScore != null ? Number(chenglinReview.weightedScore) : null,
